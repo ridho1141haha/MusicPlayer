@@ -269,3 +269,25 @@ html {
 @media (prefers-reduced-motion: reduce) {
   .rm-eq-overlay > span { animation: none; transform: scaleY(0.7); }
 }
+
+/* Stat tiles (dashboard Lab-corpus card, WEBLAB-13): gentle hover lift + number
+ * brightening so the tiles feel touchable; respects reduced motion. */
+@media (prefers-reduced-motion: no-preference) {
+  .rm-stat-tile { transition: transform 150ms ease, border-color 150ms ease, box-shadow 150ms ease; }
+  .rm-stat-tile:hover {
+    transform: translateY(-2px);
+    border-color: oklch(0.55 0.08 200 / 0.5);
+    box-shadow: 0 6px 16px -10px rgba(47, 166, 156, 0.5);
+  }
+  .rm-stat-tile:hover p:first-child { filter: brightness(1.15); }
+}
+
+/* Repeat chip active pulse (queue toolbar, WEBLAB-13): one soft ring pulse when
+ * the mode turns on, then static — draws the eye without being noisy. */
+@keyframes rm-chip-pulse {
+  0% { box-shadow: 0 0 0 0 rgba(224, 164, 88, 0.45); }
+  100% { box-shadow: 0 0 0 8px rgba(224, 164, 88, 0); }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .rm-repeat-chip-on { animation: rm-chip-pulse 600ms ease-out 1; }
+}

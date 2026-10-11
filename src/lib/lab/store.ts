@@ -24,6 +24,9 @@ interface LabStore {
   /** Search Playground data source. */
   playgroundMode: 'live' | 'fixture';
   setPlaygroundMode(mode: 'live' | 'fixture'): void;
+  /** Query the dashboard history hands to the playground (consumed once, WEBLAB-13). */
+  replayQuery: string | null;
+  setReplayQuery(query: string | null): void;
 
   // ---- prototype catalog (fixture-derived, fetched for real) ----------------
   catalog: LabTrack[];
@@ -105,6 +108,8 @@ export const useLabStore = create<LabStore>()(
       setPlaygroundFixture: (name) => set({ playgroundFixture: name }),
       playgroundMode: 'live',
       setPlaygroundMode: (mode) => set({ playgroundMode: mode }),
+      replayQuery: null,
+      setReplayQuery: (query) => set({ replayQuery: query }),
 
       catalog: [],
       catalogStatus: 'idle',

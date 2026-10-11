@@ -243,4 +243,25 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     status: 'pass',
     note: 'WEBLAB-12: dashboard card shows real counts fetched from /api/lab/fixtures (built-in + user captures), /api/lab/expectations (golden contracts) and /api/lab/lrc (LRC fixtures); a failed endpoint hides its number instead of faking zero-context data.',
   },
+  {
+    id: 'weblab-lrc-export',
+    name: 'LRC library export (real .lrc download per entry)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-13: every library chip gains an export button — client-side Blob download with a unit-tested safe file name (exportLrcFileName: path-separator stripping, control-char removal, guaranteed .lrc extension, lyrics.lrc fallback); toast confirms the real file name.',
+  },
+  {
+    id: 'weblab-dashboard-history',
+    name: 'Dashboard Recent-searches card with one-click live replay',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-13: the SAME persisted history the playground shows surfaces on the dashboard as status-dotted chips (real outcomes: items · ms · age, failures rose-tinted with errorKind); clicking hands the query to the playground via a consume-once replayQuery store field and immediately re-runs it against the live API.',
+  },
+  {
+    id: 'weblab-queue-repeat-chip',
+    name: 'Queue toolbar repeat chip (tri-state visible in queue context)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-13: the queue toolbar shows the current repeat mode as an explicit chip (Repeat off / Repeat all / Repeat 1) cycling the same store state as the sheet and mini-player; active states get an amber accent plus a one-shot pulse animation (reduced-motion aware).',
+  },
 ];

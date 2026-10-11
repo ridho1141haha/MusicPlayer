@@ -44,6 +44,7 @@ import { useToast } from '@/hooks/use-toast';
 import { FEATURE_CHECKS, type FeatureCheck } from '@/data/features';
 import { formatBytes, relativeTime } from '@/lib/lab/format';
 import { buildQaMarkdownReport, qaReportFileName } from '@/lib/lab/qa-report';
+import { useLabStore } from '@/lib/lab/store';
 import type { QaResults } from '@/lib/lab/types';
 import type { ProjectPayload } from '@/lib/ridho';
 
@@ -352,6 +353,11 @@ export function DashboardTab() {
   const [exporting, setExporting] = useState(false);
   const { toast } = useToast();
 
+  // WEBLAB-13 — persisted search history + replay hand-off to the playground.
+  const searchHistory = useLabStore((s) => s.searchHistory);
+  const setReplayQuery = useLabStore((s) => s.setReplayQuery);
+  const setActiveTab = useLabStore((s) => s.setActiveTab);
+
   const reload = useCallback(() => setReloadNonce((n) => n + 1), []);
 
   useEffect(() => {
@@ -532,34 +538,89 @@ export function DashboardTab() {
           </CardHeader>
           <CardContent>
             <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-              <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="rm-stat-tile rounded-md border border-border bg-background/40 p-3">
                 <p className="text-2xl font-semibold tabular-nums text-primary">{corpus.builtInFixtures}</p>
                 <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                   <FlaskConical className="h-3 w-3" aria-hidden="true" />
                   built-in fixtures
                 </p>
               </div>
-              <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="rm-stat-tile rounded-md border border-border bg-background/40 p-3">
                 <p className="text-2xl font-semibold tabular-nums text-emerald-400">{corpus.userFixtures}</p>
                 <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                   <ScrollText className="h-3 w-3" aria-hidden="true" />
                   user captures
                 </p>
               </div>
-              <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="rm-stat-tile rounded-md border border-border bg-background/40 p-3">
                 <p className="text-2xl font-semibold tabular-nums text-amber-400">{corpus.goldenExpectations}</p>
                 <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                   <Target className="h-3 w-3" aria-hidden="true" />
                   golden contracts
                 </p>
               </div>
-              <div className="rounded-md border border-border bg-background/40 p-3">
+              <div className="rm-stat-tile rounded-md border border-border bg-background/40 p-3">
                 <p className="text-2xl font-semibold tabular-nums text-teal-400">{corpus.lrcFixtures}</p>
                 <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
                   <FileJson className="h-3 w-3" aria-hidden="true" />
                   LRC fixtures
                 </p>
               </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
+      {/* WEBLAB-13 — Recent searches (the SAME persisted history the playground shows). */}
+      {searchHistory.length > 0 && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+              <History className="h-4 w-4 text-teal-400" aria-hidden="true" />
+              Recent searches
+              <Badge variant="outline" className="border-border px-1.5 font-mono text-[10px] text-muted-foreground">
+                {searchHistory.length}/8
+              </Badge>
+            </CardTitle>
+            <CardDescription>
+              Real recorded outcomes from this browser (localStorage). Click a chip to jump to the Search Playground and
+              re-run that query against the live API.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="flex flex-wrap gap-2">
+              {searchHistory.map((entry, index) => (
+                <motion.button
+                  key={`${entry.at}-${entry.query}`}
+                  type="button"
+                  initial={{ opacity: 0, y: 6 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  transition={{ delay: Math.min(index * 0.04, 0.3), duration: 0.25, ease: 'easeOut' }}
+                  onClick={() => {
+                    setReplayQuery(entry.query);
+                    setActiveTab('playground');
+                    // Keep the URL in sync with the store-driven tab switch
+                    // (same contract as the nav pills / keyboard shortcuts).
+                    window.history.replaceState(null, '', '#playground');
+                  }}
+                  className={`group flex max-w-full items-center gap-2 rounded-full border px-3 py-1.5 text-xs transition-colors ${
+                    entry.ok
+                      ? 'border-border bg-background/40 hover:border-primary/50 hover:bg-primary/10'
+                      : 'border-rose-500/40 bg-rose-500/5 hover:border-rose-500/60 hover:bg-rose-500/10'
+                  }`}
+                  aria-label={`Re-run search "${entry.query}" in the Search Playground`}
+                  title={entry.ok ? `Re-run "${entry.query}"` : `Re-run failed query "${entry.query}" (${entry.errorKind ?? 'unknown error'})`}
+                >
+                  <span
+                    className={`h-1.5 w-1.5 shrink-0 rounded-full ${entry.ok ? 'bg-emerald-400' : 'bg-rose-400'}`}
+                    aria-hidden="true"
+                  />
+                  <span className="max-w-[10rem] truncate font-medium sm:max-w-[14rem]">{entry.query}</span>
+                  <span className="hidden shrink-0 font-mono text-[10px] text-muted-foreground sm:inline">
+                    {entry.ok ? `${entry.trackCount ?? '?'} items · ${entry.durationMs ?? '?'} ms` : (entry.errorKind ?? 'error')} · {relativeTime(new Date(entry.at).toISOString(), new Date())}
+                  </span>
+                </motion.button>
+              ))}
             </div>
           </CardContent>
         </Card>

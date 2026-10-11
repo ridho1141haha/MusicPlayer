@@ -341,6 +341,17 @@ export function SearchPlaygroundTab() {
     }
   };
 
+  // WEBLAB-13 — a dashboard history chip hands its query here; consume it once
+  // on mount and re-run for real. The playground remounts on every tab switch,
+  // so a mount-only effect with a getState() read avoids stale closures/loops.
+  useEffect(() => {
+    const pending = useLabStore.getState().replayQuery;
+    if (pending === null) return;
+    useLabStore.getState().setReplayQuery(null);
+    useLabStore.getState().setPlaygroundMode('live');
+    void runLive(pending);
+  }, []);
+
   const openCaptureDialog = () => {
     if (live.phase !== 'success') return;
     setCaptureName(suggestFixtureName(live.data.query, new Date()));

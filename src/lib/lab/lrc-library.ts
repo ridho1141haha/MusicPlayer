@@ -58,3 +58,18 @@ export function removeLrcEntry(library: readonly SavedLrcEntry[], name: string):
 export function sortLrcLibrary(library: readonly SavedLrcEntry[]): SavedLrcEntry[] {
   return [...library].sort((a, b) => (a.savedAt === b.savedAt ? a.name.localeCompare(b.name) : b.savedAt - a.savedAt));
 }
+
+/**
+ * File name for a library export (WEBLAB-13): strips path separators and
+ * control characters, guarantees a non-empty basename and a .lrc extension.
+ * Falls back to 'lyrics.lrc' when nothing usable remains.
+ */
+export function exportLrcFileName(name: string): string {
+  const cleaned = name
+    .split(/[/\\]/)
+    .pop()!
+    .replace(/[^\w.\- ()\u00C0-\u024F\u4E00-\u9FFF\u3040-\u30FF\uAC00-\uD7AF]/g, '')
+    .trim();
+  const base = cleaned.length > 0 ? cleaned : 'lyrics';
+  return base.toLowerCase().endsWith('.lrc') ? base : `${base}.lrc`;
+}

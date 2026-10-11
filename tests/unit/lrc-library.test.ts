@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  exportLrcFileName,
   MAX_LRC_CONTENT_BYTES,
   removeLrcEntry,
   sortLrcLibrary,
@@ -86,5 +87,25 @@ describe('sortLrcLibrary', () => {
     const library: SavedLrcEntry[] = [{ name: 'b.lrc', content: '', savedAt: 1, sizeBytes: 0 }];
     sortLrcLibrary(library);
     expect(library[0].name).toBe('b.lrc');
+  });
+});
+
+describe('exportLrcFileName (library export, WEBLAB-13)', () => {
+  it('keeps a clean name and guarantees the .lrc extension', () => {
+    expect(exportLrcFileName('demo_synced.lrc')).toBe('demo_synced.lrc');
+    expect(exportLrcFileName('my song')).toBe('my song.lrc');
+    expect(exportLrcFileName('LATHI.LRC')).toBe('LATHI.LRC'); // already lrc — case preserved
+  });
+
+  it('strips path separators (basename only) and control/illegal characters', () => {
+    expect(exportLrcFileName('../../etc/passwd.lrc')).toBe('passwd.lrc');
+    expect(exportLrcFileName('C:\\Users\\me\\song.lrc')).toBe('song.lrc');
+    expect(exportLrcFileName('bad:name*?.lrc')).toBe('badname.lrc');
+  });
+
+  it('falls back to lyrics.lrc when nothing usable remains', () => {
+    expect(exportLrcFileName('///')).toBe('lyrics.lrc');
+    expect(exportLrcFileName('???')).toBe('lyrics.lrc');
+    expect(exportLrcFileName('')).toBe('lyrics.lrc');
   });
 });

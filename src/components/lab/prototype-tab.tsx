@@ -740,6 +740,23 @@ export function PrototypeTab() {
                     <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                       <p className="text-xs text-muted-foreground">{queue.length} in queue · drag the handle to reorder</p>
                       <div className="flex items-center gap-2">
+                        {/* WEBLAB-13 — repeat mode visible in the queue toolbar (same tri-state). */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className={`gap-1.5 ${
+                            repeatMode === 'off'
+                              ? 'text-muted-foreground'
+                              : 'rm-repeat-chip-on border-amber-500/40 bg-amber-500/10 text-amber-300 hover:text-amber-200'
+                          }`}
+                          onClick={cycleRepeatMode}
+                          aria-pressed={repeatMode !== 'off'}
+                          aria-label={`Cycle repeat mode — currently ${repeatModeLabel(repeatMode)} (simulated)`}
+                          title={repeatModeLabel(repeatMode)}
+                        >
+                          {repeatMode === 'one' ? <Repeat1 className="h-3.5 w-3.5" aria-hidden="true" /> : <Repeat className="h-3.5 w-3.5" aria-hidden="true" />}
+                          {repeatMode === 'one' ? 'Repeat 1' : repeatMode === 'all' ? 'Repeat all' : 'Repeat off'}
+                        </Button>
                         <Button
                           variant="outline"
                           size="sm"

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Captions,
+  Download,
   FileText,
   FileUp,
   Info,
@@ -34,7 +35,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { activeLineIndex, parseWithStats } from '@/lib/lab/lrc-parser';
-import { LRC_LIBRARY_CAP } from '@/lib/lab/lrc-library';
+import { exportLrcFileName, LRC_LIBRARY_CAP } from '@/lib/lab/lrc-library';
 import { formatDuration } from '@/lib/lab/format';
 import { useLabStore } from '@/lib/lab/store';
 import { useToast } from '@/hooks/use-toast';
@@ -177,6 +178,25 @@ export function LyricsTab() {
     setSaveDialogOpen(false);
     setSaveName('');
   }, [saveName, saveLrc, text, toast]);
+
+  /** WEBLAB-13 — export a library entry as a real .lrc download (client-side Blob). */
+  const exportSavedLrc = useCallback((entry: { name: string; content: string }) => {
+    const fileName = exportLrcFileName(entry.name);
+    try {
+      const blob = new Blob([entry.content], { type: 'text/plain;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = fileName;
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: `Downloaded ${fileName} ✓`, description: 'Exported from your browser-local library.' });
+    } catch (error) {
+      toast({ title: 'Export failed', description: error instanceof Error ? error.message : 'Unknown error', variant: 'destructive' });
+    }
+  }, [toast]);
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
@@ -326,6 +346,15 @@ export function LyricsTab() {
                     >
                       <FileText className="h-3 w-3 text-primary" aria-hidden="true" />
                       {entry.name}
+                    </button>
+                    <button
+                      type="button"
+                      className="flex h-full min-h-[32px] items-center border-l border-border px-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-300"
+                      onClick={() => exportSavedLrc(entry)}
+                      aria-label={`Export ${entry.name} as a downloaded .lrc file`}
+                      title={`Download ${exportLrcFileName(entry.name)}`}
+                    >
+                      <Download className="h-3 w-3" aria-hidden="true" />
                     </button>
                     <button
                       type="button"

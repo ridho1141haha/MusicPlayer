@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-11 18:55:35Z",
+  "recordedAt": "2026-10-11 19:06:48Z",
   "suites": [
     {
       "name": "web lint (eslint)",
@@ -8,18 +8,18 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 7142,
+      "durationMs": 7393,
       "exitCode": 0,
       "detail": "eslint . completed with no findings."
     },
     {
       "name": "web unit tests (vitest)",
       "status": "pass",
-      "passed": 117,
+      "passed": 120,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 67,
-      "detail": "117 assertions passed across 11 file(s) on shared fixtures.",
+      "durationMs": 70,
+      "detail": "120 assertions passed across 11 file(s) on shared fixtures.",
       "command": "bunx vitest run"
     },
     {
@@ -28,8 +28,8 @@
       "passed": 32,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 429,
-      "detail": "com.ridho.music.domain.model.TrackTest: 4 tests, 0 failures, 0 errors, 0 skipped, 0.024s\ncom.ridho.music.lyrics.LrcParserTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.006s\ncom.ridho.music.source.yt.GoldenExpectationsTest: 3 tests, 0 failures, 0 errors, 0 skipped, 0.058s\ncom.ridho.music.source.yt.YouTubeMusicSourceTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.322s\ncom.ridho.music.source.yt.YtMusicSearchParserTest: 11 tests, 0 failures, 0 errors, 0 skipped, 0.019s\n\nTOTAL: 32 tests, 0 failures, 0 errors, 0 skipped.",
+      "durationMs": 468,
+      "detail": "com.ridho.music.domain.model.TrackTest: 4 tests, 0 failures, 0 errors, 0 skipped, 0.01s\ncom.ridho.music.lyrics.LrcParserTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.013s\ncom.ridho.music.source.yt.GoldenExpectationsTest: 3 tests, 0 failures, 0 errors, 0 skipped, 0.066s\ncom.ridho.music.source.yt.YouTubeMusicSourceTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.356s\ncom.ridho.music.source.yt.YtMusicSearchParserTest: 11 tests, 0 failures, 0 errors, 0 skipped, 0.023s\n\nTOTAL: 32 tests, 0 failures, 0 errors, 0 skipped.",
       "command": "gradle :app:testDebugUnitTest --rerun"
     },
     {
@@ -39,7 +39,7 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 13131,
+      "durationMs": 13899,
       "exitCode": 0,
       "detail": "lintDebug passed with abortOnError=true (0 lint errors)."
     },
@@ -50,7 +50,7 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 13182,
+      "durationMs": 13597,
       "exitCode": 0,
       "detail": "assembleDebug BUILD SUCCESSFUL (may be UP-TO-DATE if inputs unchanged)."
     },
@@ -72,7 +72,7 @@
       "passed": 7,
       "failed": 0,
       "skipped": null,
-      "durationMs": 33,
+      "durationMs": 49,
       "exitCode": 0,
       "detail": "ok    search_live_2026-10-11_lathi.json — 4 sections · 8 tracks [Top result, Songs, Albums, Artists]\nok    search_live_2026-10-11_test.json — 3 sections · 5 tracks [Top result, Songs, Albums]\nok    search_live_2026-10-11_gibberish.json — 1 sections · 1 tracks [Videos]\nok    search_legacy_shelf.json — 2 sections · 2 tracks [Songs, Albums]\nok    search_synth_edge_cases.json — 1 sections · 1 tracks [Songs]\nok    search_synth_empty_blocks.json — 0 sections · 0 tracks\nok    search_synth_unknown_structure.json — 0 sections · 0 tracks\n\n7/7 golden expectations hold."
     }
@@ -86,6 +86,20 @@
     "versionCode": 3
   },
   "history": [
+    {
+      "recordedAt": "2026-10-11 18:57:58Z",
+      "passed": 156,
+      "failed": 0,
+      "skipped": 0,
+      "allPassed": true
+    },
+    {
+      "recordedAt": "2026-10-11 18:55:35Z",
+      "passed": 156,
+      "failed": 0,
+      "skipped": 0,
+      "allPassed": true
+    },
     {
       "recordedAt": "2026-10-11 18:43:52Z",
       "passed": 143,
