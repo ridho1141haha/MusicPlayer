@@ -202,3 +202,35 @@ Work Log:
 
 Stage Summary:
 - ALL GREEN: 28/28 unit tests (Track 4, Lrc 7, YTSource 7, YTParser 10), lintDebug 0 errors (abortOnError true), assembleDebug OK (app-debug.apk 11,542,468 B, sha256 939c938a…, v1.2.0/versionCode 3), fixture sync --check no drift. Real numbers for the Web QA Lab dashboard.
+
+---
+Task ID: WEBLAB-4 (prototype — subagent timed out, completed by main agent)
+Agent: Z.ai Code (main orchestrator)
+Task: Interactive UI Prototype tab (simulated app UI over the shared fixture catalog).
+
+Work Log:
+- full-stack-developer subagent hit a context deadline with zero output; built it directly.
+- src/components/lab/prototype-tab.tsx (~800 lines, replaced placeholder): 4 views (Search / Queue / Top Tracks / Favorites) with mobile-first segmented nav + counts; filter search with honest empty/no-match states; TrackRow with artwork, favorite, queue menu (play next / add), simulated play/pause; Track detail dialog (id, source, duration, simulated plays, Play/Queue actions); persistent mini-player (progress m:ss / m:ss, transport) opening a bottom-sheet Now Playing with working Slider seek (bound to store.progressMs), favorite, plays counter, queue link; Queue view with @dnd-kit drag reorder (Pointer/Touch/Keyboard sensors, drag handle), remove, confirm-clear; Top Tracks sorted by persisted playCounts; favorites persisted via zustand persist (skipHydration + page-level rehydrate).
+- Honesty: amber banner "UI simulation — playback here is a timer, not audio… YTM playback blocked (LOGIN_REQUIRED)"; Now Playing carries a SIMULATED PLAYBACK badge; playCounts labeled simulated. QA controls (collapsible) with LABELED failure injection driving the real loading→error→retry flow.
+- Store additions: playgroundMode for cross-tab "Open in Search Playground". aria-labels on every icon control; 44px targets; rm-scroll ScrollAreas; no blue/indigo.
+
+Stage Summary:
+- Prototype complete and E2E-verified (see WEBLAB-6). Playback remains simulation by design.
+
+---
+Task ID: WEBLAB-6 (E2E + final verification + handover)
+Agent: Z.ai Code (main orchestrator)
+Task: agent-browser E2E, full QA pipeline, APK refresh, commit, handover.
+
+Work Log:
+- E2E (agent-browser, real Chromium): Dashboard shows REAL recorded suites ("Recorded 2026-10-11 16:52:37Z · 56 passed · 0 failed · 0 skipped") + suite output dialogs; feature checklist with evidence dialogs. Search Playground: LIVE search "Lathi" → HTTP 200, 453 ms, 211 KB, 15 items / 5 sections, LATHI 8uy7G2JXVSA 3:07 + UwTnUpDuwGg — correct; fixture mode offline ("no HTTP request was made", trace 8 accepted/0 rejected); fixture select warning fixed (controlled Select). Fixtures tab: registry with honest origin badges; edge-cases fixture → 1 track, 1 accepted / 4 rejected, no continuation (matches unit tests); empty fixture → "parses to empty"; legacy fixture → Songs + Albums (back-compat in browser); Add-fixture dialog → saved, listed as USER ADDED, parses empty-tabs correctly. Prototype: catalog 13 real fixture tracks; play/pause + playing badge + mini-player progress; queue add + DRAG REORDER verified (order flipped); favorites persist (badge 2); failure injection → real error card with injected message → toggle off → recovery to 13 of 13; Now Playing sheet + slider + SIMULATED badge. Parity Matrix renders with per-column statuses + policy notes. Project tab: CRASHED first (SectionHeading requires icon prop — "Element type is invalid" captured via window error listeners) → fixed with icons; then 0 errors, hero/build/source/YTM/docs all render.
+- Responsive: 390×844 → no horizontal scroll; sticky footer verified on short page (footer bottom == viewport bottom) and pushed naturally on long page. Console clean after fixes. Screenshots: data/e2e-mobile-dashboard.png, e2e-desktop-fixture-tester.png, e2e-final-dashboard.png.
+- BUGS FOUND & FIXED during E2E: (1) Project tab crash (missing SectionHeading icon prop → undefined component); (2) Select uncontrolled→controlled warning (value ?? undefined → ?? ''); (3) android/dist APKs were STALE (v1.1.0 10,245,639 B vs real v1.2.0-wip build) → refreshed debug from build outputs and REBUILT assembleRelease (3,079,882 B, sha256 d79f5b6b…) so every artifact matches latest source; public/ridho-music-v1.2.0-wip-debug.apk added.
+- Full pipeline (2nd run, after fixes): bash scripts/run-qa.sh → ALL GREEN recorded 2026-10-11 17:04:38Z: web lint ✓, web vitest 28/28, android testDebugUnitTest --rerun 28/28 (Track 4, Lrc 7, YTSource 7, YTParser 10), lintDebug ✓ (0 errors), assembleDebug ✓, fixture sync no drift. APK 11,542,468 B sha256 939c938a0657f99487caebb23ded1e3da41bb4064b54650d4e6549c43f2e845b v1.2.0 (code 3).
+- Local commit d627044 (41 files + worklog). NO push (per instructions).
+- webDevReview cron created (15-min cadence) for overnight iterative QA/development.
+
+Stage Summary:
+- Web Lab COMPLETE: Dashboard (real numbers only), Search Playground (live+fixture, typed errors, trace), Fixtures & Parser tester (add/inspect/provenance), interactive Prototype (honest simulation), Parity Matrix, preserved Project dashboard.
+- Verified: web 28/28 + android 28/28 + lint 0 + builds green + E2E golden path. Untested: device/instrumented, real audio playback (blocked: LOGIN_REQUIRED), Room DAOs.
+- Still blocked (external, by policy): YTM streaming playback without sign-in. Next best steps: device testing on Galaxy A05s; optional continuation support if YouTube adds tokens; hook run-qa.sh into the cron loop.
