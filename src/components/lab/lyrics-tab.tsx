@@ -6,23 +6,38 @@ import {
   FileText,
   FileUp,
   Info,
+  Library,
   Loader2,
   Play,
+  Save,
   Tags,
   TimerOff,
+  Trash2,
 } from 'lucide-react';
 
 import { EmptyState } from '@/components/lab/empty-state';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
+import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 import { Textarea } from '@/components/ui/textarea';
 import { activeLineIndex, parseWithStats } from '@/lib/lab/lrc-parser';
+import { LRC_LIBRARY_CAP } from '@/lib/lab/lrc-library';
 import { formatDuration } from '@/lib/lab/format';
+import { useLabStore } from '@/lib/lab/store';
+import { useToast } from '@/hooks/use-toast';
 
 interface LrcFileMeta {
   name: string;
@@ -50,6 +65,14 @@ export function LyricsTab() {
   const [scrubMs, setScrubMs] = useState(0);
   const [uploadedName, setUploadedName] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+
+  // WEBLAB-12 — browser-local saved-LRC library (localStorage, never uploaded).
+  const lrcLibrary = useLabStore((s) => s.lrcLibrary);
+  const saveLrc = useLabStore((s) => s.saveLrc);
+  const removeLrc = useLabStore((s) => s.removeLrc);
+  const { toast } = useToast();
+  const [saveDialogOpen, setSaveDialogOpen] = useState(false);
+  const [saveName, setSaveName] = useState('');
 
   const refresh = useCallback(async () => {
     try {
@@ -124,11 +147,36 @@ export function LyricsTab() {
     if (result === null || result.lines.length === 0) return 0;
     return result.lines[result.lines.length - 1].timeMs;
   }, [result]);
-
   const activeIdx = useMemo(() => {
     if (result === null || !result.synced) return -1;
     return activeLineIndex(result.lines, scrubMs);
   }, [result, scrubMs]);
+
+  /** WEBLAB-12 — load a saved library entry back into the parser (same mirror). */
+  const loadSavedLrc = useCallback((name: string, content: string) => {
+    setText(content);
+    setSelectedName(null);
+    setUploadedName(null);
+    const output = parseWithStats(content);
+    setResult(output);
+    setSourceNote(`Loaded from YOUR library: "${name}" (browser-local, saved ${new Date(useLabStore.getState().lrcLibrary.find((e) => e.name === name)?.savedAt ?? Date.now()).toLocaleString()}).`);
+    setScrubMs(output.lines.length > 0 ? output.lines[0].timeMs : 0);
+  }, []);
+
+  const confirmSaveLrc = useCallback(() => {
+    const reason = saveLrc(saveName, text);
+    if (reason === 'empty-name') {
+      toast({ title: 'Save failed', description: 'The name cannot be empty.', variant: 'destructive' });
+      return;
+    }
+    if (reason === 'too-large') {
+      toast({ title: 'Save failed', description: 'Content exceeds the 256 KB library limit.', variant: 'destructive' });
+      return;
+    }
+    toast({ title: `Saved "${saveName.trim()}" ✓`, description: `Stored in this browser (localStorage), cap ${LRC_LIBRARY_CAP} entries — never uploaded to a server.` });
+    setSaveDialogOpen(false);
+    setSaveName('');
+  }, [saveName, saveLrc, text, toast]);
 
   return (
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
@@ -226,6 +274,76 @@ export function LyricsTab() {
             {parsing ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
             Parse
           </Button>
+
+          {/* WEBLAB-12 — save the current text into the browser-local LRC library. */}
+          <div className="space-y-1.5 rounded-md border border-border bg-background/40 p-3">
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-xs font-medium">
+                <Library className="h-3.5 w-3.5 text-primary" aria-hidden="true" />
+                My LRC library
+                <Badge variant="outline" className="border-border px-1 font-mono text-[9px] text-muted-foreground">
+                  {lrcLibrary.length}/{LRC_LIBRARY_CAP}
+                </Badge>
+              </p>
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                disabled={text.trim().length === 0}
+                onClick={() => {
+                  // Sensible default name: uploaded file name, else a labeled paste name.
+                  setSaveName(
+                    uploadedName !== null
+                      ? uploadedName.split('·')[0].trim().replace(/\.(lrc|txt)$/i, '') + '.lrc'
+                      : `pasted_${new Date().toISOString().slice(0, 10)}.lrc`,
+                  );
+                  setSaveDialogOpen(true);
+                }}
+                aria-label="Save the current LRC text to your browser-local library"
+              >
+                <Save className="h-3.5 w-3.5" aria-hidden="true" />
+                Save current text
+              </Button>
+            </div>
+            {lrcLibrary.length === 0 ? (
+              <p className="text-[11px] text-muted-foreground">
+                Nothing saved yet — save a paste or upload to keep it across reloads. Stored ONLY in this browser
+                (localStorage); never uploaded to a server.
+              </p>
+            ) : (
+              <div className="flex flex-wrap gap-1.5">
+                {lrcLibrary.map((entry) => (
+                  <span
+                    key={entry.name}
+                    className="group inline-flex items-center overflow-hidden rounded-md border border-border bg-secondary/40"
+                  >
+                    <button
+                      type="button"
+                      className="flex min-h-[32px] items-center gap-1.5 px-2 font-mono text-xs hover:bg-secondary/70"
+                      onClick={() => loadSavedLrc(entry.name, entry.content)}
+                      aria-label={`Load saved lyrics ${entry.name}`}
+                      title={`Saved ${new Date(entry.savedAt).toLocaleString()} · ${(entry.sizeBytes / 1024).toFixed(1)} KB`}
+                    >
+                      <FileText className="h-3 w-3 text-primary" aria-hidden="true" />
+                      {entry.name}
+                    </button>
+                    <button
+                      type="button"
+                      className="flex h-full min-h-[32px] items-center border-l border-border px-1.5 text-muted-foreground hover:bg-rose-500/10 hover:text-rose-300"
+                      onClick={() => {
+                        removeLrc(entry.name);
+                        toast({ title: `Removed "${entry.name}"`, description: 'Deleted from the browser-local library.' });
+                      }}
+                      aria-label={`Remove ${entry.name} from the library`}
+                    >
+                      <Trash2 className="h-3 w-3" aria-hidden="true" />
+                    </button>
+                  </span>
+                ))}
+              </div>
+            )}
+          </div>
+
           {sourceNote !== null && (
             <p className="flex items-start gap-1.5 text-[11px] text-muted-foreground">
               <Info className="mt-0.5 h-3 w-3 shrink-0" aria-hidden="true" />
@@ -234,6 +352,40 @@ export function LyricsTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* WEBLAB-12 — save dialog (name prompt; re-saving a name replaces it). */}
+      <Dialog open={saveDialogOpen} onOpenChange={setSaveDialogOpen}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle>Save to my LRC library</DialogTitle>
+            <DialogDescription>
+              Stored in this browser only (localStorage, cap {LRC_LIBRARY_CAP} entries). Saving an existing name
+              replaces that entry.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-1.5">
+            <Label htmlFor="lrc-save-name">Name</Label>
+            <Input
+              id="lrc-save-name"
+              value={saveName}
+              onChange={(event) => setSaveName(event.target.value)}
+              placeholder="e.g. demo_synced.lrc"
+              onKeyDown={(event) => {
+                if (event.key === 'Enter' && saveName.trim().length > 0 && text.trim().length > 0) confirmSaveLrc();
+              }}
+            />
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setSaveDialogOpen(false)}>
+              Cancel
+            </Button>
+            <Button onClick={confirmSaveLrc} disabled={saveName.trim().length === 0 || text.trim().length === 0} className="gap-1.5">
+              <Save className="h-3.5 w-3.5" aria-hidden="true" />
+              Save
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
 
       {/* Output column */}
       <div className="space-y-4 lg:col-span-3">

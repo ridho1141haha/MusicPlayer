@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { removeLrcEntry, upsertLrcEntry, type SavedLrcEntry } from './lrc-library';
 import { shuffledQueue } from './shuffle';
 import { computeNextIndex, computeTick, type RepeatMode } from './tick';
 import type { LabTrack } from './types';
@@ -67,6 +68,12 @@ interface LabStore {
   searchHistory: SearchHistoryEntry[];
   addSearchHistory(entry: SearchHistoryEntry): void;
   clearSearchHistory(): void;
+
+  // ---- saved LRC library (persisted in this browser, WEBLAB-12) ---------------
+  lrcLibrary: SavedLrcEntry[];
+  /** Returns the failure reason on rejection (empty name / too large), else null. */
+  saveLrc(name: string, content: string): 'empty-name' | 'too-large' | null;
+  removeLrc(name: string): void;
 }
 
 export interface SearchHistoryEntry {
@@ -257,6 +264,16 @@ export const useLabStore = create<LabStore>()(
         set({ searchHistory: [entry, ...searchHistory.filter((h) => h.query !== entry.query)].slice(0, 8) });
       },
       clearSearchHistory: () => set({ searchHistory: [] }),
+
+      lrcLibrary: [],
+      saveLrc: (name, content) => {
+        const { lrcLibrary } = get();
+        const result = upsertLrcEntry(lrcLibrary, { name, content, savedAt: Date.now() });
+        if (!result.ok) return result.reason;
+        set({ lrcLibrary: result.library });
+        return null;
+      },
+      removeLrc: (name) => set({ lrcLibrary: removeLrcEntry(get().lrcLibrary, name) }),
     }),
     {
       name: 'ridho-lab-store',
@@ -267,6 +284,7 @@ export const useLabStore = create<LabStore>()(
         favorites: state.favorites,
         playCounts: state.playCounts,
         searchHistory: state.searchHistory,
+        lrcLibrary: state.lrcLibrary,
       }),
       skipHydration: true,
     },

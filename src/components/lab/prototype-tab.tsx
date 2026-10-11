@@ -81,7 +81,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { formatDuration } from '@/lib/lab/format';
 import { activeLineIndex, parse as parseLrc, type LrcLyrics } from '@/lib/lab/lrc-parser';
-import { repeatModeLabel } from '@/lib/lab/tick';
+import { progressPercent, queuePositionLabel, repeatModeLabel } from '@/lib/lab/tick';
 import { effectiveDuration, useLabStore } from '@/lib/lab/store';
 import type { LabTrack } from '@/lib/lab/types';
 
@@ -550,6 +550,9 @@ export function PrototypeTab() {
       .sort((a, b) => b.count - a.count);
   }, [catalog, playCounts]);
 
+  // WEBLAB-12 mini-player chip — "3/6" when the current track is queued, else hidden.
+  const queuePos = useMemo(() => queuePositionLabel(queue, currentTrackId), [queue, currentTrackId]);
+
   const onDragEnd = (event: DragEndEvent) => {
     const { active, over } = event;
     if (over === null || active.id === over.id) return;
@@ -863,9 +866,23 @@ export function PrototypeTab() {
         </div>
       )}
 
-      {/* Mini player */}
+      {/* Mini player — WEBLAB-12: progress hairline + repeat chip + queue-position chip */}
       {currentTrack !== null && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+        <div className="rm-mini-player fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+          {/* progress hairline (gradient, mirrors the sheet's seek slider) */}
+          <div
+            className="rm-mini-progress h-[3px] w-full overflow-hidden rounded-none bg-secondary/70"
+            role="progressbar"
+            aria-label={`Simulated playback progress — ${formatDuration(progressMs)} of ${formatDuration(totalMs)}`}
+            aria-valuemin={0}
+            aria-valuemax={100}
+            aria-valuenow={Math.round(progressPercent(progressMs, totalMs))}
+          >
+            <div
+              className="h-full rounded-none bg-gradient-to-r from-teal-400 to-amber-400 transition-[width] duration-200 ease-linear"
+              style={{ width: `${progressPercent(progressMs, totalMs)}%` }}
+            />
+          </div>
           <div className="mx-auto w-full max-w-6xl px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:px-6">
             <div className="flex items-center gap-2">
               <button
@@ -874,15 +891,47 @@ export function PrototypeTab() {
                 className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 text-left hover:bg-secondary/50"
                 aria-label="Open Now Playing"
               >
-                <Artwork track={currentTrack} className="h-10 w-10" />
+                <div className="relative">
+                  <Artwork track={currentTrack} className="h-10 w-10" />
+                  {isPlaying && (
+                    <span className="rm-eq rm-eq-overlay absolute -right-1 -top-1 text-primary" aria-hidden="true">
+                      <span /><span /><span /><span />
+                    </span>
+                  )}
+                </div>
                 <span className="min-w-0">
-                  <span className="block truncate text-sm font-medium">{currentTrack.title}</span>
+                  <span className="flex items-center gap-1.5">
+                    <span className="block truncate text-sm font-medium">{currentTrack.title}</span>
+                    {queuePos !== null && (
+                      <Badge
+                        variant="outline"
+                        className="shrink-0 border-border px-1 font-mono text-[9px] text-muted-foreground"
+                        title={`Position ${queuePos} in the simulated queue`}
+                      >
+                        {queuePos}
+                      </Badge>
+                    )}
+                  </span>
                   <span className="block truncate text-xs text-muted-foreground">
                     {formatDuration(progressMs)} / {formatDuration(totalMs)} · {currentTrack.artist}
                   </span>
                 </span>
                 <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
               </button>
+              {/* repeat chip — visible OUTSIDE the sheet (WEBLAB-12), cycles the same tri-state */}
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`h-11 w-11 shrink-0 ${
+                  repeatMode === 'off' ? 'text-muted-foreground' : 'text-amber-300 hover:text-amber-200'
+                }`}
+                onClick={cycleRepeatMode}
+                aria-pressed={repeatMode !== 'off'}
+                aria-label={`Cycle repeat mode — currently ${repeatModeLabel(repeatMode)} (simulated)`}
+                title={repeatModeLabel(repeatMode)}
+              >
+                {repeatMode === 'one' ? <Repeat1 className="h-4 w-4" aria-hidden="true" /> : <Repeat className="h-4 w-4" aria-hidden="true" />}
+              </Button>
               <Button variant="ghost" size="icon" className="h-11 w-11" onClick={previous} aria-label="Previous track (simulated)">
                 <SkipBack className="h-4 w-4" aria-hidden="true" />
               </Button>

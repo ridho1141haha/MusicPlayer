@@ -13,7 +13,7 @@ import type { FeatureStatus } from '@/lib/lab/types';
 export interface FeatureCheck {
   id: string;
   name: string;
-  area: 'Search' | 'Playback' | 'Library' | 'UI' | 'Diagnostics' | 'Web Lab';
+  area: 'Search' | 'Playback' | 'Library' | 'UI' | 'Diagnostics' | 'Web Lab' | 'Android';
   status: FeatureStatus;
   note: string;
 }
@@ -221,5 +221,26 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     area: 'Web Lab',
     status: 'pass',
     note: 'WEBLAB-11: CSS equalizer bars on playing rows + Now Playing (pure CSS, prefers-reduced-motion aware); teal→amber gradient on the seek slider; pass/fail glow on dashboard suite cards; nav pill hover lift with active shadow.',
+  },
+  {
+    id: 'weblab-mini-player-upgrade',
+    name: 'Mini-player: progress hairline, repeat chip outside the sheet, queue-position chip',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-12: the persistent bottom bar gains an aria-labeled progress hairline (pure progressPercent, unit-tested clamp + NaN safety), a repeat chip cycling the same tri-state as the sheet (accent + aria-pressed when active), a mono "3/6" queue-position badge (queuePositionLabel, unit-tested), and an equalizer overlay pill on the artwork while playing.',
+  },
+  {
+    id: 'weblab-lrc-library',
+    name: 'My LRC library: browser-local saved lyrics (upsert, cap 12, honest limits)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-12: pure upsertLrcEntry (replace-by-name in place, oldest falls off the cap, 256 KB guard, honest empty-name/too-large rejections — unit-tested) + zustand persistence; Lyrics Lab save dialog with sensible default names, load-back chips with saved-date tooltips, destructive-styled remove, toast feedback; content NEVER leaves the browser.',
+  },
+  {
+    id: 'weblab-corpus-stats',
+    name: 'Dashboard Lab-corpus card (live endpoint counts)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-12: dashboard card shows real counts fetched from /api/lab/fixtures (built-in + user captures), /api/lab/expectations (golden contracts) and /api/lab/lrc (LRC fixtures); a failed endpoint hides its number instead of faking zero-context data.',
   },
 ];

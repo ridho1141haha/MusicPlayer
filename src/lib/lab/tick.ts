@@ -54,3 +54,25 @@ export function repeatModeLabel(mode: RepeatMode): string {
       return 'repeat off — playback stops at the end of the queue';
   }
 }
+
+/**
+ * Clamped 0–100 playback progress for the mini-player hairline (WEBLAB-12).
+ * NaN/Infinity-safe: any degenerate input maps to 0, values above the total
+ * clamp to 100 (seeking past the end must never overflow the bar).
+ */
+export function progressPercent(progressMs: number, totalMs: number): number {
+  if (!Number.isFinite(progressMs) || !Number.isFinite(totalMs) || totalMs <= 0 || progressMs <= 0) {
+    return 0;
+  }
+  return Math.min(100, (progressMs / totalMs) * 100);
+}
+
+/**
+ * 1-based "3/6" position of the current track inside the queue, or null when
+ * nothing is playing / the track is not queued (drives the mini-player chip).
+ */
+export function queuePositionLabel(queue: readonly string[], currentTrackId: string | null): string | null {
+  if (currentTrackId === null) return null;
+  const idx = queue.indexOf(currentTrackId);
+  return idx >= 0 ? `${idx + 1}/${queue.length}` : null;
+}

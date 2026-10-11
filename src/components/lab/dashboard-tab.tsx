@@ -7,9 +7,12 @@ import {
   FileJson,
   FlaskConical,
   History,
+  Library,
   ListChecks,
   RefreshCw,
+  ScrollText,
   ShieldAlert,
+  Target,
   TerminalSquare,
   Wrench,
 } from 'lucide-react';
@@ -49,6 +52,15 @@ type DashboardData = {
   qaNote: string | null;
   project: ProjectPayload | null;
   projectError: string | null;
+  corpus: CorpusStats | null;
+};
+
+/** WEBLAB-12 — live counts of the lab's own corpora (real endpoint data only). */
+type CorpusStats = {
+  builtInFixtures: number;
+  userFixtures: number;
+  goldenExpectations: number;
+  lrcFixtures: number;
 };
 
 interface SuiteDetailViewProps {
@@ -345,13 +357,16 @@ export function DashboardTab() {
   useEffect(() => {
     let cancelled = false;
     void (async () => {
-      const [qaRes, projectRes] = await Promise.allSettled([
+      const [qaRes, projectRes, fixturesRes, expectationsRes, lrcRes] = await Promise.allSettled([
         fetch('/api/lab/qa-results', { cache: 'no-store' }),
         fetch('/api/project', { cache: 'no-store' }),
+        fetch('/api/lab/fixtures', { cache: 'no-store' }),
+        fetch('/api/lab/expectations', { cache: 'no-store' }),
+        fetch('/api/lab/lrc', { cache: 'no-store' }),
       ]);
       if (cancelled) return;
 
-      const next: DashboardData = { qa: null, qaNote: null, project: null, projectError: null };
+      const next: DashboardData = { qa: null, qaNote: null, project: null, projectError: null, corpus: null };
 
       if (qaRes.status === 'fulfilled' && qaRes.value.ok) {
         const qa = (await qaRes.value.json()) as QaResults & { note?: string };
@@ -365,6 +380,25 @@ export function DashboardTab() {
         next.project = (await projectRes.value.json()) as ProjectPayload;
       } else {
         next.projectError = 'Could not load /api/project (Android build stats).';
+      }
+
+      // WEBLAB-12 — corpus counts; any failed endpoint just hides that number.
+      if (fixturesRes.status === 'fulfilled' && fixturesRes.value.ok) {
+        const fx = (await fixturesRes.value.json()) as { builtIn?: unknown[]; user?: unknown[] };
+        next.corpus = {
+          builtInFixtures: fx.builtIn?.length ?? 0,
+          userFixtures: fx.user?.length ?? 0,
+          goldenExpectations: 0,
+          lrcFixtures: 0,
+        };
+      }
+      if (expectationsRes.status === 'fulfilled' && expectationsRes.value.ok) {
+        const ex = (await expectationsRes.value.json()) as { expectations?: Record<string, unknown> };
+        next.corpus = { ...(next.corpus ?? { builtInFixtures: 0, userFixtures: 0, goldenExpectations: 0, lrcFixtures: 0 }), goldenExpectations: Object.keys(ex.expectations ?? {}).length };
+      }
+      if (lrcRes.status === 'fulfilled' && lrcRes.value.ok) {
+        const lrc = (await lrcRes.value.json()) as { files?: unknown[] };
+        next.corpus = { ...(next.corpus ?? { builtInFixtures: 0, userFixtures: 0, goldenExpectations: 0, lrcFixtures: 0 }), lrcFixtures: lrc.files?.length ?? 0 };
       }
 
       setData(next);
@@ -418,6 +452,7 @@ export function DashboardTab() {
   const project = data?.project ?? null;
   const apk = project?.apks.debug ?? null;
   const tests = project?.tests ?? null;
+  const corpus = data?.corpus ?? null;
 
   return (
     <div className="space-y-6">
@@ -484,6 +519,51 @@ export function DashboardTab() {
           </CardContent>
         </Card>
       </div>
+
+      {/* WEBLAB-12 — Lab corpus at a glance (real counts from the endpoints). */}
+      {corpus !== null && (
+        <Card>
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Library className="h-4 w-4 text-amber-400" aria-hidden="true" />
+              Lab corpus
+            </CardTitle>
+            <CardDescription>Live counts from the lab's own endpoints — the raw material the parsers are tested against.</CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+              <div className="rounded-md border border-border bg-background/40 p-3">
+                <p className="text-2xl font-semibold tabular-nums text-primary">{corpus.builtInFixtures}</p>
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <FlaskConical className="h-3 w-3" aria-hidden="true" />
+                  built-in fixtures
+                </p>
+              </div>
+              <div className="rounded-md border border-border bg-background/40 p-3">
+                <p className="text-2xl font-semibold tabular-nums text-emerald-400">{corpus.userFixtures}</p>
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <ScrollText className="h-3 w-3" aria-hidden="true" />
+                  user captures
+                </p>
+              </div>
+              <div className="rounded-md border border-border bg-background/40 p-3">
+                <p className="text-2xl font-semibold tabular-nums text-amber-400">{corpus.goldenExpectations}</p>
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <Target className="h-3 w-3" aria-hidden="true" />
+                  golden contracts
+                </p>
+              </div>
+              <div className="rounded-md border border-border bg-background/40 p-3">
+                <p className="text-2xl font-semibold tabular-nums text-teal-400">{corpus.lrcFixtures}</p>
+                <p className="mt-0.5 flex items-center gap-1 text-xs text-muted-foreground">
+                  <FileJson className="h-3 w-3" aria-hidden="true" />
+                  LRC fixtures
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Feature checklist */}
       <Card>

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeNextIndex, computeTick, repeatModeLabel } from '../../src/lib/lab/tick';
+import { computeNextIndex, computeTick, progressPercent, queuePositionLabel, repeatModeLabel } from '../../src/lib/lab/tick';
 
 describe('computeTick (simulated playback, repeat tri-state)', () => {
   const TOTAL = 200_000;
@@ -70,5 +70,40 @@ describe('repeatModeLabel (a11y + badge copy)', () => {
     expect(repeatModeLabel('off')).toContain('repeat off');
     expect(repeatModeLabel('all')).toContain('repeat ALL');
     expect(repeatModeLabel('one')).toContain('repeat ONE');
+  });
+});
+
+describe('progressPercent (mini-player hairline, WEBLAB-12)', () => {
+  it('maps progress to a clamped 0–100 percentage', () => {
+    expect(progressPercent(0, 200_000)).toBe(0);
+    expect(progressPercent(50_000, 200_000)).toBe(25);
+    expect(progressPercent(200_000, 200_000)).toBe(100);
+  });
+
+  it('clamps progress beyond the end to 100 (never overflows the bar)', () => {
+    expect(progressPercent(250_000, 200_000)).toBe(100);
+  });
+
+  it('degenerate inputs map to 0 (NaN/Infinity/negative/zero-total safe)', () => {
+    expect(progressPercent(NaN, 200_000)).toBe(0);
+    expect(progressPercent(50_000, NaN)).toBe(0);
+    expect(progressPercent(Infinity, Infinity)).toBe(0);
+    expect(progressPercent(-1, 200_000)).toBe(0);
+    expect(progressPercent(50_000, 0)).toBe(0);
+  });
+});
+
+describe('queuePositionLabel (mini-player chip, WEBLAB-12)', () => {
+  const queue = ['a', 'b', 'c'];
+
+  it('shows a 1-based position for a queued track', () => {
+    expect(queuePositionLabel(queue, 'b')).toBe('2/3');
+    expect(queuePositionLabel(queue, 'a')).toBe('1/3');
+  });
+
+  it('returns null when nothing is playing or the track is not queued', () => {
+    expect(queuePositionLabel(queue, null)).toBeNull();
+    expect(queuePositionLabel(queue, 'zzz')).toBeNull();
+    expect(queuePositionLabel([], 'a')).toBeNull();
   });
 });
