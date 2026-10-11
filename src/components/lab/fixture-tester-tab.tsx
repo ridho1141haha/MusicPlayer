@@ -13,6 +13,7 @@ import {
   XCircle,
 } from 'lucide-react';
 
+import { FixtureDiffPanel } from '@/components/lab/fixture-diff-panel';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -244,6 +245,7 @@ export function FixtureTesterTab() {
   const selectedMeta = fixtures.find((f) => f.name === selected) ?? null;
 
   return (
+    <div className="space-y-4">
     <div className="grid grid-cols-1 gap-4 lg:grid-cols-5">
       {/* Left: registry */}
       <Card className="lg:col-span-2">
@@ -411,6 +413,10 @@ export function FixtureTesterTab() {
           </>
         )}
       </div>
+    </div>
+
+    {/* A/B diff — full width below the inspector (WEBLAB-8) */}
+    <FixtureDiffPanel fixtures={fixtures} />
     </div>
   );
 }

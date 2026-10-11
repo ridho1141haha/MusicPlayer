@@ -24,7 +24,7 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     name: 'YTM search parsing (flat 2026 + legacy shelf layout)',
     area: 'Search',
     status: 'pass',
-    note: 'YTM-PARSER-FIX-1 (commit ea305f6): 28/28 JVM tests + 28/28 web tests on the SAME sanitized fixtures (fixtures/ytm synced with android/app/src/test/resources/ytm).',
+    note: 'YTM-PARSER-FIX-1 (commit ea305f6): android suite now 29 JVM tests (WEBLAB-7 added a multi-item lock test); web mirror 59 vitest tests (28 parser + 15 LRC + 12 fixture-diff + 4 qa-report) on the SAME sanitized fixtures (fixtures/ytm synced with android/app/src/test/resources/ytm).',
   },
   {
     id: 'ytm-live-search',
@@ -101,7 +101,7 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     name: 'Web Lab TS parser harness (mirror of Java parser)',
     area: 'Web Lab',
     status: 'pass',
-    note: '28/28 vitest tests including golden expectations copied from YtMusicSearchParserTest. Fixture drift check: node scripts/sync-fixtures.mjs --check.',
+    note: '28 parser vitest tests (59 total across parser/LRC/diff/report) including golden expectations copied from YtMusicSearchParserTest. Fixture drift check: node scripts/sync-fixtures.mjs --check.',
   },
   {
     id: 'weblab-fixture-sync',
@@ -123,5 +123,26 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     area: 'Web Lab',
     status: 'pass',
     note: 'WEBLAB-7: /api/lab/lrc + Lyrics Lab tab (fixture load, paste, parse stats, scrub-driven active-line highlight). E2E verified: active line follows the scrubber; Now Playing shows labeled demo lyrics synced to the simulated clock.',
+  },
+  {
+    id: 'weblab-fixture-diff',
+    name: 'Fixture Diff Lab (A/B parse comparison)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-8: src/lib/lab/fixture-diff.ts (12 unit tests: add/remove/change/unchanged, section deltas, renderer-census movement, determinism) + Diff panel in Fixtures tab. E2E verified: legacy→live diff shows +8 added · −2 removed · 2→8 items with section and renderer deltas.',
+  },
+  {
+    id: 'weblab-qa-report',
+    name: 'QA report export (Markdown) + pass-trend sparkline',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-8: client-side Markdown report from the RECORDED run only (4 unit tests; includes an honesty section listing what is NOT verified) + dependency-free SVG trend of passed assertions per run. E2E verified: download produced a real file with real numbers.',
+  },
+  {
+    id: 'weblab-prototype-chart-menu',
+    name: 'Prototype: play-count chart + queue context menu',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-8: animated Top Tracks bar chart (labeled SIMULATED, browser-local counts) and right-click/long-press queue menu (play, play next, move top/bottom, favorite, copy info with honest clipboard states, remove). E2E verified: chart matches play actions; move-to-top reorders; favorite persists.',
   },
 ];

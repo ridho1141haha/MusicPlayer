@@ -260,3 +260,25 @@ Stage Summary:
 - Web Lab now covers BOTH Java parser contracts (InnerTube search + LRC lyrics) with mirrored golden tests; prototype gained synced demo lyrics + copy; dashboard/UX polished.
 - Verified: 43 web + 29 android tests, lint 0, builds green, E2E golden path incl. new features. Untested on device: unchanged (no hardware).
 - Risks/next: keep cron rounds bounded (this round ≈ 12 min); next candidate work — fixture diff view (compare two parses), queue context menu, top-tracks bar chart, Android instrumented test when a device appears. Playback stays blocked (LOGIN_REQUIRED, policy: no bypass).
+---
+Task ID: WEBLAB-8 (cron review round 2 — Fixture Diff Lab + report export + prototype polish)
+Agent: Z.ai Code (main orchestrator, webDevReview cron)
+Task: Status assessment + agent-browser QA; then feature round: fixture A/B diff, QA Markdown export, trend sparkline, Top Tracks chart, queue context menu, styling details.
+
+Work Log:
+- STATUS ASSESSMENT: dev server up (GET / 200); tree clean at 2fd52db; all 7 tabs rendered with ZERO console errors in a fresh agent-browser sweep; bash scripts/run-qa.sh → ALL GREEN baseline @ 2026-10-11 17:27:00Z (web 43/43, android 29/29, lint 0, builds OK, sync no drift). Project stable → chose a new-features round per the next-candidates list from WEBLAB-7.
+- Features shipped this round:
+  1. src/lib/lab/fixture-diff.ts — pure TS diff of two ParseResults: track added/removed/changed/unchanged (id-keyed, duration-0 tolerant, album null-vs-set detected), section count deltas, renderer-census movement (sorted by |delta|), deterministic order + summary line. 12 vitest tests (tests/unit/fixture-diff.test.ts) incl. legacy→live migration, both-null robustness, determinism lock.
+  2. src/components/lab/fixture-diff-panel.tsx — "Diff two fixtures" card in Fixtures tab: A/B selects (defaults: legacy shelf vs live Lathi capture), swap button, animated summary badges (+added/−removed/~changed/unchanged/total→total), track diff rows (framer-motion slide-in, per-kind color), sections A→B table, renderer-census movement badges. Full-width below the inspector.
+  3. src/lib/lab/qa-report.ts — client-side Markdown report from the RECORDED run only (suites table with padded columns, APK block with path/size/sha256/version, run-history table, mandatory "Honest scope" section listing what is NOT verified: no device tests, no audio playback — LOGIN_REQUIRED). 4 vitest tests. Dashboard: "Export report (Markdown)" button → Blob download + toast; verified a real file landed in ~/Downloads with real numbers.
+  4. Dashboard "Run history" gains a dependency-free SVG TrendSparkline (passed assertions per run, oldest→newest, min/max labels, aria-labeled, emerald stroke + end dot).
+  5. Prototype Top Tracks: animated horizontal play-count bar chart (framer-motion spring widths, amber #1 accent, count labels, honest "SIMULATED play counter (browser-local)" caption) above the ranked list.
+  6. Prototype Queue: right-click / long-press context menu on every row (play/pause simulated, play next, move to top/bottom, add/remove favorites, copy track info with honest clipboard toast, remove — destructive styled). Drag handle preserved; drag-reorder regression-tested in-browser after the restructure.
+  7. src/data/features.ts refreshed with current evidence (android 29, web 59) + 3 new WEBLAB-8 entries (diff lab, report export, chart/menu).
+- Verification: bun run lint clean; vitest 59/59 (28 parser + 15 lrc + 12 diff + 4 report); bash scripts/run-qa.sh → ALL GREEN @ 2026-10-11 17:39:49Z (web 59/59, android 29/29, lintDebug ✓, assembleDebug ✓ APK 11,542,468 B sha256 939c938a… unchanged, sync no drift).
+- E2E (agent-browser, real Chromium): diff legacy→lathi shows +8 added · −2 removed · 0 changed · 2→8 items; Songs 1→3, Albums 1→3, Top result 0→1, Artists 0→1; renderer census itemSectionRenderer 0→7 (+7) and musicShelfRenderer 2→0 (−2) — the format-migration story made visible. Chart counts exactly matched play actions (Testing 3×, RMTP 2×, Schwarzes 1×). Context menu: move-to-top reordered queue, favorite persisted to localStorage (ridho-lab-store), clipboard path exercised. Export: toast "Report downloaded ✓ ridho-qa-report-2026-10-11T172700Z.md" + real file verified on disk. Drag-reorder regression: Testing moved 1→2 via handle. Mobile 390×844: no horizontal scroll on fixtures/diff/prototype; screenshots data/e2e-weblab8-mobile-{diff,chart}.png + e2e-weblab8-desktop-diff.png.
+
+Stage Summary:
+- Web Lab now has 8 tabs of working tooling and 59 web / 29 android green tests; fixture diffing turns the parser's format migration into an inspectable artifact; QA results are exportable as a self-honest Markdown report.
+- Untested on device: unchanged (no hardware/emulator). Playback still blocked (LOGIN_REQUIRED, policy: no bypass).
+- Risks/next candidates: per-fixture "expected parse" assertions (golden snapshot editor); live-search response capture button to grow the real-fixture corpus; queue "shuffle (simulated)"; diff against LIVE search results (not only stored fixtures); Android instrumented tests when a device appears.

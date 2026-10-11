@@ -18,8 +18,12 @@ import {
   verticalListSortingStrategy,
 } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import { motion } from 'framer-motion';
 import {
   AlertTriangle,
+  ArrowDownToLine,
+  ArrowUpToLine,
+  BarChart3,
   ChevronRight,
   Copy,
   Flame,
@@ -42,8 +46,16 @@ import {
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
+import { Card, CardContent, CardHeader } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuSeparator,
+  ContextMenuShortcut,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 import {
   Dialog,
   DialogContent,
@@ -63,6 +75,7 @@ import {
 import { Skeleton } from '@/components/ui/skeleton';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
+import { useToast } from '@/hooks/use-toast';
 import { formatDuration } from '@/lib/lab/format';
 import { activeLineIndex, parse as parseLrc, type LrcLyrics } from '@/lib/lab/lrc-parser';
 import { effectiveDuration, useLabStore } from '@/lib/lab/store';
@@ -219,7 +232,28 @@ function SortableQueueRow({
 }) {
   const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: trackId });
   const isPlaying = useLabStore((s) => s.isPlaying && s.currentTrackId === trackId);
-  const togglePlayId = useLabStore((s) => s.togglePlayId);
+  const isFavorite = useLabStore((s) => s.favorites.includes(trackId));
+  const { toast } = useToast();
+
+  const moveTo = (target: 'top' | 'bottom') => {
+    const queue = useLabStore.getState().queue;
+    const from = queue.indexOf(trackId);
+    if (from < 0) return;
+    const to = target === 'top' ? 0 : queue.length - 1;
+    if (from === to) return;
+    useLabStore.getState().reorderQueue(from, to);
+  };
+
+  const copyInfo = async () => {
+    if (track === undefined) return;
+    const info = `${track.title} — ${track.artist} [${track.id}] (Ridho Music Web Lab, queue position ${position + 1})`;
+    try {
+      await navigator.clipboard.writeText(info);
+      toast({ title: 'Copied to clipboard ✓', description: info });
+    } catch {
+      toast({ title: 'Clipboard blocked by the browser', description: 'Headless/permission-restricted contexts cannot write the clipboard.', variant: 'destructive' });
+    }
+  };
 
   if (track === undefined) {
     return (
@@ -251,25 +285,78 @@ function SortableQueueRow({
       >
         <GripVertical className="h-4 w-4" aria-hidden="true" />
       </button>
-      <span className="w-4 shrink-0 text-center font-mono text-[11px] text-muted-foreground">{position + 1}</span>
-      <Artwork track={track} className="h-10 w-10" />
-      <button
-        type="button"
-        onClick={() => togglePlayId(trackId)}
-        className="min-w-0 flex-1 rounded px-1 text-left"
-        aria-label={`${isPlaying ? 'Pause' : 'Play'} ${track.title} (simulated)`}
-      >
-        <span className="flex items-center gap-1.5">
-          <span className="truncate text-sm font-medium">{track.title}</span>
-          {isPlaying && (
-            <Badge variant="outline" className="border-primary/40 bg-primary/10 px-1 text-[9px] text-primary">
-              playing
-            </Badge>
-          )}
-        </span>
-        <span className="block truncate text-xs text-muted-foreground">{track.artist}</span>
-      </button>
-      <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:block">{formatDuration(track.durationMs)}</span>
+      <ContextMenu>
+        <ContextMenuTrigger asChild>
+          <button
+            type="button"
+            className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+            aria-label={`Queue actions for ${track.title} (right-click or long-press for the context menu)`}
+          >
+            <span className="w-4 shrink-0 text-center font-mono text-[11px] text-muted-foreground">{position + 1}</span>
+            <Artwork track={track} className="h-10 w-10" />
+            <span className="min-w-0 flex-1">
+              <span className="flex items-center gap-1.5">
+                <span className="truncate text-sm font-medium">{track.title}</span>
+                {isPlaying && (
+                  <Badge variant="outline" className="border-primary/40 bg-primary/10 px-1 text-[9px] text-primary">
+                    playing
+                  </Badge>
+                )}
+              </span>
+              <span className="block truncate text-xs text-muted-foreground">{track.artist}</span>
+            </span>
+            <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:block">{formatDuration(track.durationMs)}</span>
+          </button>
+        </ContextMenuTrigger>
+        <ContextMenuContent className="w-56">
+          <ContextMenuItem
+            onSelect={() => {
+              useLabStore.getState().togglePlayId(trackId);
+            }}
+          >
+            <Play className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+            {isPlaying ? 'Pause (simulated)' : 'Play (simulated)'}
+            <ContextMenuShortcut>Enter</ContextMenuShortcut>
+          </ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() => {
+              useLabStore.getState().playNextInQueue(trackId);
+            }}
+          >
+            <ListPlus className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+            Play next
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => moveTo('top')} disabled={position === 0}>
+            <ArrowUpToLine className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+            Move to top
+          </ContextMenuItem>
+          <ContextMenuItem
+            onSelect={() => moveTo('bottom')}
+            disabled={position === useLabStore.getState().queue.length - 1}
+          >
+            <ArrowDownToLine className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+            Move to bottom
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem onSelect={() => useLabStore.getState().toggleFavorite(trackId)}>
+            <Heart className={`mr-2 h-3.5 w-3.5 ${isFavorite ? 'fill-current text-rose-400' : ''}`} aria-hidden="true" />
+            {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+          </ContextMenuItem>
+          <ContextMenuItem onSelect={() => void copyInfo()}>
+            <Copy className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+            Copy track info
+          </ContextMenuItem>
+          <ContextMenuSeparator />
+          <ContextMenuItem
+            className="text-rose-300 focus:text-rose-200 focus:bg-rose-500/10"
+            onSelect={() => onRemove(trackId)}
+          >
+            <X className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+            Remove from queue
+          </ContextMenuItem>
+        </ContextMenuContent>
+      </ContextMenu>
       <Button
         variant="ghost"
         size="icon"
@@ -280,6 +367,53 @@ function SortableQueueRow({
         <X className="h-4 w-4" aria-hidden="true" />
       </Button>
     </li>
+  );
+}
+
+/** Animated horizontal play-count chart — WEB-LAB-8. Bars reflect the simulated, browser-local play counter. */
+function TopTracksChart({
+  entries,
+}: {
+  entries: Array<{ track: LabTrack; count: number }>;
+}) {
+  const max = entries.reduce((m, e) => Math.max(m, e.count), 1);
+  const shown = entries.slice(0, 8);
+  return (
+    <div className="space-y-2" role="img" aria-label={`Bar chart of simulated play counts, top ${shown.length} tracks`}>
+      {shown.map((entry, index) => {
+        const pct = Math.max(4, Math.round((entry.count / max) * 100));
+        return (
+          <div key={entry.track.id} className="flex items-center gap-2">
+            <span className={`w-5 shrink-0 text-right font-mono text-[11px] ${index === 0 ? 'font-bold text-amber-300' : 'text-muted-foreground'}`}>
+              {index + 1}
+            </span>
+            <div className="min-w-0 flex-1">
+              <div className="flex items-baseline justify-between gap-2">
+                <span className="truncate text-xs font-medium">{entry.track.title}</span>
+                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+                  {entry.count} {entry.count === 1 ? 'play' : 'plays'}
+                </span>
+              </div>
+              <div className="mt-0.5 h-2 overflow-hidden rounded-full bg-secondary/70">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${pct}%` }}
+                  transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+                  className={`h-full rounded-full ${
+                    index === 0
+                      ? 'bg-gradient-to-r from-amber-500/80 to-amber-400/60'
+                      : 'bg-gradient-to-r from-primary/80 to-primary/50'
+                  }`}
+                />
+              </div>
+            </div>
+          </div>
+        );
+      })}
+      <p className="pt-1 text-[10px] text-muted-foreground">
+        Chart of the SIMULATED play counter (browser-local). The Android app records real play counts in Room.
+      </p>
+    </div>
   );
 }
 
@@ -629,8 +763,22 @@ export function PrototypeTab() {
           )}
 
           {view === 'top' && (
-            <Card>
-              <CardContent className="p-3">
+            <>
+              {topTracks.length > 0 && (
+                <Card>
+                  <CardHeader className="pb-2">
+                    <p className="flex items-center gap-2 text-sm font-medium">
+                      <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" />
+                      Play-count chart
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <TopTracksChart entries={topTracks} />
+                  </CardContent>
+                </Card>
+              )}
+              <Card>
+                <CardContent className="p-3">
                 {topTracks.length === 0 ? (
                   <div className="flex flex-col items-center gap-2 p-6 text-center">
                     <Flame className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
@@ -654,8 +802,9 @@ export function PrototypeTab() {
                     </ul>
                   </ScrollArea>
                 )}
-              </CardContent>
-            </Card>
+                </CardContent>
+              </Card>
+            </>
           )}
 
           {view === 'favorites' && (

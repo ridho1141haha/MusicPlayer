@@ -1,8 +1,9 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
+  Download,
   FileJson,
   FlaskConical,
   History,
@@ -34,8 +35,10 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 import { FEATURE_CHECKS, type FeatureCheck } from '@/data/features';
 import { formatBytes } from '@/lib/lab/format';
+import { buildQaMarkdownReport, qaReportFileName } from '@/lib/lab/qa-report';
 import type { QaResults } from '@/lib/lab/types';
 import type { ProjectPayload } from '@/lib/ridho';
 
@@ -212,9 +215,63 @@ function SuiteCard({ qa }: { qa: QaResults | null }) {
   );
 }
 
+/** Inline SVG trend of total passed assertions across recorded runs (oldest → newest). Dependency-free. */
+function TrendSparkline({ history }: { history: NonNullable<QaResults['history']> }) {
+  const points = useMemo(() => {
+    const runs = [...history].reverse(); // oldest → newest
+    const values = runs.map((h) => h.passed);
+    const min = Math.min(...values);
+    const max = Math.max(...values);
+    const w = 220;
+    const h = 44;
+    const pad = 4;
+    const range = Math.max(max - min, 1);
+    const step = values.length > 1 ? (w - pad * 2) / (values.length - 1) : 0;
+    const coords = values.map((v, i) => {
+      const x = pad + i * step;
+      const y = h - pad - ((v - min) / range) * (h - pad * 2);
+      return { x, y };
+    });
+    return { coords, w, h, min, max };
+  }, [history]);
+
+  const pathD = points.coords.map((p, i) => `${i === 0 ? 'M' : 'L'}${p.x.toFixed(1)},${p.y.toFixed(1)}`).join(' ');
+  const last = points.coords[points.coords.length - 1];
+
+  return (
+    <div className="space-y-1">
+      <div className="flex items-center justify-between gap-2">
+        <p className="text-xs text-muted-foreground">Passed assertions per run (oldest → newest)</p>
+        <span className="font-mono text-[10px] text-muted-foreground">
+          min {points.min} · max {points.max}
+        </span>
+      </div>
+      <svg
+        viewBox={`0 0 ${points.w} ${points.h}`}
+        className="h-11 w-full max-w-xs"
+        role="img"
+        aria-label={`Trend of passed assertions over ${history.length} runs, from ${points.min} to ${points.max}`}
+      >
+        <path
+          d={pathD}
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          className="text-emerald-400/80"
+        />
+        {last !== undefined && <circle cx={last.x} cy={last.y} r="3" className="fill-emerald-400" />}
+      </svg>
+    </div>
+  );
+}
+
 export function DashboardTab() {
   const [data, setData] = useState<DashboardData | null>(null);
   const [reloadNonce, setReloadNonce] = useState(0);
+  const [exporting, setExporting] = useState(false);
+  const { toast } = useToast();
 
   const reload = useCallback(() => setReloadNonce((n) => n + 1), []);
 
@@ -251,6 +308,32 @@ export function DashboardTab() {
   }, [reloadNonce]);
 
   const loading = data === null;
+
+  const exportReport = useCallback(() => {
+    if (data?.qa === null || data?.qa === undefined) {
+      toast({ title: 'Nothing to export yet', description: 'Run `bash scripts/run-qa.sh` first — this lab never invents data.' });
+      return;
+    }
+    setExporting(true);
+    try {
+      const generatedAt = new Date().toISOString();
+      const markdown = buildQaMarkdownReport(data.qa, generatedAt);
+      const blob = new Blob([markdown], { type: 'text/markdown;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = qaReportFileName(data.qa.recordedAt);
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      URL.revokeObjectURL(url);
+      toast({ title: 'Report downloaded ✓', description: `${anchor.download} — generated from the recorded run only.` });
+    } catch (error) {
+      toast({ title: 'Export failed', description: error instanceof Error ? error.message : 'Unknown error', variant: 'destructive' });
+    } finally {
+      setExporting(false);
+    }
+  }, [data, toast]);
 
   if (loading) {
     return (
@@ -373,6 +456,8 @@ export function DashboardTab() {
             </p>
           ) : (
             <>
+              <TrendSparkline history={qa.history} />
+              <Separator className="my-3" />
               <div className="hidden grid-cols-4 gap-2 px-3 pb-1 text-xs text-muted-foreground sm:grid">
                 <span>When</span>
                 <span className="text-right">Passed</span>
@@ -413,7 +498,11 @@ export function DashboardTab() {
         </CardContent>
       </Card>
 
-      <div className="flex justify-end">
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button variant="outline" size="sm" onClick={exportReport} disabled={exporting || qa === null} className="gap-2">
+          <Download className="h-3.5 w-3.5" aria-hidden="true" />
+          Export report (Markdown)
+        </Button>
         <Button variant="outline" size="sm" onClick={reload} className="gap-2">
           <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" />
           Refresh data
