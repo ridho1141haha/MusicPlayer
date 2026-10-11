@@ -1,0 +1,122 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Ridho Music</string>
+
+    <!-- Bottom navigation -->
+    <string name="nav_home">Home</string>
+    <string name="nav_search">Search</string>
+    <string name="nav_library">Library</string>
+
+    <!-- Content descriptions (accessibility) -->
+    <string name="cd_play">Play</string>
+    <string name="cd_pause">Pause</string>
+    <string name="cd_next">Next track</string>
+    <string name="cd_previous">Previous track</string>
+    <string name="cd_shuffle">Shuffle</string>
+    <string name="cd_repeat">Repeat</string>
+    <string name="cd_queue">Open queue</string>
+    <string name="cd_favorite">Toggle favorite</string>
+    <string name="cd_artwork">Album artwork</string>
+    <string name="cd_more">More options</string>
+    <string name="cd_back">Navigate up</string>
+    <string name="cd_settings">Settings</string>
+    <string name="cd_close">Close</string>
+    <string name="cd_search">Search</string>
+    <string name="cd_lyrics">Show lyrics</string>
+    <string name="cd_now_playing_artwork">Now playing artwork</string>
+
+    <!-- Home -->
+    <string name="home_recently_played">Recently played</string>
+    <string name="home_favorites">Favorites</string>
+    <string name="home_shuffle_all_local">Shuffle local library</string>
+    <string name="home_pick_folder">Choose music folder</string>
+    <string name="home_onboarding_title">Welcome to Ridho Music</string>
+    <string name="home_onboarding_body">Pick a folder with your own music files to build a local library, or search YouTube Music (experimental). No account, no ads, no tracking.</string>
+    <string name="home_empty_recent">Nothing played yet. Tracks you listen to will appear here.</string>
+    <string name="home_empty_favorites">No favorites yet. Tap the heart on any track to save it here.</string>
+
+    <!-- Search -->
+    <string name="search_hint">Songs, artists, albums…</string>
+    <string name="search_state_loading">Searching…</string>
+    <string name="search_state_error">Search failed. Check your connection and try again.</string>
+    <string name="search_state_empty">No results. Try a different query.</string>
+    <string name="search_section_local">On this device</string>
+    <string name="search_section_ytm_songs">YouTube Music · Songs</string>
+    <string name="search_section_ytm_videos">YouTube Music · Videos</string>
+    <string name="search_section_ytm_albums">YouTube Music · Albums</string>
+    <string name="search_section_ytm_artists">YouTube Music · Artists</string>
+    <string name="search_ytm_badge">YT Music · experimental</string>
+
+    <!-- Library -->
+    <string name="library_favorites">Favorites</string>
+    <string name="library_playlists">Playlists</string>
+    <string name="library_history">History</string>
+    <string name="library_local">Local files</string>
+    <string name="library_empty_favorites">No favorites yet.</string>
+    <string name="library_empty_history">No listening history yet.</string>
+    <string name="library_empty_local">No local tracks scanned yet. Choose a music folder from Home.</string>
+    <string name="library_empty_playlists">No playlists yet. Create one below.</string>
+    <string name="library_create_playlist">New playlist</string>
+    <string name="library_scanning">Scanning folder…</string>
+
+    <!-- Playlists -->
+    <string name="playlist_new_title">New playlist</string>
+    <string name="playlist_name_hint">Playlist name</string>
+    <string name="playlist_create">Create</string>
+    <string name="playlist_cancel">Cancel</string>
+    <string name="playlist_delete">Delete playlist</string>
+    <string name="playlist_delete_confirm">Delete this playlist? Tracks stay in your library.</string>
+    <string name="playlist_empty">This playlist is empty. Add tracks from any list.</string>
+    <string name="playlist_added_to">Added to playlist</string>
+    <string name="playlist_error_name">Please enter a name</string>
+
+    <!-- Track menu -->
+    <string name="menu_add_to_queue">Add to queue</string>
+    <string name="menu_add_to_playlist">Add to playlist…</string>
+    <string name="menu_remove_from_queue">Remove from queue</string>
+    <string name="menu_remove_from_playlist">Remove from playlist</string>
+
+    <!-- Now Playing / Queue / Lyrics -->
+    <string name="now_playing_title">Now playing</string>
+    <string name="queue_title">Play queue</string>
+    <string name="queue_empty">Queue is empty.</string>
+    <string name="lyrics_none">No lyrics available for this track.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_playback_header">Playback</string>
+    <string name="settings_skip_silence">Skip silent segments</string>
+    <string name="settings_skip_silence_sum">Fast-forward through silence in tracks</string>
+    <string name="settings_restore_queue">Restore queue on launch</string>
+    <string name="settings_restore_queue_sum">Resume the last queue (paused) after app restart</string>
+    <string name="settings_sources_header">Music sources</string>
+    <string name="settings_ytm_enabled">YouTube Music (experimental)</string>
+    <string name="settings_ytm_enabled_sum">Search YouTube Music via its unofficial web API. Playback of remote streams may be unavailable — see README for details.</string>
+    <string name="settings_diagnostics_header">Diagnostics</string>
+    <string name="settings_clear_artwork_cache">Clear artwork cache</string>
+    <string name="settings_clear_cache_done">Artwork cache cleared</string>
+    <string name="diag_ytm_api">YouTube Music API reachability</string>
+    <string name="diag_local_folder">Local music folder</string>
+    <string name="diag_none">Not configured</string>
+    <string name="diag_checking">Checking…</string>
+    <string name="diag_ok">Reachable</string>
+    <string name="diag_error">Unreachable / failed</string>
+    <string name="settings_about_header">About</string>
+    <string name="settings_licenses">Open-source licenses</string>
+    <string name="settings_privacy">Privacy policy</string>
+
+    <!-- Errors -->
+    <string name="err_network">Network error. Please check your connection.</string>
+    <string name="err_unavailable">This track is unavailable from the selected source.</string>
+    <string name="err_unsupported">The selected source does not support this action.</string>
+    <string name="err_not_found">Track not found.</string>
+    <string name="err_playback">Playback error.</string>
+    <string name="err_no_local_folder">No local folder selected yet.</string>
+    <string name="err_notification_needed">Notification permission is needed to show playback controls.</string>
+    <string name="yt_experimental_note">Experimental, unofficial YouTube Music integration. It may break without notice and remote stream playback is not guaranteed. See the project README for details and limitations.</string>
+    <string name="local_pick_hint">Your files are scanned locally on the device. Nothing is uploaded.</string>
+
+    <!-- Misc -->
+    <string name="notif_channel_name">Playback</string>
+    <string name="label_duration_unknown">--:--</string>
+</resources>

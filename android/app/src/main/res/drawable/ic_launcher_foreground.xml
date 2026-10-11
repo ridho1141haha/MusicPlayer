@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Muted teal rounded-square badge centered in the adaptive-icon safe zone -->
+    <path
+        android:fillColor="#2FA69C"
+        android:pathData="M30,30 h48 a8,8 0 0 1 8,8 v32 a8,8 0 0 1 -8,8 h-48 a8,8 0 0 1 -8,-8 v-32 a8,8 0 0 1 8,-8 z" />
+    <!-- Music note -->
+    <path
+        android:fillColor="#04201C"
+        android:pathData="M52.5,42 v18.05 c-0.79,-0.34 -1.65,-0.55 -2.5,-0.55 c-2.21,0 -4,1.79 -4,4 s1.79,4 4,4 s4,-1.79 4,-4 V50 h5 v-8 h-6.5 z" />
+</vector>

@@ -1,0 +1,9 @@
+// Ridho Music — root build configuration.
+// AGP 8.7.3 requires Gradle 8.9+ and JDK 17+ (built with JDK 21 in CI/sandbox).
+plugins {
+    id 'com.android.application' version '8.7.3' apply false
+}
+
+tasks.register('clean', Delete) {
+    delete rootProject.layout.buildDirectory
+}

@@ -1,0 +1,75 @@
+plugins {
+    id 'com.android.application'
+}
+
+android {
+    namespace 'com.ridho.music'
+    compileSdk 35
+
+    defaultConfig {
+        applicationId "com.ridho.music"
+        minSdk 24          // Android 7.0 — sensible floor for Media3 + modern notification APIs
+        targetSdk 35       // Android 15 — matches Samsung Galaxy A05s (One UI 6/7, API 34/35)
+        versionCode 1
+        versionName "1.0.0"
+        vectorDrawables.useSupportLibrary = true
+    }
+
+    buildTypes {
+        release {
+            minifyEnabled true
+            shrinkResources true
+            proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
+        }
+        debug {
+            applicationIdSuffix '.debug'
+            versionNameSuffix '-debug'
+        }
+    }
+
+    compileOptions {
+        sourceCompatibility JavaVersion.VERSION_17
+        targetCompatibility JavaVersion.VERSION_17
+    }
+
+    lint {
+        abortOnError true
+        warningsAsErrors false
+        disable 'GradleDependency'
+        // Media3 session/notification APIs are @UnstableApi by design; usage is
+        // deliberate and confined to the player package (same approach as InnerTune).
+        disable 'UnstableApiUsage'
+    }
+}
+
+dependencies {
+    // Playback engine + MediaSession (background playback, lock-screen controls)
+    implementation 'androidx.media3:media3-exoplayer:1.5.1'
+    implementation 'androidx.media3:media3-session:1.5.1'
+    implementation 'androidx.media3:media3-datasource:1.5.1'
+
+    // UI
+    implementation 'androidx.appcompat:appcompat:1.7.0'
+    implementation 'com.google.android.material:material:1.12.0'
+    implementation 'androidx.constraintlayout:constraintlayout:2.2.0'
+    implementation 'androidx.recyclerview:recyclerview:1.3.2'
+    implementation 'androidx.documentfile:documentfile:1.0.1'
+
+    // Persistence
+    implementation 'androidx.room:room-runtime:2.6.1'
+    annotationProcessor 'androidx.room:room-compiler:2.6.1'
+
+    // Images (artwork caching with bounded memory + disk cache)
+    implementation 'com.github.bumptech.glide:glide:4.16.0'
+
+    // Networking (HTTPS only, used by the experimental YouTube Music source)
+    implementation 'com.squareup.okhttp3:okhttp:4.12.0'
+
+    // Unit tests
+    testImplementation 'junit:junit:4.13.2'
+    testImplementation 'org.json:json:20240303'
+
+    // Instrumented tests (require a device/emulator — cannot execute in this sandbox)
+    androidTestImplementation 'androidx.test.ext:junit:1.2.1'
+    androidTestImplementation 'androidx.test.espresso:espresso-core:3.6.1'
+}

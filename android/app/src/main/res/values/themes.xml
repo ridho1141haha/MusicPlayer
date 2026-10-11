@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources xmlns:tools="http://schemas.android.com/tools">
+    <!-- Ridho Music is a dark-first app: the same dark theme is used for day and night. -->
+    <style name="Theme.RidhoMusic" parent="Theme.Material3.Dark.NoActionBar" tools:targetApi="29">
+        <item name="android:colorBackground">@color/background</item>
+        <item name="colorOnBackground">@color/on_surface</item>
+        <item name="colorSurface">@color/surface</item>
+        <item name="colorOnSurface">@color/on_surface</item>
+        <item name="colorSurfaceContainer">@color/surface_container</item>
+        <item name="colorPrimary">@color/primary</item>
+        <item name="colorOnPrimary">@color/on_primary</item>
+        <item name="colorSecondary">@color/secondary_text_teal</item>
+        <item name="colorError">@color/error</item>
+        <item name="android:statusBarColor">@color/background</item>
+        <item name="android:navigationBarColor">@color/background</item>
+        <item name="android:windowLightStatusBar">false</item>
+        <item name="android:forceDarkAllowed">false</item>
+        <item name="bottomSheetDialogTheme">@style/ThemeOverlay.RidhoMusic.BottomSheet</item>
+    </style>
+
+    <style name="ThemeOverlay.RidhoMusic.BottomSheet" parent="ThemeOverlay.Material3.BottomSheetDialog">
+        <item name="bottomSheetStyle">@style/Widget.RidhoMusic.BottomSheet</item>
+        <item name="android:background">@color/background</item>
+    </style>
+
+    <style name="Widget.RidhoMusic.BottomSheet" parent="Widget.Material3.BottomSheet.Modal">
+        <item name="android:background">@drawable/bg_sheet</item>
+        <item name="shapeAppearanceOverlay">@style/ShapeAppearance.RidhoMusic.Sheet</item>
+    </style>
+
+    <style name="ShapeAppearance.RidhoMusic.Sheet" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSizeTopLeft">24dp</item>
+        <item name="cornerSizeTopRight">24dp</item>
+    </style>
+
+    <style name="ShapeAppearance.RidhoMusic.Artwork" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">28dp</item>
+    </style>
+
+    <style name="TextAppearance.RidhoMusic.Title" parent="TextAppearance.Material3.HeadlineSmall">
+        <item name="android:textColor">@color/on_surface</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="TextAppearance.RidhoMusic.SectionHeader" parent="TextAppearance.Material3.TitleMedium">
+        <item name="android:textColor">@color/on_surface</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>

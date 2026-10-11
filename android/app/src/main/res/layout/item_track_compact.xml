@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Compact square card for horizontal shelves -->
+<LinearLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="112dp"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="4dp"
+    android:background="?attr/selectableItemBackground">
+
+    <ImageView
+        android:id="@+id/compact_artwork"
+        android:layout_width="104dp"
+        android:layout_height="104dp"
+        android:background="@drawable/bg_artwork_placeholder"
+        android:contentDescription="@string/cd_artwork"
+        android:scaleType="centerCrop" />
+
+    <TextView
+        android:id="@+id/compact_title"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/on_surface"
+        android:textSize="13sp"
+        android:textStyle="bold" />
+
+    <TextView
+        android:id="@+id/compact_artist"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:ellipsize="end"
+        android:maxLines="1"
+        android:textColor="@color/on_surface_muted"
+        android:textSize="11sp" />
+</LinearLayout>
