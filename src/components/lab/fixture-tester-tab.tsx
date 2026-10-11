@@ -6,6 +6,7 @@ import {
   ChevronDown,
   Database,
   FilePlus2,
+  GitBranch,
   Info,
   Loader2,
   Play,
@@ -301,6 +302,18 @@ export function FixtureTesterTab() {
                         {fixture.query !== null ? ` · query: ${fixture.query}` : ''}
                         {fixture.capturedAt !== null ? ` · ${fixture.capturedAt}` : ''}
                       </span>
+                      {/* WEBLAB-15 lineage: deliberate contract refreshes are declared, never silent. */}
+                      {(fixture.supersededBy !== undefined && fixture.supersededBy !== null) ||
+                      (fixture.supersedes !== undefined && fixture.supersedes !== null) ? (
+                        <span
+                          className={`mt-1 flex items-center gap-1 font-mono text-[10px] ${
+                            fixture.supersededBy ? 'text-amber-300/80' : 'text-teal-300/80'
+                          }`}
+                        >
+                          <GitBranch className="h-3 w-3 shrink-0" aria-hidden="true" />
+                          {fixture.supersededBy ? `superseded by ${fixture.supersededBy}` : `supersedes ${fixture.supersedes}`}
+                        </span>
+                      ) : null}
                     </button>
                   </li>
                 ))}

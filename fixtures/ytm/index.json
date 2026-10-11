@@ -3,11 +3,21 @@
   "generatedAt": "2026-10-11",
   "fixtures": [
     {
+      "name": "search_live_2026-10-12_lathi.json",
+      "origin": "real-capture",
+      "capturedAt": "2026-10-12",
+      "query": "Lathi",
+      "supersedes": "search_live_2026-10-11_lathi.json",
+      "description": "DELIBERATE contract refresh (WEBLAB-15): re-captured LIVE (query \"Lathi\", HTTP 200, 216,231 B before trim) after the live golden probe caught drift on the 10-11 capture — the response grew from 8 to 30 section-list blocks and gained a Videos shelf. Same sanitization as the 10-11 capture (trackingParams/clickTrackingParams/menu/onTap/playlistItemData/continuation stripped, parse-relevant fields verbatim).",
+      "sourceFile": "/tmp/lathi-live.json"
+    },
+    {
       "name": "search_live_2026-10-11_lathi.json",
       "origin": "real-capture",
       "capturedAt": "2026-10-11",
       "query": "Lathi",
-      "description": "Sanitized trim of a REAL unauthenticated WEB_REMIX search response (query \"Lathi\", HTTP 200, 216,553 B before trim). Flat 2026 layout: musicCardShelfRenderer top result + interleaved itemSectionRenderer items. Sanitization: trackingParams/clickTrackingParams stripped, menu/onTap/playlistItemData dropped; parse-relevant fields verbatim.",
+      "supersededBy": "search_live_2026-10-12_lathi.json",
+      "description": "Sanitized trim of a REAL unauthenticated WEB_REMIX search response (query \"Lathi\", HTTP 200, 216,553 B before trim). Flat 2026 layout: musicCardShelfRenderer top result + interleaved itemSectionRenderer items. Sanitization: trackingParams/clickTrackingParams stripped, menu/onTap/playlistItemData dropped; parse-relevant fields verbatim. SUPERSEDED by the 2026-10-12 re-capture; kept frozen as drift history.",
       "sourceFile": "/tmp/yt_lathi.json"
     },
     {

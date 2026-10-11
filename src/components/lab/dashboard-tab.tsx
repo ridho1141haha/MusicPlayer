@@ -290,8 +290,94 @@ function SuiteCard({ qa }: { qa: QaResults | null }) {
             </div>
           </div>
         ))}
+
+        {/* WEBLAB-15 — non-gating LIVE probe signal (recorded by run-qa.sh, never fatal). */}
+        {qa.liveProbe !== undefined && <LiveProbeRow liveProbe={qa.liveProbe} />}
       </CardContent>
     </Card>
+  );
+}
+
+const LIVE_PROBE_SIGNAL: Record<
+  NonNullable<QaResults['liveProbe']>['status'],
+  { label: string; row: string; badge: string; dot: string }
+> = {
+  holds: {
+    label: 'live holds',
+    row: 'rm-probe-holds',
+    badge: 'border-emerald-500/40 bg-emerald-500/10 text-emerald-300',
+    dot: 'bg-emerald-400',
+  },
+  drift: {
+    label: 'live drift',
+    row: 'rm-probe-drift',
+    badge: 'border-amber-500/40 bg-amber-500/10 text-amber-300',
+    dot: 'bg-amber-400',
+  },
+  error: {
+    label: 'probe error',
+    row: 'rm-probe-error',
+    badge: 'border-rose-500/40 bg-rose-500/10 text-rose-300',
+    dot: 'bg-rose-400',
+  },
+  skipped: {
+    label: 'skipped',
+    row: 'border-l-2 border-l-zinc-500/50',
+    badge: 'border-zinc-500/40 bg-zinc-500/10 text-zinc-300',
+    dot: 'bg-zinc-400',
+  },
+};
+
+/** WEBLAB-15 — the LIVE probe row: a recorded SIGNAL, never a gate. */
+function LiveProbeRow({ liveProbe }: { liveProbe: NonNullable<QaResults['liveProbe']> }) {
+  const signal = LIVE_PROBE_SIGNAL[liveProbe.status] ?? LIVE_PROBE_SIGNAL.skipped;
+  return (
+    <div
+      className={`flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background/40 px-3 py-2 transition-colors hover:bg-secondary/30 ${signal.row}`}
+    >
+      <div className="min-w-0">
+        <p className="flex flex-wrap items-center gap-2 text-sm font-medium">
+          Live golden probe
+          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-300">
+            experimental
+          </Badge>
+          <Badge variant="outline" className={`text-[10px] ${signal.badge}`}>
+            {signal.label}
+          </Badge>
+          <Badge variant="outline" className="border-border text-[10px] text-muted-foreground">
+            non-gating signal
+          </Badge>
+        </p>
+        <p className="truncate font-mono text-[11px] text-muted-foreground">{liveProbe.command}</p>
+      </div>
+      <div className="flex flex-wrap items-center gap-2">
+        {liveProbe.status !== 'skipped' && (
+          <span className="flex items-center gap-2 text-xs text-muted-foreground">
+            {(['holds', 'drift', 'errors'] as const).map((key) => {
+              const dot = key === 'holds' ? 'bg-emerald-400' : key === 'drift' ? 'bg-amber-400' : 'bg-rose-400';
+              return (
+                <span key={key} className="flex items-center gap-1" title={`${liveProbe[key]} ${key}`}>
+                  <span className={`h-1.5 w-1.5 rounded-full ${dot}`} aria-hidden="true" />
+                  {liveProbe[key]}
+                </span>
+              );
+            })}
+            <span>of {liveProbe.probed}</span>
+            {liveProbe.durationMs !== null && <span>· {(liveProbe.durationMs / 1000).toFixed(1)}s</span>}
+          </span>
+        )}
+        {liveProbe.entries.length > 0 && (
+          <span className="hidden items-center gap-1 md:flex" aria-hidden="true">
+            {liveProbe.entries.slice(0, 6).map((entry) => {
+              const dot =
+                entry.verdict === 'holds' ? 'bg-emerald-400' : entry.verdict === 'drift' ? 'bg-amber-400' : 'bg-rose-400';
+              return <span key={entry.fixture} className={`h-1.5 w-1.5 rounded-full ${dot}`} title={`${entry.fixture}: ${entry.verdict}`} />;
+            })}
+          </span>
+        )}
+        <SuiteDetail title="Live golden probe (non-gating signal)" detail={liveProbe.detail} command={liveProbe.command} />
+      </div>
+    </div>
   );
 }
 

@@ -220,6 +220,55 @@ const goldenExpectations = {
       : (goldenRaw.detail ?? 'check-expectations completed.'),
 };
 
+// Live golden probe (WEBLAB-15): NON-GATING signal recorded by scripts/live-probe.ts
+// in the same run. Never affects suite status or the exit code — live drift is an
+// investigation signal; the stored-fixture golden suite stays authoritative.
+function readLiveProbe() {
+  const path = join(TMP, 'live-probe.json');
+  if (!existsSync(path)) {
+    return {
+      status: 'skipped',
+      probed: 0,
+      holds: 0,
+      drift: 0,
+      errors: 0,
+      durationMs: null,
+      recordedAt: null,
+      command: 'bun scripts/live-probe.ts',
+      detail: 'No live-probe.json found — suite was skipped or crashed before writing output.',
+      entries: [],
+    };
+  }
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf8'));
+    return {
+      status: raw.status ?? 'skipped',
+      probed: raw.probed ?? 0,
+      holds: raw.holds ?? 0,
+      drift: raw.drift ?? 0,
+      errors: raw.errors ?? 0,
+      durationMs: raw.durationMs ?? null,
+      recordedAt: raw.recordedAt ?? null,
+      command: raw.command ?? 'bun scripts/live-probe.ts',
+      detail: raw.detail ?? '',
+      entries: Array.isArray(raw.entries) ? raw.entries : [],
+    };
+  } catch (error) {
+    return {
+      status: 'error',
+      probed: 0,
+      holds: 0,
+      drift: 0,
+      errors: 0,
+      durationMs: null,
+      recordedAt: null,
+      command: 'bun scripts/live-probe.ts',
+      detail: `Could not parse live-probe.json: ${error.message}`,
+      entries: [],
+    };
+  }
+}
+
 const suites = [webLint, webUnit, androidUnit, androidLint, androidBuild, fixtureSync, goldenExpectations];
 
 const results = {
@@ -227,6 +276,7 @@ const results = {
   suites,
   apk: readApk(),
   history: loadHistory(),
+  liveProbe: readLiveProbe(),
 };
 
 mkdirSync(DATA_DIR, { recursive: true });
@@ -241,6 +291,9 @@ for (const suite of suites) {
 if (results.apk !== null) {
   console.log(`  APK: ${results.apk.path} — ${results.apk.sizeBytes} B — sha256 ${results.apk.sha256.slice(0, 16)}… — v${results.apk.versionName} (${results.apk.versionCode})`);
 }
+const lp = results.liveProbe;
+const lpCounts = ` ${lp.holds} holds / ${lp.drift} drift / ${lp.errors} errors of ${lp.probed}`;
+console.log(`  [${lp.status.toUpperCase().padEnd(7)}] live golden probe (non-gating signal)${lp.status !== 'skipped' ? lpCounts : ''}`);
 const anyFail = suites.some((s) => s.status === 'fail');
 console.log(anyFail ? 'RESULT: FAILING SUITES PRESENT' : 'RESULT: ALL RECORDED SUITES GREEN');
 process.exit(anyFail ? 1 : 0);

@@ -81,6 +81,56 @@ describe('buildQaMarkdownReport', () => {
     expect(md).not.toContain('## Run history');
     expect(md).toContain('## Suites');
   });
+
+  it('renders the non-gating live probe section when recorded (WEBLAB-15)', () => {
+    const withProbe: QaResults = {
+      ...FIXTURE_QA,
+      liveProbe: {
+        status: 'drift',
+        probed: 2,
+        holds: 1,
+        drift: 1,
+        errors: 0,
+        durationMs: 1400,
+        recordedAt: '2026-10-11T19:32:49.680Z',
+        command: 'bun scripts/live-probe.ts',
+        detail: 'LIVE drift observed on 1 of 2 probed fixture(s).',
+        entries: [
+          {
+            fixture: 'a.json',
+            query: 'q',
+            verdict: 'holds',
+            shape: '1 sections · 1 tracks [Videos]',
+            httpStatus: 200,
+            durationMs: 300,
+            failures: [],
+            message: null,
+          },
+          {
+            fixture: 'b.json',
+            query: 'q2',
+            verdict: 'drift',
+            shape: '2 sections · 3 tracks',
+            httpStatus: 200,
+            durationMs: 310,
+            failures: ['trackCount: expected 2, got 3'],
+            message: null,
+          },
+        ],
+      },
+    };
+    const md = buildQaMarkdownReport(withProbe, '2026-10-12T01:30:00Z');
+    expect(md).toContain('## Live golden probe (non-gating signal)');
+    expect(md).toContain('**DRIFT** — 1 holds · 1 drift · 0 errors of 2 probed');
+    expect(md).toContain('SIGNAL, not a gate');
+    expect(md).toContain('DRIFT  b.json');
+    expect(md).toContain('trackCount: expected 2, got 3');
+  });
+
+  it('omits the live probe section when the run recorded none (pre-WEBLAB-15 files)', () => {
+    const md = buildQaMarkdownReport(FIXTURE_QA, '2026-10-12T01:30:00Z');
+    expect(md).not.toContain('## Live golden probe');
+  });
 });
 
 describe('qaReportFileName', () => {

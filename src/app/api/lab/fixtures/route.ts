@@ -42,7 +42,12 @@ function listBuiltin(): FixtureMeta[] {
   for (const entry of registry) {
     try {
       const size = statSync(join(BUILTIN_DIR, entry.name)).size;
-      out.push({ ...entry, sizeBytes: size });
+      // WEBLAB-15 lineage: optional supersedes/supersededBy declarations from
+      // the registry pass through verbatim (deliberate contract refreshes).
+      const lineage: Pick<FixtureMeta, 'supersedes' | 'supersededBy'> = {};
+      if (typeof entry.supersedes === 'string') lineage.supersedes = entry.supersedes;
+      if (typeof entry.supersededBy === 'string') lineage.supersededBy = entry.supersededBy;
+      out.push({ ...entry, ...lineage, sizeBytes: size });
     } catch {
       // registry entry without file on disk — skip, never invent
     }

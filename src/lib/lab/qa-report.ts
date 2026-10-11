@@ -83,6 +83,24 @@ export function buildQaMarkdownReport(qa: QaResults, generatedAt: string): strin
     lines.push('');
   }
 
+  // WEBLAB-15 — the non-gating LIVE probe signal, when this run recorded one.
+  if (qa.liveProbe !== undefined) {
+    const lp = qa.liveProbe;
+    lines.push('## Live golden probe (non-gating signal)');
+    lines.push('');
+    lines.push(
+      `- Status: **${lp.status.toUpperCase()}** — ${lp.holds} holds · ${lp.drift} drift · ${lp.errors} errors of ${lp.probed} probed`,
+    );
+    lines.push('- This is a SIGNAL, not a gate: live drift never fails the pipeline; the stored-fixture suites stay authoritative.');
+    if (lp.recordedAt !== null) lines.push(`- Probed at: ${lp.recordedAt}`);
+    for (const entry of lp.entries) {
+      const shape = entry.shape ?? entry.message ?? 'no shape';
+      lines.push(`  - ${entry.verdict.toUpperCase().padEnd(6)} ${entry.fixture} — ${shape}`);
+      for (const failure of entry.failures) lines.push(`      ${failure}`);
+    }
+    lines.push('');
+  }
+
   lines.push('## Honest scope — what this report does NOT claim');
   lines.push('');
   for (const item of NOT_VERIFIED) lines.push(`- ${item}`);

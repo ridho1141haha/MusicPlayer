@@ -1,11 +1,18 @@
 {
   "_comment": "Golden parse expectations (WEBLAB-10). Hand-written from the VERIFIED-CURRENT parse of each fixture — the same shapes locked by YtMusicSearchParserTest (commit ea305f6) — so the run-qa 'golden parse expectations' suite alarms when the parser or a fixture edits drift. Values dumped 2026-10-11 via the TS harness parser.",
+  "search_live_2026-10-12_lathi.json": {
+    "sectionCount": 5,
+    "trackCount": 15,
+    "sectionTitles": ["Top result", "Songs", "Albums", "Artists", "Videos"],
+    "mustIncludeIds": ["ytm:8uy7G2JXVSA", "ytm:UwTnUpDuwGg", "ytm-album:MPREb_CVL4u2p5bWY", "ytm-artist:UCeKD0TroyCQj0wAG_qLjxYw"],
+    "note": "DELIBERATE contract refresh (WEBLAB-15): the live golden probe caught shape drift on the 10-11 capture (response grew 8→30 section-list blocks; a Videos shelf appeared). Re-captured LIVE on 2026-10-12 and hand-locked to the verified TS-harness parse. Supersedes search_live_2026-10-11_lathi.json, which stays frozen as drift history."
+  },
   "search_live_2026-10-11_lathi.json": {
     "sectionCount": 4,
     "trackCount": 8,
     "sectionTitles": ["Top result", "Songs", "Albums", "Artists"],
     "mustIncludeIds": ["ytm:8uy7G2JXVSA", "ytm:UwTnUpDuwGg", "ytm-album:MPREb_CVL4u2p5bWY", "ytm-artist:UCeKD0TroyCQj0wAG_qLjxYw"],
-    "note": "Live LATHI capture — goldens mirrored from YtMusicSearchParserTest (Top/Songs/Albums/Artists)."
+    "note": "Live LATHI capture — goldens mirrored from YtMusicSearchParserTest (Top/Songs/Albums/Artists). Superseded by the 2026-10-12 re-capture; kept frozen as drift history (its contract still holds byte-for-byte)."
   },
   "search_live_2026-10-11_test.json": {
     "sectionCount": 3,

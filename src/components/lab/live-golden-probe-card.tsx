@@ -2,12 +2,13 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { motion } from 'framer-motion';
-import { FlaskConical, Loader2, Radar, ShieldAlert, TriangleAlert } from 'lucide-react';
+import { FlaskConical, GitBranch, Loader2, Radar, ShieldAlert, TriangleAlert } from 'lucide-react';
 
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { findSupersedingFixture } from '@/lib/lab/fixture-lineage';
 import { evaluateExpectation, liveProbeVerdict, type ExpectationsFile, type LiveProbeVerdict } from '@/lib/lab/expectations';
 import type { FixtureMeta } from '@/lib/lab/types';
 import type { SearchSection } from '@/lib/lab/types';
@@ -105,6 +106,13 @@ export function LiveGoldenProbeCard({ fixtures }: { fixtures: FixtureMeta[] }) {
 
   const done = probe.phase === 'done' ? probe : null;
 
+  // WEBLAB-15 lineage: when the selected fixture has been deliberately replaced
+  // by a refreshed capture, say so and offer one-click switch to the successor.
+  const successor = useMemo(
+    () => (selectedMeta !== null ? findSupersedingFixture(fixtures, selectedMeta.name) : null),
+    [fixtures, selectedMeta],
+  );
+
   return (
     <Card>
       <CardHeader className="pb-3">
@@ -162,6 +170,27 @@ export function LiveGoldenProbeCard({ fixtures }: { fixtures: FixtureMeta[] }) {
                 Contract: <span className="font-mono">{selectedMeta.name}</span> · query{' '}
                 <span className="font-mono">“{selectedMeta.query}”</span> · captured {selectedMeta.capturedAt ?? 'unknown date'}
               </p>
+            )}
+
+            {successor !== null && (
+              <div className="rm-lineage-hint flex flex-wrap items-center gap-2 rounded-md border border-amber-500/30 bg-amber-500/5 px-3 py-2">
+                <GitBranch className="h-3.5 w-3.5 shrink-0 text-amber-300" aria-hidden="true" />
+                <p className="min-w-0 flex-1 text-xs text-amber-200/90">
+                  This capture was deliberately replaced (contract refresh) by{' '}
+                  <span className="font-mono">{successor.name}</span> — this one is kept frozen as drift history.
+                </p>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="h-7 shrink-0 gap-1 border-amber-500/40 text-[11px] text-amber-200 hover:bg-amber-500/10"
+                  onClick={() => {
+                    setSelected(successor.name);
+                    setProbe({ phase: 'idle' });
+                  }}
+                >
+                  Probe the successor
+                </Button>
+              </div>
             )}
 
             {probe.phase === 'error' && (

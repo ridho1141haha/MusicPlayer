@@ -9,7 +9,9 @@
 #   5. android build       (gradle :app:assembleDebug)
 #   6. fixture sync check  (node scripts/sync-fixtures.mjs --check)
 #   7. golden parse expectations (bun scripts/check-expectations.ts)
-#   8. aggregate           (node scripts/collect-qa.mjs → data/qa-results.json)
+#   8. live golden probe   (bun scripts/live-probe.ts — NON-GATING signal,
+#                          always exits 0; live drift is recorded, never fatal)
+#   9. aggregate           (node scripts/collect-qa.mjs → data/qa-results.json)
 #
 # The dashboard on / reads data/qa-results.json — it shows ONLY what this
 # script actually recorded. Nothing here is mocked.
@@ -80,7 +82,21 @@ run_suite "FIXTURE_SYNC" node scripts/sync-fixtures.mjs --check
 # 7. golden parse expectations (fixture ↔ parser contract — drift alarm, WEBLAB-10)
 run_suite "GOLDEN_EXPECTATIONS" bun scripts/check-expectations.ts
 
-# 8. aggregate into data/qa-results.json
+# 8. live golden probe (WEBLAB-15) — NON-GATING by design: recorded, never fatal.
+#    Opt out with RM_LIVE_PROBE=skip (e.g. offline environments).
+echo "▶ bun scripts/live-probe.ts (non-gating live signal)"
+lp_start=$(date +%s%3N)
+out=$(bun scripts/live-probe.ts 2>&1)
+lp_rc=$?
+lp_end=$(date +%s%3N)
+echo "$out" > "$TMP/live-probe-console.log"
+tail -6 "$TMP/live-probe-console.log" | sed 's/^/    /'
+if [ "$lp_rc" -ne 0 ]; then
+  echo "  ⚠ live probe crashed (exit $lp_rc) — recorded as error, pipeline NOT failed (non-gating)"
+fi
+export RM_LIVE_PROBE_MS=$((lp_end - lp_start))
+
+# 9. aggregate into data/qa-results.json
 echo "▶ collecting results → data/qa-results.json"
 node scripts/collect-qa.mjs
 collect_rc=$?

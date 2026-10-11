@@ -59,6 +59,10 @@ export interface FixtureMeta {
   query: string | null;
   description: string;
   sizeBytes: number;
+  /** WEBLAB-15 lineage: this fixture deliberately replaces the named one (contract refresh). */
+  supersedes?: string | null;
+  /** WEBLAB-15 lineage: this fixture was replaced by the named one (kept frozen as drift history). */
+  supersededBy?: string | null;
 }
 
 /** A QA suite result as recorded by scripts/run-qa.sh (real executions only). */
@@ -93,6 +97,32 @@ export interface QaResults {
     skipped: number;
     allPassed: boolean;
   }>;
+  /**
+   * WEBLAB-15 — non-gating LIVE probe signal (recorded by scripts/live-probe.ts
+   * via run-qa.sh). NEVER affects the pipeline exit code: live drift is an
+   * investigation signal, the stored-fixture suites stay authoritative.
+   */
+  liveProbe?: {
+    status: 'holds' | 'drift' | 'error' | 'skipped';
+    probed: number;
+    holds: number;
+    drift: number;
+    errors: number;
+    durationMs: number | null;
+    recordedAt: string | null;
+    command: string;
+    detail: string;
+    entries: Array<{
+      fixture: string;
+      query: string | null;
+      verdict: 'holds' | 'drift' | 'error';
+      shape: string | null;
+      httpStatus: number | null;
+      durationMs: number | null;
+      failures: string[];
+      message: string | null;
+    }>;
+  };
 }
 
 /** Feature-parity row (hand-maintained, evidence-backed; see src/data/parity.ts). */

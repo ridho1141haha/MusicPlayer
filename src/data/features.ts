@@ -285,4 +285,25 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     status: 'pass',
     note: 'WEBLAB-14: every library chip gains a copy button writing the raw LRC to the clipboard; blocked contexts get an explicit failure toast pointing at Export instead — never a false success.',
   },
+  {
+    id: 'weblab-contract-refresh',
+    name: 'Deliberate Lathi contract refresh with declared lineage',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-15: the live probe caught the 2026-10-11 Lathi capture drifting (response grew 8→30 section-list blocks, new Videos shelf), so the contract was re-captured LIVE on 2026-10-12 and hand-locked to the verified harness parse (5 sections · 15 tracks). The registry declares supersedes/supersededBy lineage — the old capture stays frozen as drift history, nothing was edited silently. Both web (8/8) and Android golden suites evaluate the refreshed contract.',
+  },
+  {
+    id: 'weblab-live-probe-pipeline',
+    name: 'Live probe recorded as a NON-GATING run-qa signal suite',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-15: scripts/live-probe.ts re-runs every fixture query that has both a golden and a stored query against the LIVE API inside run-qa.sh — recorded (dashboard row + markdown report), never gating (always exit 0 by design; live drift is an investigation signal, the stored-fixture suites stay authoritative). First recorded run: live drift on 4/4 probed fixtures — LIVE responses are volatile minute-to-minute, which is exactly why this suite must not gate.',
+  },
+  {
+    id: 'weblab-fixture-lineage-ui',
+    name: 'Fixture lineage chips + probe successor hand-off',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-15: refreshed captures carry GitBranch lineage chips in the fixture list (amber "superseded by", teal "supersedes"); the live probe card detects a replaced contract, explains why the old capture is kept, and offers a one-click switch to the successor. Shared live-search client extracted so the API route and the pipeline probe send byte-identical requests (unit-tested).',
+  },
 ];

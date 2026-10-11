@@ -1,28 +1,26 @@
 import { NextResponse } from 'next/server';
 
+import { liveSearch } from '@/lib/lab/live-search';
+
 /**
  * Live InnerTube search proxy for the Search Playground.
  *
  * Sends EXACTLY the same unauthenticated request the Android app sends
  * (InnertubeClient: WEB_REMIX context, POST {query} to
  * https://music.youtube.com/youtubei/v1/search?prettyPrint=false) — no extra
- * headers, no credentials, no bypass of any protection. Then parses the
- * response server-side with the SAME TS parser the browser harness uses.
+ * headers, no credentials, no bypass of any protection. The request itself
+ * lives in src/lib/lab/live-search.ts, shared verbatim with the run-qa live
+ * probe (scripts/live-probe.ts) so every consumer hits the API identically.
  *
- * Every failure is surfaced honestly: network, timeout, HTTP status, or parse.
- * This endpoint never pretends an empty parse is a success without saying so.
+ * Then parses the response server-side with the SAME TS parser the browser
+ * harness uses. Every failure is surfaced honestly: network, timeout, HTTP
+ * status, or parse. This endpoint never pretends an empty parse is a success
+ * without saying so.
  */
 
 export const dynamic = 'force-dynamic';
 export const maxDuration = 30;
 
-const BASE_URL = 'https://music.youtube.com/youtubei/v1/';
-const CLIENT_CONTEXT = {
-  client: { clientName: 'WEB_REMIX', clientVersion: '1.20241028.01.00', hl: 'en', gl: 'US' },
-};
-const USER_AGENT =
-  'Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/128.0.0.0 Safari/537.36';
-const TIMEOUT_MS = 15_000;
 const MAX_QUERY_LENGTH = 200;
 
 export async function POST(request: Request) {
@@ -46,79 +44,37 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, errorKind: 'bad-request', message: `query too long (max ${MAX_QUERY_LENGTH} chars).` }, { status: 400 });
   }
 
-  const started = Date.now();
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  let response: Response;
-  try {
-    response = await fetch(`${BASE_URL}search?prettyPrint=false`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Origin: 'https://music.youtube.com',
-        Referer: 'https://music.youtube.com/',
-        'User-Agent': USER_AGENT,
+  const result = await liveSearch(query);
+  if (!result.ok) {
+    return NextResponse.json(
+      {
+        ok: false,
+        errorKind: result.errorKind,
+        message: result.message,
+        ...(result.httpStatus !== null ? { httpStatus: result.httpStatus } : {}),
+        durationMs: result.durationMs,
       },
-      body: JSON.stringify({ query, context: CLIENT_CONTEXT }),
-      signal: controller.signal,
-      cache: 'no-store',
-    });
-  } catch (error) {
-    clearTimeout(timer);
-    const aborted = error instanceof Error && error.name === 'AbortError';
-    return NextResponse.json({
-      ok: false,
-      errorKind: aborted ? 'timeout' : 'network',
-      message: aborted
-        ? `No response within ${TIMEOUT_MS / 1000}s (timeout).`
-        : `Could not reach music.youtube.com: ${error instanceof Error ? error.message : 'unknown network error'}`,
-      durationMs: Date.now() - started,
-    });
-  }
-  clearTimeout(timer);
-
-  const durationMs = Date.now() - started;
-  if (!response.ok) {
-    return NextResponse.json({
-      ok: false,
-      errorKind: 'http',
-      httpStatus: response.status,
-      message: `Catalog responded with HTTP ${response.status}`,
-      durationMs,
-    });
-  }
-
-  let root: unknown;
-  try {
-    root = await response.json();
-  } catch {
-    return NextResponse.json({
-      ok: false,
-      errorKind: 'parse',
-      httpStatus: response.status,
-      message: 'Catalog returned non-JSON data (API may have changed).',
-      durationMs,
-    });
+      { status: 200 },
+    );
   }
 
   // Parse server-side with the same harness parser (pure TS, no side effects).
   const { parseWithTrace } = await import('@/lib/lab/yt-search-parser');
-  const result = parseWithTrace(root);
+  const parsed = parseWithTrace(result.root);
 
-  const trackCount = (result.sections ?? []).reduce((sum, s) => sum + s.tracks.length, 0);
+  const trackCount = (parsed.sections ?? []).reduce((sum, s) => sum + s.tracks.length, 0);
   return NextResponse.json({
     ok: true,
-    httpStatus: response.status,
-    durationMs,
+    httpStatus: result.httpStatus,
+    durationMs: result.durationMs,
     query,
-    byteLength: JSON.stringify(root).length,
-    sections: result.sections,
-    trace: result.trace,
-    rendererStats: result.rendererStats,
-    continuationToken: result.continuationToken,
+    byteLength: JSON.stringify(result.root).length,
+    sections: parsed.sections,
+    trace: parsed.trace,
+    rendererStats: parsed.rendererStats,
+    continuationToken: parsed.continuationToken,
     // Only present when requested (capture-as-fixture flow). Untouched response root.
-    ...(includeRaw ? { raw: root } : {}),
+    ...(includeRaw ? { raw: result.root } : {}),
     // Honest note: gibberish queries get fuzzy-matched by the API (never truly empty).
     note:
       trackCount === 0
