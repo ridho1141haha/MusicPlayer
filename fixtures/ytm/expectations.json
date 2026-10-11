@@ -1,0 +1,48 @@
+{
+  "_comment": "Golden parse expectations (WEBLAB-10). Hand-written from the VERIFIED-CURRENT parse of each fixture — the same shapes locked by YtMusicSearchParserTest (commit ea305f6) — so the run-qa 'golden parse expectations' suite alarms when the parser or a fixture edits drift. Values dumped 2026-10-11 via the TS harness parser.",
+  "search_live_2026-10-11_lathi.json": {
+    "sectionCount": 4,
+    "trackCount": 8,
+    "sectionTitles": ["Top result", "Songs", "Albums", "Artists"],
+    "mustIncludeIds": ["ytm:8uy7G2JXVSA", "ytm:UwTnUpDuwGg", "ytm-album:MPREb_CVL4u2p5bWY", "ytm-artist:UCeKD0TroyCQj0wAG_qLjxYw"],
+    "note": "Live LATHI capture — goldens mirrored from YtMusicSearchParserTest (Top/Songs/Albums/Artists)."
+  },
+  "search_live_2026-10-11_test.json": {
+    "sectionCount": 3,
+    "trackCount": 5,
+    "sectionTitles": ["Top result", "Songs", "Albums"],
+    "mustIncludeIds": ["ytm:f5dBEd4L2Uc", "ytm-album:MPREb_LHCI5PDnbYo"],
+    "note": "Sanitized 'test' capture trim — Top result is the Testing album card (MPREb_LHCI5PDnbYo)."
+  },
+  "search_live_2026-10-11_gibberish.json": {
+    "sectionCount": 1,
+    "trackCount": 1,
+    "sectionTitles": ["Videos"],
+    "mustIncludeIds": ["ytm:ly8H6zLFcMM"],
+    "note": "Gibberish query fuzzy-matches one video (API behavior — UI can never show a true empty state for YTM)."
+  },
+  "search_legacy_shelf.json": {
+    "sectionCount": 2,
+    "trackCount": 2,
+    "sectionTitles": ["Songs", "Albums"],
+    "mustIncludeIds": ["ytm:abc123", "ytm-album:MPREb_9x8y"],
+    "note": "Legacy musicShelfRenderer inline fixture — locks back-compat."
+  },
+  "search_synth_edge_cases.json": {
+    "sectionCount": 1,
+    "trackCount": 1,
+    "mustIncludeIds": ["ytm:keepme001"],
+    "mustNotIncludeIds": ["ytm:skipme002", "ytm:skipme003"],
+    "note": "SYNTHETIC edge cases — exactly one row survives the parser's accept rules."
+  },
+  "search_synth_empty_blocks.json": {
+    "sectionCount": 0,
+    "trackCount": 0,
+    "note": "SYNTHETIC — all blocks empty → parse to zero sections (must stay honest, not null)."
+  },
+  "search_synth_unknown_structure.json": {
+    "sectionCount": 0,
+    "trackCount": 0,
+    "note": "SYNTHETIC — unknown envelope → zero sections (defensive parse)."
+  }
+}

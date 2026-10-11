@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-11 18:03:39Z",
+  "recordedAt": "2026-10-11 18:14:56Z",
   "suites": [
     {
       "name": "web lint (eslint)",
@@ -8,18 +8,18 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 6874,
+      "durationMs": 7102,
       "exitCode": 0,
       "detail": "eslint . completed with no findings."
     },
     {
       "name": "web unit tests (vitest)",
       "status": "pass",
-      "passed": 85,
+      "passed": 97,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 55,
-      "detail": "85 assertions passed across 8 file(s) on shared fixtures.",
+      "durationMs": 53,
+      "detail": "97 assertions passed across 10 file(s) on shared fixtures.",
       "command": "bunx vitest run"
     },
     {
@@ -28,8 +28,8 @@
       "passed": 29,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 406,
-      "detail": "com.ridho.music.domain.model.TrackTest: 4 tests, 0 failures, 0 errors, 0 skipped, 0.008s\ncom.ridho.music.lyrics.LrcParserTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.005s\ncom.ridho.music.source.yt.YouTubeMusicSourceTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.362s\ncom.ridho.music.source.yt.YtMusicSearchParserTest: 11 tests, 0 failures, 0 errors, 0 skipped, 0.031s\n\nTOTAL: 29 tests, 0 failures, 0 errors, 0 skipped.",
+      "durationMs": 249,
+      "detail": "com.ridho.music.domain.model.TrackTest: 4 tests, 0 failures, 0 errors, 0 skipped, 0.026s\ncom.ridho.music.lyrics.LrcParserTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.004s\ncom.ridho.music.source.yt.YouTubeMusicSourceTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.203s\ncom.ridho.music.source.yt.YtMusicSearchParserTest: 11 tests, 0 failures, 0 errors, 0 skipped, 0.016s\n\nTOTAL: 29 tests, 0 failures, 0 errors, 0 skipped.",
       "command": "gradle :app:testDebugUnitTest --rerun"
     },
     {
@@ -39,7 +39,7 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 13234,
+      "durationMs": 13224,
       "exitCode": 0,
       "detail": "lintDebug passed with abortOnError=true (0 lint errors)."
     },
@@ -50,7 +50,7 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 12782,
+      "durationMs": 12691,
       "exitCode": 0,
       "detail": "assembleDebug BUILD SUCCESSFUL (may be UP-TO-DATE if inputs unchanged)."
     },
@@ -64,6 +64,17 @@
       "durationMs": null,
       "exitCode": 0,
       "detail": "All shared live fixtures are byte-identical between fixtures/ytm and android/app/src/test/resources/ytm."
+    },
+    {
+      "name": "golden parse expectations (fixture ↔ parser contract)",
+      "command": "bun scripts/check-expectations.ts",
+      "status": "pass",
+      "passed": 7,
+      "failed": 0,
+      "skipped": null,
+      "durationMs": 28,
+      "exitCode": 0,
+      "detail": "ok    search_live_2026-10-11_lathi.json — 4 sections · 8 tracks [Top result, Songs, Albums, Artists]\nok    search_live_2026-10-11_test.json — 3 sections · 5 tracks [Top result, Songs, Albums]\nok    search_live_2026-10-11_gibberish.json — 1 sections · 1 tracks [Videos]\nok    search_legacy_shelf.json — 2 sections · 2 tracks [Songs, Albums]\nok    search_synth_edge_cases.json — 1 sections · 1 tracks [Songs]\nok    search_synth_empty_blocks.json — 0 sections · 0 tracks\nok    search_synth_unknown_structure.json — 0 sections · 0 tracks\n\n7/7 golden expectations hold."
     }
   ],
   "apk": {
@@ -75,6 +86,20 @@
     "versionCode": 3
   },
   "history": [
+    {
+      "recordedAt": "2026-10-11 18:09:58Z",
+      "passed": 121,
+      "failed": 0,
+      "skipped": 0,
+      "allPassed": true
+    },
+    {
+      "recordedAt": "2026-10-11 18:03:39Z",
+      "passed": 114,
+      "failed": 0,
+      "skipped": 0,
+      "allPassed": true
+    },
     {
       "recordedAt": "2026-10-11 17:39:49Z",
       "passed": 88,

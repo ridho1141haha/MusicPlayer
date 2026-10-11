@@ -184,7 +184,43 @@ const fixtureSync = {
     : 'All shared live fixtures are byte-identical between fixtures/ytm and android/app/src/test/resources/ytm.',
 };
 
-const suites = [webLint, webUnit, androidUnit, androidLint, androidBuild, fixtureSync];
+// Golden parse expectations (WEBLAB-10): real counts come from /tmp/rm-qa/golden.json,
+// written by scripts/check-expectations.ts in the same run. No stale numbers.
+function readGolden() {
+  const path = join(TMP, 'golden.json');
+  if (!existsSync(path)) {
+    return { passed: null, failed: null, detail: 'No golden.json found — suite was skipped or crashed before writing output.' };
+  }
+  try {
+    const raw = JSON.parse(readFileSync(path, 'utf8'));
+    const lines = (raw.entries ?? []).map((e) => `${e.ok ? 'ok   ' : 'DRIFT'} ${e.fixture} — ${e.actual.sectionCount} sections · ${e.actual.trackCount} tracks${e.actual.titles?.length ? ` [${e.actual.titles.join(', ')}]` : ''}${e.ok || !e.failures?.length ? '' : `\n        ${e.failures.join('\n        ')}`}`);
+    return {
+      passed: raw.passed ?? null,
+      failed: raw.failed ?? null,
+      detail: `${lines.join('\n')}\n\n${raw.passed}/${raw.checked} golden expectations hold${raw.unexpectated ? ` (${raw.unexpectated} fixture(s) without golden)` : ''}.`,
+    };
+  } catch (error) {
+    return { passed: null, failed: null, detail: `Could not parse golden.json: ${error.message}` };
+  }
+}
+
+const goldenRaw = readGolden();
+const goldenExpectations = {
+  name: 'golden parse expectations (fixture ↔ parser contract)',
+  command: 'bun scripts/check-expectations.ts',
+  status: process.env.RM_GOLDEN_EXPECTATIONS === '0' ? 'fail' : 'pass',
+  passed: goldenRaw.passed,
+  failed: goldenRaw.failed,
+  skipped: null,
+  durationMs: process.env.RM_GOLDEN_EXPECTATIONS_MS ? Number(process.env.RM_GOLDEN_EXPECTATIONS_MS) : null,
+  exitCode: process.env.RM_GOLDEN_EXPECTATIONS === '0' ? 1 : 0,
+  detail:
+    process.env.RM_GOLDEN_EXPECTATIONS === '0'
+      ? ((process.env.RM_GOLDEN_EXPECTATIONS_OUT ?? 'golden expectation drift detected') + (goldenRaw.detail ? `\n\n${goldenRaw.detail}` : '')).slice(0, 4000)
+      : (goldenRaw.detail ?? 'check-expectations completed.'),
+};
+
+const suites = [webLint, webUnit, androidUnit, androidLint, androidBuild, fixtureSync, goldenExpectations];
 
 const results = {
   recordedAt: isoNow(),

@@ -173,4 +173,32 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     status: 'pass',
     note: 'WEBLAB-9: number keys switch lab sections (ignored while typing / with modifiers; kbd hints in nav + footer), floating scroll-to-top, animated SVG pass-rate donut + "recorded X ago" chip (relativeTime unit-tested, hydration-safe).',
   },
+  {
+    id: 'weblab-golden-expectations',
+    name: 'Golden parse expectations — drift alarm in run-qa (fixture ↔ parser contract)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-10: fixtures/ytm/expectations.json locks the verified-current parse shape of every fixture (from the same goldens as YtMusicSearchParserTest). bun scripts/check-expectations.ts runs in run-qa.sh as a recorded suite (7/7 hold) — red on ANY shape drift; collect-qa reads the machine summary /tmp/rm-qa/golden.json (no stale numbers). 10 unit tests cover evaluation + schema guard.',
+  },
+  {
+    id: 'weblab-golden-ui',
+    name: 'Golden expectations live view in Fixtures tab',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-10: GoldenExpectationsCard evaluates every contract in-browser with the same parser/lib, per-fixture golden ✓ / DRIFT badges with honest failure lines, "(no golden)" visibility for uncovered fixtures, validateError surfaced when expectations.json itself is broken.',
+  },
+  {
+    id: 'weblab-search-history',
+    name: 'Search Playground history (session-local re-run chips)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-10: every live run records its real outcome (HTTP status, item count, duration, or typed error) to a session-local store (cap 8, consecutive-dup replace); chips re-run the query on click; failures styled red; clear button. Never persisted, never invented.',
+  },
+  {
+    id: 'weblab-repeat-one',
+    name: 'Repeat one (simulated) with provable tick logic',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-10: pure computeTick (unit-tested: advance/restart/progress, zero-length guard) drives the simulated clock; repeat-one toggles from Now Playing with active accent + explanatory badge; behavior labeled simulated.',
+  },
 ];

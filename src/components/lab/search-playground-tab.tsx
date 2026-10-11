@@ -9,12 +9,14 @@ import {
   Clock,
   Database,
   FilePlus2,
+  History,
   Info,
   Loader2,
   Play,
   Radio,
   RefreshCw,
   Search,
+  Trash2,
   WifiOff,
   XCircle,
 } from 'lucide-react';
@@ -266,6 +268,8 @@ export function SearchPlaygroundTab() {
   const setMode = useLabStore((s) => s.setPlaygroundMode);
   // A fixture "opened" from the Fixtures tab lands in the store; local picks win after that.
   const storeFixture = useLabStore((s) => s.playgroundFixture);
+  const searchHistory = useLabStore((s) => s.searchHistory);
+  const clearSearchHistory = useLabStore((s) => s.clearSearchHistory);
   const { toast } = useToast();
 
   const [query, setQuery] = useState('Lathi');
@@ -300,7 +304,9 @@ export function SearchPlaygroundTab() {
     void loadFixtureList();
   }, [loadFixtureList]);
 
-  const runLive = async () => {
+  const runLive = async (queryOverride?: string) => {
+    const queryText = (queryOverride ?? query).trim();
+    if (queryOverride !== undefined) setQuery(queryOverride);
     setLive({ phase: 'loading' });
     try {
       const res = await fetch('/api/lab/search', {
@@ -308,9 +314,19 @@ export function SearchPlaygroundTab() {
         headers: { 'Content-Type': 'application/json' },
         // includeRaw: the untouched response root rides along so the capture
         // button can save it as a fixture without a second request.
-        body: JSON.stringify({ query, includeRaw: true }),
+        body: JSON.stringify({ query: queryText, includeRaw: true }),
       });
       const data = (await res.json()) as LiveSuccess | LiveFailure;
+      // Session-local history (WEBLAB-10): real outcome only, recorded either way.
+      useLabStore.getState().addSearchHistory({
+        query: queryText,
+        at: Date.now(),
+        ok: data.ok,
+        httpStatus: data.ok ? data.httpStatus : (data.httpStatus ?? null),
+        durationMs: data.ok ? data.durationMs : (data.durationMs ?? null),
+        trackCount: data.ok ? data.sections.reduce((sum, s) => sum + s.tracks.length, 0) : null,
+        errorKind: data.ok ? null : data.errorKind,
+      });
       if (data.ok) setLive({ phase: 'success', data });
       else setLive({ phase: 'failure', failure: data });
     } catch (error) {
@@ -524,6 +540,60 @@ export function SearchPlaygroundTab() {
           )}
         </CardContent>
       </Card>
+
+      {/* Session-local search history (WEBLAB-10) — real outcomes only, click to re-run. */}
+      {mode === 'live' && searchHistory.length > 0 && (
+        <Card>
+          <CardContent className="p-3">
+            <div className="mb-2 flex items-center justify-between gap-2">
+              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+                <History className="h-3.5 w-3.5" aria-hidden="true" />
+                Recent live searches ({searchHistory.length}/8) — this browser session only
+              </p>
+              <Button
+                variant="ghost"
+                size="sm"
+                className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+                onClick={clearSearchHistory}
+                aria-label="Clear search history"
+              >
+                <Trash2 className="h-3 w-3" aria-hidden="true" />
+                Clear
+              </Button>
+            </div>
+            <div className="flex flex-wrap gap-1.5">
+              {searchHistory.map((entry) => {
+                const label =
+                  entry.ok === false
+                    ? `HTTP-${entry.httpStatus ?? 'err'} · ${entry.errorKind ?? 'failed'}`
+                    : `${entry.httpStatus ?? 200} · ${entry.trackCount ?? 0} items · ${entry.durationMs ?? '?'} ms`;
+                return (
+                  <button
+                    key={`${entry.query}-${entry.at}`}
+                    type="button"
+                    onClick={() => void runLive(entry.query)}
+                    title={`Re-run "${entry.query}"`}
+                    aria-label={`Re-run search "${entry.query}" (${label})`}
+                    className={`group flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors min-h-[28px] ${
+                      entry.ok
+                        ? 'border-border bg-background/50 hover:border-primary/40 hover:bg-primary/5'
+                        : 'border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
+                    }`}
+                  >
+                    {entry.ok ? (
+                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden="true" />
+                    ) : (
+                      <XCircle className="h-3 w-3 shrink-0" aria-hidden="true" />
+                    )}
+                    <span className="max-w-[160px] truncate font-medium">{entry.query}</span>
+                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Live failure — typed and honest */}
       {mode === 'live' && live.phase === 'failure' && (

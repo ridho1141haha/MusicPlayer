@@ -14,6 +14,7 @@ import {
 } from 'lucide-react';
 
 import { FixtureDiffPanel } from '@/components/lab/fixture-diff-panel';
+import { GoldenExpectationsCard } from '@/components/lab/golden-expectations-card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -416,6 +417,7 @@ export function FixtureTesterTab() {
     </div>
 
     {/* A/B diff — full width below the inspector (WEBLAB-8) */}
+    <GoldenExpectationsCard fixtures={fixtures} />
     <FixtureDiffPanel fixtures={fixtures} />
     </div>
   );

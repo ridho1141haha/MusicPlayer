@@ -36,6 +36,7 @@ import {
   Pause,
   Play,
   Plus,
+  Repeat1,
   RotateCcw,
   Search,
   Shuffle,
@@ -442,6 +443,8 @@ export function PrototypeTab() {
   const seekTo = useLabStore((s) => s.seekTo);
   const next = useLabStore((s) => s.next);
   const previous = useLabStore((s) => s.previous);
+  const repeatOne = useLabStore((s) => s.repeatOne);
+  const toggleRepeatOne = useLabStore((s) => s.toggleRepeatOne);
 
   const queue = useLabStore((s) => s.queue);
   const reorderQueue = useLabStore((s) => s.reorderQueue);
@@ -932,7 +935,23 @@ export function PrototypeTab() {
                   <Button variant="outline" size="icon" className="h-12 w-12" onClick={next} aria-label="Next (simulated)">
                     <SkipForward className="h-5 w-5" aria-hidden="true" />
                   </Button>
+                  <Button
+                    variant={repeatOne ? 'default' : 'outline'}
+                    size="icon"
+                    className={`h-12 w-12 ${repeatOne ? 'text-primary-foreground' : ''}`}
+                    onClick={toggleRepeatOne}
+                    aria-pressed={repeatOne}
+                    aria-label={repeatOne ? 'Repeat one on (simulated) — the track restarts when it ends' : 'Repeat one off (simulated)'}
+                    title={repeatOne ? 'Repeat ONE is ON (simulated) — track restarts at the end' : 'Repeat one (simulated)'}
+                  >
+                    <Repeat1 className={`h-5 w-5 ${repeatOne ? '' : 'text-muted-foreground'}`} aria-hidden="true" />
+                  </Button>
                 </div>
+                {repeatOne && (
+                  <Badge variant="outline" className="border-primary/40 bg-primary/10 text-[10px] text-primary">
+                    repeat ONE on (simulated) — the track restarts at the end
+                  </Badge>
+                )}
                 <div className="text-xs text-muted-foreground">
                   <p className="font-mono">{currentTrack.id}</p>
                   <p>plays (simulated): {playCounts[currentTrack.id] ?? 0}</p>

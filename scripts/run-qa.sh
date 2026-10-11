@@ -8,7 +8,8 @@
 #   4. android lint        (gradle :app:lintDebug)
 #   5. android build       (gradle :app:assembleDebug)
 #   6. fixture sync check  (node scripts/sync-fixtures.mjs --check)
-#   7. aggregate           (node scripts/collect-qa.mjs → data/qa-results.json)
+#   7. golden parse expectations (bun scripts/check-expectations.ts)
+#   8. aggregate           (node scripts/collect-qa.mjs → data/qa-results.json)
 #
 # The dashboard on / reads data/qa-results.json — it shows ONLY what this
 # script actually recorded. Nothing here is mocked.
@@ -76,7 +77,10 @@ run_suite "ANDROID_BUILD" "$GRADLE" --no-daemon -p android :app:assembleDebug
 # 6. fixture sync
 run_suite "FIXTURE_SYNC" node scripts/sync-fixtures.mjs --check
 
-# 7. aggregate into data/qa-results.json
+# 7. golden parse expectations (fixture ↔ parser contract — drift alarm, WEBLAB-10)
+run_suite "GOLDEN_EXPECTATIONS" bun scripts/check-expectations.ts
+
+# 8. aggregate into data/qa-results.json
 echo "▶ collecting results → data/qa-results.json"
 node scripts/collect-qa.mjs
 collect_rc=$?

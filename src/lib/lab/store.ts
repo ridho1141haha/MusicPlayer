@@ -3,6 +3,7 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { shuffledQueue } from './shuffle';
+import { computeTick } from './tick';
 import type { LabTrack } from './types';
 
 export type LabTab = 'dashboard' | 'playground' | 'fixtures' | 'prototype' | 'parity' | 'project';
@@ -36,6 +37,9 @@ interface LabStore {
   currentTrackId: string | null;
   isPlaying: boolean;
   progressMs: number;
+  /** Simulated repeat-one: the current track restarts instead of advancing (WEB-LAB-10). */
+  repeatOne: boolean;
+  toggleRepeatOne(): void;
   playTrack(id: string): void;
   togglePlay(): void;
   togglePlayId(id: string): void;
@@ -58,6 +62,21 @@ interface LabStore {
   favorites: string[];
   toggleFavorite(id: string): void;
   playCounts: Record<string, number>;
+
+  // ---- search history (session-local, WEB-LAB-10) ----------------------------
+  searchHistory: SearchHistoryEntry[];
+  addSearchHistory(entry: SearchHistoryEntry): void;
+  clearSearchHistory(): void;
+}
+
+export interface SearchHistoryEntry {
+  query: string;
+  at: number;
+  ok: boolean;
+  httpStatus: number | null;
+  durationMs: number | null;
+  trackCount: number | null;
+  errorKind: string | null;
 }
 
 function durationOf(track: LabTrack | undefined): number {
@@ -120,6 +139,8 @@ export const useLabStore = create<LabStore>()(
       currentTrackId: null,
       isPlaying: false,
       progressMs: 0,
+      repeatOne: false,
+      toggleRepeatOne: () => set({ repeatOne: !get().repeatOne }),
       playTrack: (id) => {
         const { currentTrackId, playCounts } = get();
         set({
@@ -140,15 +161,17 @@ export const useLabStore = create<LabStore>()(
       },
       seekTo: (ms) => set({ progressMs: Math.max(0, ms) }),
       tick: () => {
-        const { isPlaying, currentTrackId, progressMs, catalog } = get();
+        const { isPlaying, currentTrackId, progressMs, catalog, repeatOne } = get();
         if (!isPlaying || currentTrackId === null) return;
         const track = catalog.find((t) => t.id === currentTrackId);
         const total = durationOf(track);
-        const nextProgress = progressMs + 250;
-        if (nextProgress >= total) {
-          get().next();
+        const decision = computeTick(total, progressMs, repeatOne);
+        if (decision.action === 'progress') {
+          set({ progressMs: decision.progressMs });
+        } else if (decision.action === 'restart') {
+          set({ progressMs: 0 }); // repeat-one: same track, still playing
         } else {
-          set({ progressMs: nextProgress });
+          get().next();
         }
       },
       next: () => {
@@ -209,6 +232,20 @@ export const useLabStore = create<LabStore>()(
         set({ favorites: favorites.includes(id) ? favorites.filter((f) => f !== id) : [...favorites, id] });
       },
       playCounts: {},
+
+      searchHistory: [],
+      addSearchHistory: (entry) => {
+        const { searchHistory } = get();
+        // Skip exact consecutive duplicates (same query, same result shape) — a re-run
+        // of the same query REPLACES the previous entry so the cap stays useful.
+        const prev = searchHistory[0];
+        if (prev !== undefined && prev.query === entry.query && prev.ok === entry.ok && prev.trackCount === entry.trackCount && prev.errorKind === entry.errorKind) {
+          set({ searchHistory: [entry, ...searchHistory.slice(1)] });
+          return;
+        }
+        set({ searchHistory: [entry, ...searchHistory.filter((h) => h.query !== entry.query)].slice(0, 8) });
+      },
+      clearSearchHistory: () => set({ searchHistory: [] }),
     }),
     {
       name: 'ridho-lab-store',
