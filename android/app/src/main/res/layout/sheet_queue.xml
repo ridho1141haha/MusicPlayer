@@ -20,11 +20,20 @@
         android:layout_height="wrap_content"
         android:paddingHorizontal="20dp"
         android:paddingTop="12dp"
-        android:paddingBottom="8dp"
+        android:paddingBottom="2dp"
         android:text="@string/queue_title"
         android:textAppearance="?attr/textAppearanceTitleMedium"
         android:textColor="@color/on_surface"
         android:textStyle="bold" />
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:paddingHorizontal="20dp"
+        android:paddingBottom="8dp"
+        android:text="@string/queue_reorder_hint"
+        android:textAppearance="?attr/textAppearanceBodySmall"
+        android:textColor="@color/on_surface_muted" />
 
     <androidx.recyclerview.widget.RecyclerView
         android:id="@+id/queue_list"

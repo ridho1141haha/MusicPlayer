@@ -19,6 +19,7 @@ import com.ridho.music.ui.FormatUtils;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
 
 /** Vertical track row used by Home favorites, Library lists and playlist detail. */
 public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHolder> {
@@ -31,9 +32,21 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHol
 
     private final List<Track> items = new ArrayList<>();
     private final Callback callback;
+    @androidx.annotation.Nullable
+    private Map<String, Integer> playCounts;
 
     public TrackAdapter(Callback callback) {
         this.callback = callback;
+    }
+
+    /**
+     * Optional play-count overlay ("Top tracks" mode). When set, the subtitle
+     * shows "artist · N plays" for tracks present in the map. Pass {@code null}
+     * to restore the default "artist · album" subtitle.
+     */
+    public void setPlayCounts(@androidx.annotation.Nullable Map<String, Integer> counts) {
+        this.playCounts = counts;
+        notifyDataSetChanged();
     }
 
     public List<Track> currentItems() {
@@ -83,8 +96,14 @@ public class TrackAdapter extends RecyclerView.Adapter<TrackAdapter.TrackViewHol
 
         void bind(Track track) {
             title.setText(track.title);
-            subtitle.setText(track.album == null ? track.artist
-                    : track.artist + " · " + track.album);
+            Integer plays = playCounts == null ? null : playCounts.get(track.id);
+            if (plays != null) {
+                subtitle.setText(track.artist + " · " + plays
+                        + (plays == 1 ? " play" : " plays"));
+            } else {
+                subtitle.setText(track.album == null ? track.artist
+                        : track.artist + " · " + track.album);
+            }
             duration.setText(FormatUtils.formatDuration(track.durationMs));
             Glide.with(artwork)
                     .load(MediaItemConverter.artworkUri(track))

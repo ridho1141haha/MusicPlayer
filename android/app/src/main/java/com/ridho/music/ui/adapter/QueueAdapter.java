@@ -39,6 +39,26 @@ public class QueueAdapter extends RecyclerView.Adapter<QueueAdapter.VH> {
         notifyDataSetChanged();
     }
 
+    /**
+     * Optimistic in-place move for drag-to-reorder; keeps the highlight on the
+     * playing track while the async player event catches up.
+     */
+    public void moveItem(int from, int to) {
+        if (from == to || from < 0 || to < 0 || from >= items.size() || to >= items.size()) {
+            return;
+        }
+        Track moved = items.remove(from);
+        items.add(to, moved);
+        if (currentIndex == from) {
+            currentIndex = to;
+        } else if (from < currentIndex && to >= currentIndex) {
+            currentIndex--;
+        } else if (from > currentIndex && to <= currentIndex) {
+            currentIndex++;
+        }
+        notifyItemMoved(from, to);
+    }
+
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {

@@ -87,8 +87,10 @@ public class NowPlayingActivity extends AppCompatActivity implements PlaybackRep
 
         ImageButton sleepButton = findViewById(R.id.np_sleep);
         TextView speedButton = findViewById(R.id.np_speed);
+        ImageButton shareButton = findViewById(R.id.np_share);
         sleepButton.setOnClickListener(v -> showSleepTimerDialog());
         speedButton.setOnClickListener(v -> showPlaybackSpeedDialog());
+        shareButton.setOnClickListener(v -> shareCurrentTrack());
 
         flipper = findViewById(R.id.np_flipper);
         artwork = findViewById(R.id.np_artwork);
@@ -232,6 +234,16 @@ public class NowPlayingActivity extends AppCompatActivity implements PlaybackRep
                     ? R.drawable.ic_heart_filled : R.drawable.ic_heart_outline);
             favoriteButton.setTag(isFavorite);
         });
+    }
+
+    private void shareCurrentTrack() {
+        Track track = playback.currentTrack();
+        if (track == null) return;
+        String text = getString(R.string.share_track_text, track.title, track.artist);
+        android.content.Intent send = new android.content.Intent(android.content.Intent.ACTION_SEND);
+        send.setType("text/plain");
+        send.putExtra(android.content.Intent.EXTRA_TEXT, text);
+        startActivity(android.content.Intent.createChooser(send, null));
     }
 
     private void showSleepTimerDialog() {

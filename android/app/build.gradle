@@ -10,8 +10,8 @@ android {
         applicationId "com.ridho.music"
         minSdk 24          // Android 7.0 — sensible floor for Media3 + modern notification APIs
         targetSdk 35       // Android 15 — matches Samsung Galaxy A05s (One UI 6/7, API 34/35)
-        versionCode 2
-        versionName "1.1.0"
+        versionCode 3
+        versionName "1.2.0"
         vectorDrawables.useSupportLibrary = true
     }
 

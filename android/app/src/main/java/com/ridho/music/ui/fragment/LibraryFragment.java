@@ -41,6 +41,7 @@ public class LibraryFragment extends Fragment implements TrackAdapter.Callback,
     private static final int MODE_PLAYLISTS = 1;
     private static final int MODE_HISTORY = 2;
     private static final int MODE_LOCAL = 3;
+    private static final int MODE_TOP = 4;
 
     private PlaybackRepository playback;
     private ChipGroup modeChips;
@@ -82,6 +83,7 @@ public class LibraryFragment extends Fragment implements TrackAdapter.Callback,
             else if (id == R.id.chip_playlists) showMode(MODE_PLAYLISTS);
             else if (id == R.id.chip_history) showMode(MODE_HISTORY);
             else if (id == R.id.chip_local) showMode(MODE_LOCAL);
+            else if (id == R.id.chip_top) showMode(MODE_TOP);
         });
         modeChips.check(R.id.chip_favorites);
 
@@ -103,6 +105,7 @@ public class LibraryFragment extends Fragment implements TrackAdapter.Callback,
         if (checked == R.id.chip_playlists) showMode(MODE_PLAYLISTS);
         else if (checked == R.id.chip_history) showMode(MODE_HISTORY);
         else if (checked == R.id.chip_local) showMode(MODE_LOCAL);
+        else if (checked == R.id.chip_top) showMode(MODE_TOP);
         else showMode(MODE_FAVORITES);
     }
 
@@ -113,6 +116,7 @@ public class LibraryFragment extends Fragment implements TrackAdapter.Callback,
         progress.setVisibility(View.GONE);
         emptyText.setVisibility(View.GONE);
         listView.setAdapter(mode == MODE_PLAYLISTS ? playlistAdapter : trackAdapter);
+        if (mode != MODE_TOP) trackAdapter.setPlayCounts(null);
 
         switch (mode) {
             case MODE_PLAYLISTS:
@@ -134,6 +138,15 @@ public class LibraryFragment extends Fragment implements TrackAdapter.Callback,
                     if (!isAdded()) return;
                     trackAdapter.submit(tracks);
                     showEmptyIf(tracks.isEmpty(), R.string.library_empty_local);
+                });
+                break;
+            case MODE_TOP:
+                trackAdapter.setPlayCounts(java.util.Collections.emptyMap());
+                App.locator().library().getTopTracks(100, result -> {
+                    if (!isAdded()) return;
+                    trackAdapter.setPlayCounts(result.playCounts);
+                    trackAdapter.submit(result.tracks);
+                    showEmptyIf(result.tracks.isEmpty(), R.string.library_empty_top);
                 });
                 break;
             case MODE_FAVORITES:
@@ -195,6 +208,7 @@ public class LibraryFragment extends Fragment implements TrackAdapter.Callback,
         if (checked == R.id.chip_playlists) showMode(MODE_PLAYLISTS);
         else if (checked == R.id.chip_history) showMode(MODE_HISTORY);
         else if (checked == R.id.chip_local) showMode(MODE_LOCAL);
+        else if (checked == R.id.chip_top) showMode(MODE_TOP);
         else showMode(MODE_FAVORITES);
     }
 

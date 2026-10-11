@@ -212,6 +212,17 @@ public class PlaybackRepository {
         c.removeMediaItem(position);
     }
 
+    /** Moves one queue entry (drag-to-reorder). Positions follow the live player order. */
+    public void moveQueueItem(int from, int to) {
+        MediaController c = controller;
+        if (c == null) return;
+        if (from == to || from < 0 || to < 0 || from >= c.getMediaItemCount()
+                || to >= c.getMediaItemCount()) {
+            return;
+        }
+        c.moveMediaItem(from, to);
+    }
+
     /**
      * Pauses playback after {@code delayMs} (sleep timer). Pass 0 to cancel.
      * The timer lives in the playback service, so it survives UI process death.

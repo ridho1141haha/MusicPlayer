@@ -14,6 +14,7 @@ import com.ridho.music.data.entity.PlaylistEntity;
 import com.ridho.music.data.entity.PlaylistTrackEntity;
 import com.ridho.music.data.entity.QueuedTrackEntity;
 import com.ridho.music.data.entity.SavedTrackEntity;
+import com.ridho.music.data.entity.TopTrackRow;
 import com.ridho.music.domain.model.Track;
 
 import org.json.JSONException;
@@ -133,6 +134,42 @@ public class LibraryRepository {
                 if (t != null) out.add(t);
             }
             main.post(() -> callback.onResult(out));
+        });
+    }
+
+    /** Aggregated play count for one track id (used by "Top tracks"). */
+    public void getPlayCount(String trackId, final Callback<Integer> callback) {
+        executor.execute(() -> {
+            int count = db.historyDao().countPlays(trackId);
+            main.post(() -> callback.onResult(count));
+        });
+    }
+
+    /** Result of {@link #getTopTracks}: ordered tracks plus their play counts. */
+    public static final class TopTracksResult {
+        public final List<Track> tracks;
+        public final java.util.Map<String, Integer> playCounts;
+
+        TopTracksResult(List<Track> tracks, java.util.Map<String, Integer> playCounts) {
+            this.tracks = tracks;
+            this.playCounts = playCounts;
+        }
+    }
+
+    /** Most-played tracks, ordered by play count (derived from history rows). */
+    public void getTopTracks(int limit, final Callback<TopTracksResult> callback) {
+        executor.execute(() -> {
+            List<TopTrackRow> rows = db.historyDao().getTopTracks(limit);
+            List<Track> tracks = new ArrayList<>(rows.size());
+            java.util.Map<String, Integer> counts = new java.util.LinkedHashMap<>();
+            for (TopTrackRow row : rows) {
+                String json = db.historyDao().getLatestTrackJson(row.trackId);
+                Track t = jsonToTrack(json);
+                if (t == null) continue;
+                tracks.add(t);
+                counts.put(t.id, row.playCount);
+            }
+            main.post(() -> callback.onResult(new TopTracksResult(tracks, counts)));
         });
     }
 

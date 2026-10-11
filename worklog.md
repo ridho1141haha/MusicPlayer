@@ -99,3 +99,25 @@ Stage Summary:
 - BLOCKED (external): git push — needs a valid GitHub token with repo/contents:write scope. Retry command pattern: `cd /home/z/my-project && GH_TOKEN=<valid-token> git -c credential.helper='!f(){ echo username=ridho1141haha; echo password=$GH_TOKEN; }; f' push -u origin main`.
 - Security: the user's pasted token was exposed in chat and is invalid/likely revoked — advise immediate rotation and fine-grained PAT (Contents: read/write on MusicPlayer only).
 - Next priorities: push once credentials work; optional roadmap: album/artist browse endpoints, playback-speed button state in mini player, Android Auto surface, NewPipe GPLv3 flavor.
+
+---
+Task ID: AUDIT-1
+Agent: Z.ai Code (integration auditor — NO code changes)
+Task: Audit integrasi sumber musik Ridho Music (search/metadata/stream/playback), bedakan bukti vs asumsi, jalankan tes yang ada, probe live InnerTube, laporkan tanpa mengubah kode.
+
+Work Log:
+- Read worklog.md (Tasks 1–13) + all network/source code: domain/source/MusicSource.java, source/LocalMusicSource.java, source/yt/{InnertubeClient,YtMusicSearchParser,YouTubeMusicSource}.java, ServiceLocator.java, player/PlaybackService.java, ui/fragment/SearchFragment.java, ui/SettingsActivity.java (probe), app/build.gradle, AndroidManifest.xml, README §4, CHANGELOG.
+- Confirmed: exactly ONE network path in the app — OkHttp in InnertubeClient (HTTPS-only, no credentials/cookies/TLS bypass). Used by YouTubeMusicSource (search + player endpoint) and SettingsActivity reachability probe. No NewPipe, no signature deciphering, no ad-blocking anywhere.
+- Re-ran unit tests FRESH on current tree (incl. uncommitted v1.2.0 work): `testDebugUnitTest --rerun` → BUILD SUCCESSFUL, 22/22 (Track 4, Lrc 7, YTSource 7, YTParser 4) at 2026-10-11T14:27Z. Tests are JVM fixture tests — NOT real-audio tests. Instrumented test NOT run (no device/emulator).
+- Live probes (exact app requests, evidence only):
+  1. POST search (WEB_REMIX 1.20241028.01.00), query "test" → HTTP 200, 199,686 B. Response: musicCardShelfRenderer ×1, itemSectionRenderer ×29, musicShelfRenderer ×0. Real items present (e.g. "Testing" — Skusta Clee, videoId f5dBEd4L2Uc; album MPREb_LTYh0J7JtPT).
+  2. Same, query "Lathi" → HTTP 200, 216,553 B, musicShelfRenderer ×0 again; first song "LATHI", videoId UwTnUpDuwGg.
+  3. POST player (ANDROID_MUSIC 6.42.32/sdk30, videoId UwTnUpDuwGg, same payload as resolveStreamUri) → HTTP 200 but playabilityStatus=LOGIN_REQUIRED ("Please sign in"), NO streamingData → in-app result would be typed SourceException.UNAVAILABLE.
+- Workspace state note: 15 uncommitted changes = in-flight v1.2.0 (share/top-tracks; UI+data layer only, does NOT touch source/yt or playback resolution). versionCode 3 / 1.2.0 in build.gradle, CHANGELOG still at 1.1.0.
+
+Stage Summary:
+- FINDING A (bug, fixable): live InnerTube search no longer returns musicShelfRenderer shelves → YtMusicSearchParser returns 0 sections → in-app YTM search shows empty despite HTTP 200. Unit fixtures encode the outdated shape (tests pass ≠ live works).
+- FINDING B (external, by-design refusal): player endpoint requires sign-in for unauthenticated clients → remote playback currently impossible without prohibited bypass; app correctly fails typed UNAVAILABLE.
+- FINDING C: Settings "reachability" probe only checks HTTP success → reports healthy even while search parses empty (diagnostic blind spot).
+- No code changed during audit. Compliance verified clean (no deciphering/credentials/TLS bypass/geo workarounds).
+- Recommended next: update parser to itemSectionRenderer/musicCardShelfRenderer (+ fresh captured fixtures), keep typed failures for playback, document verified findings in README §4.
