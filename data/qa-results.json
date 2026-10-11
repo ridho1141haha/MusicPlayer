@@ -1,0 +1,86 @@
+{
+  "recordedAt": "2026-10-11 17:04:38Z",
+  "suites": [
+    {
+      "name": "web lint (eslint)",
+      "command": "bun run lint",
+      "status": "pass",
+      "passed": null,
+      "failed": null,
+      "skipped": null,
+      "durationMs": 6300,
+      "exitCode": 0,
+      "detail": "eslint . completed with no findings."
+    },
+    {
+      "name": "web unit tests (vitest)",
+      "status": "pass",
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 22,
+      "detail": "28 assertions passed across 1 file(s) on shared fixtures.",
+      "command": "bunx vitest run"
+    },
+    {
+      "name": "android unit tests (testDebugUnitTest --rerun)",
+      "status": "pass",
+      "passed": 28,
+      "failed": 0,
+      "skipped": 0,
+      "durationMs": 407,
+      "detail": "com.ridho.music.domain.model.TrackTest: 4 tests, 0 failures, 0 errors, 0 skipped, 0.016s\ncom.ridho.music.lyrics.LrcParserTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.008s\ncom.ridho.music.source.yt.YouTubeMusicSourceTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.33s\ncom.ridho.music.source.yt.YtMusicSearchParserTest: 10 tests, 0 failures, 0 errors, 0 skipped, 0.053s\n\nTOTAL: 28 tests, 0 failures, 0 errors, 0 skipped.",
+      "command": "gradle :app:testDebugUnitTest --rerun"
+    },
+    {
+      "name": "android lint (lintDebug)",
+      "command": "gradle :app:lintDebug",
+      "status": "pass",
+      "passed": null,
+      "failed": null,
+      "skipped": null,
+      "durationMs": 14160,
+      "exitCode": 0,
+      "detail": "lintDebug passed with abortOnError=true (0 lint errors)."
+    },
+    {
+      "name": "android build (assembleDebug)",
+      "command": "gradle :app:assembleDebug",
+      "status": "pass",
+      "passed": null,
+      "failed": null,
+      "skipped": null,
+      "durationMs": 14745,
+      "exitCode": 0,
+      "detail": "assembleDebug BUILD SUCCESSFUL (may be UP-TO-DATE if inputs unchanged)."
+    },
+    {
+      "name": "fixture sync check (web ⇄ android)",
+      "command": "node scripts/sync-fixtures.mjs --check",
+      "status": "pass",
+      "passed": null,
+      "failed": null,
+      "skipped": null,
+      "durationMs": null,
+      "exitCode": 0,
+      "detail": "All shared live fixtures are byte-identical between fixtures/ytm and android/app/src/test/resources/ytm."
+    }
+  ],
+  "apk": {
+    "exists": true,
+    "path": "android/app/build/outputs/apk/debug/app-debug.apk",
+    "sizeBytes": 11542468,
+    "sha256": "939c938a0657f99487caebb23ded1e3da41bb4064b54650d4e6549c43f2e845b",
+    "versionName": "1.2.0",
+    "versionCode": 3
+  },
+  "history": [
+    {
+      "recordedAt": "2026-10-11 16:52:37Z",
+      "passed": 56,
+      "failed": 0,
+      "skipped": 0,
+      "allPassed": true
+    }
+  ]
+}

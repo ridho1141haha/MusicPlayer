@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "origin": "user-added",
+    "note": "E2E probe fixture created by agent-browser run (synthetic envelope)."
+  },
+  "contents": {
+    "tabbedSearchResultsRenderer": {
+      "tabs": []
+    }
+  }
+}

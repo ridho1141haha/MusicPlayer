@@ -1,0 +1,96 @@
+{
+  "_meta": {
+    "origin": "synthetic",
+    "note": "SYNTHETIC fixture (NOT a live capture). Real response envelope, but hand-built blocks exercising parser edge cases: item without title, item without any navigation endpoint, item with an unknown/unusable browseId prefix (MPSP podcast page), typed-subtitle song with an engagement metric third column, an itemSectionRenderer with empty contents, and a musicCardShelfRenderer with a podcast subtitle (must be skipped).",
+    "sanitized": true,
+    "expected": {
+      "tracks": 1,
+      "sections": ["Songs"],
+      "detail": "Only 'Keep Me' (ytm:keepme001) survives; everything else is rejected with a traceable reason."
+    }
+  },
+  "contents": {
+    "tabbedSearchResultsRenderer": {
+      "tabs": [
+        {
+          "tabRenderer": {
+            "content": {
+              "sectionListRenderer": {
+                "contents": [
+                  {
+                    "itemSectionRenderer": {
+                      "contents": [
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "flexColumns": [
+                              { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "" }] } } },
+                              { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "Song • Nobody" }] } } }
+                            ],
+                            "navigationEndpoint": { "watchEndpoint": { "videoId": "notitle01" } }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "itemSectionRenderer": {
+                      "contents": [
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "flexColumns": [
+                              { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "No Endpoint Song" }] } } },
+                              { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "Song • Someone" }] } } }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "itemSectionRenderer": {
+                      "contents": [
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "flexColumns": [
+                              { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "Some Podcast Page" }] } } },
+                              { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "Podcast • Some Show" }] } } }
+                            ],
+                            "navigationEndpoint": { "browseEndpoint": { "browseId": "MPSPPLnotarealpage" } }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  {
+                    "itemSectionRenderer": {
+                      "contents": [
+                        {
+                          "musicResponsiveListItemRenderer": {
+                            "flexColumns": [
+                              { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "Keep Me" }] } } },
+                              { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "Song" }, { "text": " • " }, { "text": "Good Artist" }] } } },
+                              { "musicResponsiveListItemFlexColumnRenderer": { "text": { "runs": [{ "text": "1.2M plays" }] } } }
+                            ],
+                            "navigationEndpoint": { "watchEndpoint": { "videoId": "keepme001" } },
+                            "thumbnail": { "musicThumbnailRenderer": { "thumbnail": { "thumbnails": [{ "url": "https://example.com/keepme-w60", "width": 60 }, { "url": "https://example.com/keepme-w544", "width": 544 }] } } }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  { "itemSectionRenderer": { "contents": [] } },
+                  {
+                    "musicCardShelfRenderer": {
+                      "title": { "runs": [{ "text": "Daily Pod", "navigationEndpoint": { "browseEndpoint": { "browseId": "MPSPPLpodcastpage00" } } }] },
+                      "subtitle": { "runs": [{ "text": "Podcast • Daily Network • 12 episodes" }] }
+                    }
+                  }
+                ]
+              }
+            }
+          }
+        }
+      ]
+    }
+  }
+}

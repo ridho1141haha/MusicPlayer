@@ -1,0 +1,13 @@
+{
+  "_meta": {
+    "origin": "synthetic",
+    "note": "SYNTHETIC fixture (NOT a live capture). Real envelope shape (contents.tabbedSearchResultsRenderer.tabs[0].tabRenderer.content.sectionListRenderer.contents) but with ZERO result blocks.",
+    "sanitized": true,
+    "expected": { "tracks": 0, "sections": [] }
+  },
+  "contents": {
+    "tabbedSearchResultsRenderer": {
+      "tabs": []
+    }
+  }
+}

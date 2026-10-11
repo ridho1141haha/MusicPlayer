@@ -1,0 +1,62 @@
+{
+  "version": 1,
+  "generatedAt": "2026-10-11",
+  "fixtures": [
+    {
+      "name": "search_live_2026-10-11_lathi.json",
+      "origin": "real-capture",
+      "capturedAt": "2026-10-11",
+      "query": "Lathi",
+      "description": "Sanitized trim of a REAL unauthenticated WEB_REMIX search response (query \"Lathi\", HTTP 200, 216,553 B before trim). Flat 2026 layout: musicCardShelfRenderer top result + interleaved itemSectionRenderer items. Sanitization: trackingParams/clickTrackingParams stripped, menu/onTap/playlistItemData dropped; parse-relevant fields verbatim.",
+      "sourceFile": "/tmp/yt_lathi.json"
+    },
+    {
+      "name": "search_live_2026-10-11_test.json",
+      "origin": "real-capture",
+      "capturedAt": "2026-10-11",
+      "query": "test",
+      "description": "Sanitized trim of a REAL search response (query \"test\"). Includes a podcast entry (MPSPPL...) that the parser must skip and the \"Testing — Skusta Clee\" song (videoId f5dBEd4L2Uc).",
+      "sourceFile": "/tmp/yt_search_resp.json"
+    },
+    {
+      "name": "search_live_2026-10-11_gibberish.json",
+      "origin": "real-capture",
+      "capturedAt": "2026-10-11",
+      "query": "<gibberish>",
+      "description": "Sanitized trim of a REAL search response for a gibberish query. Proves the API fuzzy-matches instead of ever returning a true empty page; an Episode card is skipped, one fuzzy-matched video survives.",
+      "sourceFile": null
+    },
+    {
+      "name": "search_legacy_shelf.json",
+      "origin": "legacy-inline-fixture",
+      "capturedAt": null,
+      "query": "(n/a)",
+      "description": "Verbatim copy of the inline legacy fixture from YtMusicSearchParserTest.java — the OLD WEB_REMIX musicShelfRenderer layout (Songs/Albums shelves, fixedColumns duration). Not a live capture; backward-compat contract.",
+      "sourceFile": null
+    },
+    {
+      "name": "search_synth_edge_cases.json",
+      "origin": "synthetic",
+      "capturedAt": null,
+      "query": "(n/a)",
+      "description": "SYNTHETIC, clearly labeled. Edge cases: missing title, missing endpoint, unusable MPSPPL browseId, metric column that must not become an album, empty itemSectionRenderer, podcast top card. Exactly one track (ytm:keepme001) must survive.",
+      "sourceFile": null
+    },
+    {
+      "name": "search_synth_empty_blocks.json",
+      "origin": "synthetic",
+      "capturedAt": null,
+      "query": "(n/a)",
+      "description": "SYNTHETIC, clearly labeled. Real envelope, zero blocks → parser must yield empty, not crash.",
+      "sourceFile": null
+    },
+    {
+      "name": "search_synth_unknown_structure.json",
+      "origin": "synthetic",
+      "capturedAt": null,
+      "query": "(n/a)",
+      "description": "SYNTHETIC, clearly labeled. Valid JSON that is not a search response → parser must yield empty, not crash.",
+      "sourceFile": null
+    }
+  ]
+}

@@ -143,3 +143,62 @@ Stage Summary:
 - YTM search against LIVE API restored (real-parser-on-real-capture proof: 18 tracks for "test"); legacy layout compatibility kept; diagnostics now honest about layout drift.
 - Files: YtMusicSearchParser.java (rewritten), YtMusicSearchParserTest.java (4→10 tests), 3 new live fixtures, SettingsActivity.java, strings.xml, .gitignore. Commit ea305f6 (local).
 - Still untested/limits: real playback of YTM streams (player endpoint still LOGIN_REQUIRED — unchanged, by-design refusal); no device/emulator (instrumented smoke test, real-audio check, diagnostics UI on device NOT run); no continuation support (live responses have none — re-audit if YouTube adds them); gibberish queries fuzzy-match (UI can never show true empty state for YTM).
+
+---
+Task ID: WEBLAB-1 (FASE 0)
+Agent: Z.ai Code (main orchestrator — overnight Web QA Lab task)
+Task: FASE 0 — assess workspace before building Ridho Music Web Lab (no code changes in this step).
+
+Work Log:
+- Read worklog.md in full. Confirmed YTM-PARSER-FIX-1 (AUDIT-1 fix) is ALREADY COMPLETE on this tree: commit ea305f6 present, YtMusicSearchParser.java handles musicCardShelfRenderer + itemSectionRenderer + legacy musicShelfRenderer, 3 sanitized live fixtures at android/app/src/test/resources/ytm/, SettingsActivity diagnostics rewritten. Working tree clean on main.
+- Re-verified on disk: 3 fixtures present (gibberish 3,994 B / lathi 21,850 B / test 16,118 B); parser source contains 6 refs to new renderer types; dev server running (bun run dev, port 3000, healthy 200s in dev.log).
+- /tmp live captures still present: yt_search_resp.json 199,686 B, yt_lathi.json 216,553 B, yt_player.json 3,028 B (player = LOGIN_REQUIRED evidence).
+- Stack check (Next.js side): Next 16 + React 19 + Tailwind 4 + full shadcn/ui set + zustand + @tanstack/react-query + @dnd-kit (usable for queue reorder) + framer-motion. No vitest yet (will add as devDep for web unit tests).
+- Decisions (conservative, documented): (1) Web Lab = Next.js app already in this repo; the old delivery dashboard on / will be preserved as a "Project" tab inside the Web Lab (no feature deletion). (2) Architecture per user brief option (b): separate web test harness in TS that mirrors the Java parser, validated against the SAME fixtures via a shared fixtures/ dir + sync script — no fake "shared Java in browser". (3) QA Dashboard shows only real executed results from data/qa-results.json written by scripts/run-qa.sh; before first run it shows "no run recorded" — no invented numbers. (4) Live search in the playground uses the exact unauthenticated WEB_REMIX request the app uses; failures surfaced honestly. Player endpoint remains LOGIN_REQUIRED (blocker recorded, no bypass).
+
+Stage Summary:
+- Baseline recorded. Next: WEBLAB-2 shared fixtures + TS parser port + web unit tests, then Web Lab UI, then automated QA + E2E loop.
+
+---
+Task ID: WEBLAB-2/3 (foundations + web UI)
+Agent: Z.ai Code (main orchestrator)
+Task: Shared fixtures, TS parser port, web unit tests, lab APIs, core Web Lab UI.
+
+Work Log:
+- fixtures/ytm canonical registry: 3 real captures (copied 1:1 from android resources) + search_legacy_shelf.json (verbatim Java test fixture) + 3 clearly-labeled SYNTHETIC fixtures (edge cases / empty / unknown structure) + index.json with honest provenance. sync-fixtures.mjs --check: NO drift between web and Android copies.
+- src/lib/lab/yt-search-parser.ts: faithful TS port of YtMusicSearchParser (commit ea305f6) + web-only extras that never affect accept/reject: parseWithTrace (accepted/rejected/info + reasons), collectRendererStats, findContinuationToken, explainRejection. One port bug found & fixed by tests (parseWithTrace used optArr for sectionListRenderer — tests caught it).
+- vitest added (devDep). tests/unit/parser.test.ts: 28/28 PASS — golden expectations mirrored from YtMusicSearchParserTest (Lathi/test/gibberish captures, legacy, defensive cases, classification units) + edge-case + trace extras.
+- APIs: GET/POST /api/lab/fixtures (registry + sandboxed content + user fixtures to data/fixtures-user/), POST /api/lab/search (EXACT InnertubeClient contract: WEB_REMIX, no credentials; parses server-side with same TS lib; typed failures network/timeout/http/parse), GET /api/lab/qa-results (real recorded runs only, honest "no run yet").
+- Live proof through the API: query "Lathi" → HTTP 200, 488 ms, 216,116 B → Top result (ytm:8uy7G2JXVSA) + Songs (ytm:UwTnUpDuwGg) parsed correctly.
+- UI: page.tsx = Web Lab shell (6 tabs, hash deep-links, sticky footer); DashboardTab (real QA results from data/qa-results.json + live /api/project numbers + feature checklist w/ evidence dialogs + run history); SearchPlaygroundTab (live/fixture modes, typed error states, sections, trace panel, renderer census, raw JSON); FixtureTesterTab (registry w/ origin badges, run parser, section/track counts, "Add fixture" dialog with client JSON validation); ParityTab (per-column statuses incl. policy); ProjectTab (the previous delivery dashboard preserved 1:1 as a tab — no feature deleted). Store: zustand (favorites/playCounts persisted with skipHydration; prototype simulation state).
+- Lint fixes: missing ScrollArea import, non-existent lucide `Android` export → Wrench, removed stale eslint-disable. `bun run lint` clean. All routes 200 (/, /api/lab/*, /api/project).
+
+Stage Summary:
+- Web Lab core (Dashboard/Playground/Fixtures/Parity/Project) DONE and healthy. Prototype tab is a placeholder → WEBLAB-4 (subagent). Android re-verification → WEBLAB-5 (subagent, parallel). Next: run-qa.sh aggregator, E2E via agent-browser, final report.
+---
+Task ID: WEBLAB-5
+Agent: general-purpose (subagent — Android verification)
+Task: Re-run full Android verification on current tree (unit tests --rerun, lintDebug, assembleDebug), no code changes.
+
+Work Log:
+- Environment for all Gradle runs: cd /home/z/my-project/android; ANDROID_HOME=/home/z/android-sdk; JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64; /home/z/gradle-8.9/bin/gradle --no-daemon.
+- Commands executed in order (exit codes):
+  1. node scripts/sync-fixtures.mjs --check (from /home/z/my-project) → exit 0
+  2. gradle --no-daemon :app:testDebugUnitTest --rerun → exit 0, BUILD SUCCESSFUL in 14s
+  3. gradle --no-daemon :app:lintDebug → exit 0, BUILD SUCCESSFUL in 13s
+  4. gradle --no-daemon :app:assembleDebug → exit 0, BUILD SUCCESSFUL in 13s
+  5. stat -c %s + sha256sum app/build/outputs/apk/debug/app-debug.apk
+- Unit tests (parsed from app/build/test-results/testDebugUnitTest/TEST-*.xml, fresh timestamp 2026-10-11T16:17:49):
+  - com.ridho.music.domain.model.TrackTest: tests=4, failures=0, errors=0, skipped=0 → 4/4
+  - com.ridho.music.lyrics.LrcParserTest: tests=7, failures=0, errors=0, skipped=0 → 7/7
+  - com.ridho.music.source.yt.YouTubeMusicSourceTest: tests=7, failures=0, errors=0, skipped=0 → 7/7
+  - com.ridho.music.source.yt.YtMusicSearchParserTest: tests=10, failures=0, errors=0, skipped=0 → 10/10
+  - TOTAL: 28/28 passed (0 failures, 0 errors, 0 skipped) — matches baseline (Track 4, Lrc 7, YTSource 7, YTParser 10).
+- lintDebug: BUILD SUCCESSFUL, exit 0 → 0 errors (abortOnError true in app/build.gradle lint block; any lint error would have failed the task). UnstableApiUsage + GradleDependency disabled deliberately (documented in build.gradle).
+- assembleDebug: BUILD SUCCESSFUL, exit 0. APK: app/build/outputs/apk/debug/app-debug.apk — exact size 11,542,468 bytes; sha256 939c938a0657f99487caebb23ded1e3da41bb4064b54650d4e6549c43f2e845b; mtime 2026-10-11 15:05:25 UTC. versionName "1.2.0" (+ "-debug" suffix in debug build), versionCode 3 (from app/build.gradle).
+- Fixture sync --check (WEBLAB-2 shared registry vs Android copies): "sync-fixtures: no drift, fixtures identical on both sides" — ok for search_live_2026-10-11_gibberish.json, search_live_2026-10-11_lathi.json, search_live_2026-10-11_test.json.
+- Anomalies: none blocking. Observation: :app:assembleDebug ran fully UP-TO-DATE (33 tasks, none executed) on the unchanged tree, so the APK was not re-packaged — it is byte-identical to the YTM-PARSER-FIX-1 build (same size 11,542,468 B; mtime still 15:05:25 UTC) — Gradle verified all inputs unchanged. Test task was genuinely re-executed via --rerun (fresh XML timestamp 16:17:49). Note: ripgrep/Glob silently skip app/build/** (gitignored), so XML results were parsed via direct file reads instead.
+- No application source, tests, or build config modified (run-and-report only).
+
+Stage Summary:
+- ALL GREEN: 28/28 unit tests (Track 4, Lrc 7, YTSource 7, YTParser 10), lintDebug 0 errors (abortOnError true), assembleDebug OK (app-debug.apk 11,542,468 B, sha256 939c938a…, v1.2.0/versionCode 3), fixture sync --check no drift. Real numbers for the Web QA Lab dashboard.

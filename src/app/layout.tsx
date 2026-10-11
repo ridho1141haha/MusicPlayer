@@ -14,16 +14,16 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Ridho Music — Open-source Android music player",
+  title: "Ridho Music Web Lab — QA harness",
   description:
-    "Delivery dashboard for Ridho Music v1.1.0: Java 17 · Media3 1.5.1 · Room 2.6.1. Download the debug APK, browse the verified source, unit tests, acceptance criteria and docs.",
-  keywords: ["Ridho Music", "Android", "Java", "Media3", "ExoPlayer", "open source", "music player"],
+    "Web QA Lab for Ridho Music (Android, Java + Media3): QA dashboard, InnerTube search playground, fixture & parser tester over shared sanitized fixtures, interactive UI prototype and feature parity matrix.",
+  keywords: ["Ridho Music", "QA lab", "Android", "Java", "Media3", "InnerTube", "fixtures", "parser"],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
   openGraph: {
-    title: "Ridho Music — Open-source Android music player",
-    description: "Free & open-source Android music player built with Java and Media3. Real background playback, no ads, no trackers.",
+    title: "Ridho Music Web Lab",
+    description: "Test Ridho Music features in the browser before they ship to the Android APK.",
     siteName: "Ridho Music",
     type: "website",
   },

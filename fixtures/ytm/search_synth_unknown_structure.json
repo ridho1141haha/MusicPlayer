@@ -1,0 +1,11 @@
+{
+  "_meta": {
+    "origin": "synthetic",
+    "note": "SYNTHETIC fixture (NOT a live capture). Structurally valid JSON that is not a search response at all — mirrors YtMusicSearchParserTest.unknownStructureYieldsEmptyNotCrash.",
+    "sanitized": true,
+    "expected": { "tracks": 0, "sections": [] }
+  },
+  "contents": {
+    "somethingElse": { "a": 1 }
+  }
+}
