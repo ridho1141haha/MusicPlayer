@@ -48,6 +48,9 @@ dev.log
 dev.out.log
 test
 prompt
+# `test` above would also ignore the Android unit-test sources and fixtures;
+# re-include them explicitly.
+!android/app/src/test/
 
 server.log
 # Skills directory

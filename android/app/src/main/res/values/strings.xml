@@ -110,12 +110,15 @@
     <string name="settings_diagnostics_header">Diagnostics</string>
     <string name="settings_clear_artwork_cache">Clear artwork cache</string>
     <string name="settings_clear_cache_done">Artwork cache cleared</string>
-    <string name="diag_ytm_api">YouTube Music API reachability</string>
+    <string name="diag_ytm_api">YouTube Music status</string>
     <string name="diag_local_folder">Local music folder</string>
     <string name="diag_none">Not configured</string>
     <string name="diag_checking">Checking…</string>
     <string name="diag_ok">Reachable</string>
     <string name="diag_error">Unreachable / failed</string>
+    <string name="diag_ytm_ok_results">Connected · search OK (%1$d results)</string>
+    <string name="diag_ytm_no_data">Reachable, but search returned no data (API layout may have changed)</string>
+    <string name="diag_ytm_failed">Unreachable: %1$s</string>
     <string name="settings_about_header">About</string>
     <string name="settings_licenses">Open-source licenses</string>
     <string name="settings_privacy">Privacy policy</string>

@@ -14,12 +14,15 @@ import androidx.appcompat.app.AppCompatActivity;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 import com.ridho.music.App;
 import com.ridho.music.R;
+import com.ridho.music.domain.model.SearchSection;
+import com.ridho.music.domain.source.SourceException;
 import com.ridho.music.settings.SettingsRepository;
 import com.ridho.music.source.LocalMusicSource;
 import com.ridho.music.source.yt.InnertubeClient;
 import com.ridho.music.source.yt.YouTubeMusicSource;
 
 import java.io.File;
+import java.util.List;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -113,12 +116,29 @@ public class SettingsActivity extends AppCompatActivity {
             return;
         }
         io.execute(() -> {
-            InnertubeClient probe = new InnertubeClient();
-            boolean ok = probe.isReachable();
-            probe.shutdown();
+            // Probe with a REAL search request, not a bare HTTP check: an HTTP 200 with
+            // zero parsed results means the API answered but its layout changed (verified
+            // in the 2026-10 audit), which users must be able to see.
+            String status;
+            YouTubeMusicSource probe = new YouTubeMusicSource(new InnertubeClient());
+            try {
+                List<SearchSection> sections = probe.search("test", 1);
+                int results = 0;
+                for (SearchSection section : sections) {
+                    results += section.tracks.size();
+                }
+                status = results > 0
+                        ? getString(R.string.diag_ytm_ok_results, results)
+                        : getString(R.string.diag_ytm_no_data);
+            } catch (SourceException e) {
+                status = getString(R.string.diag_ytm_failed, e.getMessage());
+            } finally {
+                probe.shutdown();
+            }
+            final String statusText = status;
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed()) return;
-                diagYtmStatus.setText(ok ? R.string.diag_ok : R.string.diag_error);
+                diagYtmStatus.setText(statusText);
             });
         });
     }
