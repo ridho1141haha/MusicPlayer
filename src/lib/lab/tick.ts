@@ -76,3 +76,33 @@ export function queuePositionLabel(queue: readonly string[], currentTrackId: str
   const idx = queue.indexOf(currentTrackId);
   return idx >= 0 ? `${idx + 1}/${queue.length}` : null;
 }
+
+/** Per-row indicator for the queue view (WEBLAB-14), driven by the same
+ * semantics as computeNextIndex so the badge can never disagree with playback:
+ *   'up-next'    — this row auto-plays after the current one
+ *   'ends-queue' — the current row is the last and repeat is off (queue ends)
+ *   'repeats'    — the current row restarts (repeat one, or repeat all with a
+ *                  single-track queue where "next" is the same row)
+ * Returns null for rows with no special relationship to playback.
+ */
+export type QueueRowBadge = { kind: 'up-next' | 'ends-queue' | 'repeats'; label: string };
+
+export function queueRowBadge(
+  queueLength: number,
+  row: number,
+  currentIndex: number,
+  repeatMode: RepeatMode,
+): QueueRowBadge | null {
+  if (queueLength <= 0 || row < 0 || row >= queueLength) return null;
+  if (row === currentIndex) {
+    if (repeatMode === 'one') return { kind: 'repeats', label: 'repeats (repeat one)' };
+    if (repeatMode === 'all' && queueLength === 1) return { kind: 'repeats', label: 'repeats (queue of 1, repeat all)' };
+    if (repeatMode === 'off' && row === queueLength - 1) return { kind: 'ends-queue', label: 'queue ends after this (repeat off)' };
+    return null;
+  }
+  // Repeat one NEVER auto-advances (computeTick returns 'restart'), so no other
+  // row can claim "up next" under it.
+  if (repeatMode === 'one') return null;
+  const nextIndex = computeNextIndex(queueLength, currentIndex, repeatMode);
+  return row === nextIndex ? { kind: 'up-next', label: 'up next' } : null;
+}

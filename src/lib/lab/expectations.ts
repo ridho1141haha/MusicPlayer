@@ -114,3 +114,23 @@ export function evaluateExpectation(sections: SearchSection[] | null, expectatio
   }
   return { ok: failures.length === 0, failures, actual };
 }
+
+/**
+ * Verdict for the LIVE golden probe (WEBLAB-14): the recorded contract is
+ * evaluated against a LIVE search response instead of the stored fixture.
+ * EXPERIMENTAL by nature — live shapes change over time, so drift here is a
+ * signal to investigate, not automatically a parser bug (the stored-fixture
+ * golden suite remains the authoritative alarm).
+ */
+export type LiveProbeVerdict = 'holds' | 'drift' | 'no-golden' | 'no-query';
+
+export function liveProbeVerdict(
+  hasGolden: boolean,
+  query: string | null,
+  result: ExpectationResult | null,
+): LiveProbeVerdict {
+  if (!hasGolden) return 'no-golden';
+  if (query === null || query.trim().length === 0) return 'no-query';
+  // A null parse (unusable root) vs a contract is drift by definition.
+  return result !== null && result.ok ? 'holds' : 'drift';
+}

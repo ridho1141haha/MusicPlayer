@@ -25,6 +25,7 @@ import {
   ArrowUpToLine,
   BarChart3,
   ChevronRight,
+  CornerDownRight,
   Copy,
   Flame,
   GripVertical,
@@ -81,7 +82,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { formatDuration } from '@/lib/lab/format';
 import { activeLineIndex, parse as parseLrc, type LrcLyrics } from '@/lib/lab/lrc-parser';
-import { progressPercent, queuePositionLabel, repeatModeLabel } from '@/lib/lab/tick';
+import { progressPercent, queuePositionLabel, queueRowBadge, repeatModeLabel } from '@/lib/lab/tick';
 import { effectiveDuration, useLabStore } from '@/lib/lab/store';
 import type { LabTrack } from '@/lib/lab/types';
 
@@ -244,6 +245,13 @@ function SortableQueueRow({
   const isFavorite = useLabStore((s) => s.favorites.includes(trackId));
   const { toast } = useToast();
 
+  // WEBLAB-14 — per-row playback-relationship badge from the SAME semantics as
+  // computeNextIndex, so the badge can never disagree with the tick logic.
+  const queueLength = useLabStore((s) => s.queue.length);
+  const currentIndex = useLabStore((s) => (s.currentTrackId === null ? -1 : s.queue.indexOf(s.currentTrackId)));
+  const repeatMode = useLabStore((s) => s.repeatMode);
+  const rowBadge = queueRowBadge(queueLength, position, currentIndex, repeatMode);
+
   const moveTo = (target: 'top' | 'bottom') => {
     const queue = useLabStore.getState().queue;
     const from = queue.indexOf(trackId);
@@ -309,6 +317,22 @@ function SortableQueueRow({
                 {isPlaying && (
                   <Badge variant="outline" className="border-primary/40 bg-primary/10 px-1 text-[9px] text-primary">
                     playing
+                  </Badge>
+                )}
+                {rowBadge?.kind === 'up-next' && !isPlaying && (
+                  <Badge variant="outline" className="gap-0.5 border-teal-500/40 bg-teal-500/10 px-1 text-[9px] text-teal-300">
+                    <CornerDownRight className="h-2.5 w-2.5" aria-hidden="true" />
+                    up next
+                  </Badge>
+                )}
+                {rowBadge?.kind === 'ends-queue' && (
+                  <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 px-1 text-[9px] text-amber-300">
+                    ends queue (repeat off)
+                  </Badge>
+                )}
+                {rowBadge?.kind === 'repeats' && (
+                  <Badge variant="outline" className="border-violet-500/40 bg-violet-500/10 px-1 text-[9px] text-violet-300">
+                    {rowBadge.label}
                   </Badge>
                 )}
               </span>

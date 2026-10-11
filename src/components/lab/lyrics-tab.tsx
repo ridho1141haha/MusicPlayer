@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Captions,
+  Copy,
   Download,
   FileText,
   FileUp,
@@ -179,6 +180,16 @@ export function LyricsTab() {
     setSaveName('');
   }, [saveName, saveLrc, text, toast]);
 
+  /** WEBLAB-14 — copy a library entry's raw LRC to the clipboard (honest 2-state). */
+  const copySavedLrc = useCallback(async (entry: { name: string; content: string }) => {
+    try {
+      await navigator.clipboard.writeText(entry.content);
+      toast({ title: 'Copied LRC ✓', description: `${entry.name} — ${entry.content.split('\n').length} line(s) on the clipboard.` });
+    } catch {
+      toast({ title: 'Clipboard blocked by the browser', description: 'Headless/permission-restricted contexts cannot write the clipboard. Use Export instead.', variant: 'destructive' });
+    }
+  }, [toast]);
+
   /** WEBLAB-13 — export a library entry as a real .lrc download (client-side Blob). */
   const exportSavedLrc = useCallback((entry: { name: string; content: string }) => {
     const fileName = exportLrcFileName(entry.name);
@@ -346,6 +357,15 @@ export function LyricsTab() {
                     >
                       <FileText className="h-3 w-3 text-primary" aria-hidden="true" />
                       {entry.name}
+                    </button>
+                    <button
+                      type="button"
+                      className="flex h-full min-h-[32px] items-center border-l border-border px-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-300"
+                      onClick={() => void copySavedLrc(entry)}
+                      aria-label={`Copy ${entry.name} content to the clipboard`}
+                      title={`Copy the raw LRC of ${entry.name}`}
+                    >
+                      <Copy className="h-3 w-3" aria-hidden="true" />
                     </button>
                     <button
                       type="button"

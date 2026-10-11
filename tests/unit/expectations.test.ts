@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { evaluateExpectation, validateExpectationsFile } from '../../src/lib/lab/expectations';
+import { evaluateExpectation, liveProbeVerdict, validateExpectationsFile } from '../../src/lib/lab/expectations';
 import type { SearchSection } from '../../src/lib/lab/types';
 
 function section(title: string, ids: string[]): SearchSection {
@@ -85,5 +85,25 @@ describe('validateExpectationsFile', () => {
     expect(validateExpectationsFile({ 'a.json': { trackCount: 1.5 } }).ok).toBe(false);
     expect(validateExpectationsFile({ 'a.json': { mustIncludeIds: 'x' } }).ok).toBe(false);
     expect(validateExpectationsFile({ 'a.json': { note: 'no assertion at all' } }).ok).toBe(false);
+  });
+});
+
+describe('liveProbeVerdict (WEBLAB-14 live golden probe)', () => {
+  const okResult = { ok: true, failures: [], actual: { sectionCount: 4, trackCount: 8, titles: [], ids: [] } };
+  const driftResult = { ok: false, failures: ['trackCount: expected 8, got 15'], actual: { sectionCount: 5, trackCount: 15, titles: [], ids: [] } };
+
+  it('holds when the live parse satisfies the contract', () => {
+    expect(liveProbeVerdict(true, 'Lathi', okResult)).toBe('holds');
+  });
+
+  it('drifts when the contract fails or the parse is null', () => {
+    expect(liveProbeVerdict(true, 'Lathi', driftResult)).toBe('drift');
+    expect(liveProbeVerdict(true, 'Lathi', null)).toBe('drift');
+  });
+
+  it('honest non-verdicts: no golden contract or no stored query', () => {
+    expect(liveProbeVerdict(false, 'Lathi', okResult)).toBe('no-golden');
+    expect(liveProbeVerdict(true, null, okResult)).toBe('no-query');
+    expect(liveProbeVerdict(true, '   ', okResult)).toBe('no-query');
   });
 });

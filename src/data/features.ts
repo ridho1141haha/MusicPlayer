@@ -264,4 +264,25 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     status: 'pass',
     note: 'WEBLAB-13: the queue toolbar shows the current repeat mode as an explicit chip (Repeat off / Repeat all / Repeat 1) cycling the same store state as the sheet and mini-player; active states get an amber accent plus a one-shot pulse animation (reduced-motion aware).',
   },
+  {
+    id: 'weblab-live-golden-probe',
+    name: 'Live golden probe (LIVE shape vs recorded contract, experimental)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-14: the Fixtures tab re-runs a fixture\'s stored query against the LIVE API and evaluates the shape against its golden contract (unit-tested liveProbeVerdict); drift is amber and explicitly labeled an investigation signal — the stored-fixture suite stays the authoritative alarm. Honest non-verdicts for fixtures without a golden or a stored query.',
+  },
+  {
+    id: 'weblab-queue-up-next-badge',
+    name: 'Queue per-row playback-relationship badges (up next / ends queue / repeats)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-14: queue rows show their relation to playback via queueRowBadge — same computeNextIndex semantics as the tick logic, so the badge can never disagree with playback (unit-tested incl. the repeat-one case where no row can claim "up next"); teal up-next, amber ends-queue, violet repeats.',
+  },
+  {
+    id: 'weblab-lrc-copy',
+    name: 'LRC library per-entry clipboard copy (honest 2-state)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-14: every library chip gains a copy button writing the raw LRC to the clipboard; blocked contexts get an explicit failure toast pointing at Export instead — never a false success.',
+  },
 ];

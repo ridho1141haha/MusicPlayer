@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeNextIndex, computeTick, progressPercent, queuePositionLabel, repeatModeLabel } from '../../src/lib/lab/tick';
+import { computeNextIndex, computeTick, progressPercent, queuePositionLabel, queueRowBadge, repeatModeLabel } from '../../src/lib/lab/tick';
 
 describe('computeTick (simulated playback, repeat tri-state)', () => {
   const TOTAL = 200_000;
@@ -105,5 +105,36 @@ describe('queuePositionLabel (mini-player chip, WEBLAB-12)', () => {
     expect(queuePositionLabel(queue, null)).toBeNull();
     expect(queuePositionLabel(queue, 'zzz')).toBeNull();
     expect(queuePositionLabel([], 'a')).toBeNull();
+  });
+});
+
+describe('queueRowBadge (queue per-row indicator, WEBLAB-14)', () => {
+  it('marks the immediate successor as up-next (repeat off / all, mid-queue)', () => {
+    expect(queueRowBadge(4, 1, 0, 'off')).toEqual({ kind: 'up-next', label: 'up next' });
+    expect(queueRowBadge(4, 2, 1, 'all')).toEqual({ kind: 'up-next', label: 'up next' });
+  });
+
+  it("repeat 'all' wraps: after the last row, row 0 is up-next", () => {
+    expect(queueRowBadge(4, 0, 3, 'all')).toEqual({ kind: 'up-next', label: 'up next' });
+  });
+
+  it("repeat 'off' on the last row shows the honest ends-queue badge", () => {
+    expect(queueRowBadge(4, 3, 3, 'off')).toEqual({ kind: 'ends-queue', label: 'queue ends after this (repeat off)' });
+    expect(queueRowBadge(4, 0, 3, 'off')).toBeNull();
+  });
+
+  it("repeat 'one' marks the CURRENT row as repeats (no up-next elsewhere)", () => {
+    expect(queueRowBadge(4, 2, 2, 'one')).toEqual({ kind: 'repeats', label: 'repeats (repeat one)' });
+    expect(queueRowBadge(4, 3, 2, 'one')).toBeNull();
+  });
+
+  it("repeat 'all' with a single-track queue repeats the same row", () => {
+    expect(queueRowBadge(1, 0, 0, 'all')).toEqual({ kind: 'repeats', label: 'repeats (queue of 1, repeat all)' });
+  });
+
+  it('degenerate indices return null (no badges on impossible rows)', () => {
+    expect(queueRowBadge(0, 0, 0, 'all')).toBeNull();
+    expect(queueRowBadge(4, -1, 0, 'all')).toBeNull();
+    expect(queueRowBadge(4, 4, 0, 'all')).toBeNull();
   });
 });
