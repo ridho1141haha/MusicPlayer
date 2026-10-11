@@ -77,3 +77,25 @@ Stage Summary:
 - API surface: GET /api/project (full payload), GET /api/file?path=android/<file> (sandboxed text, ≤100 KB).
 - Quality gates: `bun run lint` clean; dev.log shows all routes compiling/serving without errors; agent-browser verification passed (render, real tree, file loading, no console errors).
 - Next: final integration review (Task 11) if scheduled.
+---
+Task ID: 12-13 (push + feature continuation)
+Agent: Z.ai Code (main orchestrator)
+Task: Push project to github.com/ridho1141haha/MusicPlayer; continue development (sleep timer + playback speed).
+
+Work Log:
+- Git: repo already initialized by sandbox (auto-commits). Added remote origin (https://github.com/ridho1141haha/MusicPlayer.git, no token stored in config). Committed prebuilt APKs (android/.gitignore got `!dist/*.apk` exception) + root README.md.
+- Push attempt 1+2 FAILED: token from user returned HTTP 401 against api.github.com (verified independently via curl; also length anomaly: 37 chars after ghp_ prefix vs classic 36). Likely revoked by GitHub secret scanning (token was pasted into chat) or a copy error. LOCAL COMMITS ARE READY: `git push -u origin main` succeeds once valid credentials exist.
+- Created mandatory cron webDevReview job (every 15 min, job_id 451761).
+- Implemented v1.1.0 features:
+  - Sleep timer: moon icon in Now Playing top bar -> dialog (Off/5/10/15/30/60 min). Implemented as Media3 custom session command (com.ridho.music.SET_SLEEP_TIMER) handled in PlaybackService -> survives UI death; fires player.pause() only. Least-privilege onConnect exposes exactly this one command.
+  - Playback speed: "1x" chip in top bar -> dialog (0.75/1/1.25/1.5/2). Player.setPlaybackSpeed + persisted in SettingsRepository, re-applied on service create.
+  - New icon ic_bedtime, strings (sleep/speed), FormatUtils.formatSpeed, layout changes (np_sleep, np_speed), version bumped 1.0.0 -> 1.1.0 (versionCode 2).
+- Build iterations (root causes via javap on AARs): MediaSession.ConnectionResult is NESTED (no top-level class); SessionCommand requires (String, Bundle) constructor; SessionCommands.Builder.addAllSessionCommands() is package-private -> explicit least-privilege list.
+- Final verification (all executed): assembleDebug OK, assembleRelease (R8) OK, testDebugUnitTest 22/22 OK, lintDebug 0 errors. APKs refreshed in android/dist (9.8 MB debug / 2.9 MB release) + public/ridho-music-v1.1.0-debug.apk; dashboard hero/footer links updated; CHANGELOG 1.1.0 entry added; README sizes updated; bun run lint clean; dev.log clean.
+- Committed as 44996aa.
+
+Stage Summary:
+- v1.1.0 complete and build-verified; all work committed locally on main.
+- BLOCKED (external): git push — needs a valid GitHub token with repo/contents:write scope. Retry command pattern: `cd /home/z/my-project && GH_TOKEN=<valid-token> git -c credential.helper='!f(){ echo username=ridho1141haha; echo password=$GH_TOKEN; }; f' push -u origin main`.
+- Security: the user's pasted token was exposed in chat and is invalid/likely revoked — advise immediate rotation and fine-grained PAT (Contents: read/write on MusicPlayer only).
+- Next priorities: push once credentials work; optional roadmap: album/artist browse endpoints, playback-speed button state in mini player, Android Auto surface, NewPipe GPLv3 flavor.
