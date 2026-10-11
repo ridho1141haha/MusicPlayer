@@ -1,0 +1,8 @@
+{
+  "note": "SYNTHETIC .lrc fixtures for the Web Lab Lyrics tester. LRC files are app-side lyrics artifacts — they are NOT network captures, so no live-capture provenance applies; every file is labeled synthetic in its own content and used to test the TS mirror of LrcParser.java against the LrcParserTest golden expectations.",
+  "files": [
+    { "name": "demo_synced.lrc", "kind": "synced", "description": "Metadata tags + synced lines incl. a multi-tag line; drives the synced timeline demo." },
+    { "name": "demo_unsynced.lrc", "kind": "unsynced", "description": "Plain-text lyrics — parser must return synced=false." },
+    { "name": "demo_edge.lrc", "kind": "edge", "description": "Metadata tags (skipped), a timestamp-only line (skipped), and a partial-bracket line (kept as plain text)." }
+  ]
+}

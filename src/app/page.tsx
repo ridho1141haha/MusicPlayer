@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { motion } from 'framer-motion';
 import {
   Database,
   LayoutDashboard,
@@ -8,11 +9,13 @@ import {
   Package,
   Search,
   Smartphone,
+  Subtitles,
   Table2,
 } from 'lucide-react';
 
 import { DashboardTab } from '@/components/lab/dashboard-tab';
 import { FixtureTesterTab } from '@/components/lab/fixture-tester-tab';
+import { LyricsTab } from '@/components/lab/lyrics-tab';
 import { ParityTab } from '@/components/lab/parity-tab';
 import { ProjectTab } from '@/components/lab/project-tab';
 import { PrototypeTab } from '@/components/lab/prototype-tab';
@@ -25,6 +28,7 @@ const TABS: Array<{ id: LabTab; label: string; icon: typeof Search }> = [
   { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard },
   { id: 'playground', label: 'Search Playground', icon: Search },
   { id: 'fixtures', label: 'Fixtures & Parser', icon: Database },
+  { id: 'lyrics', label: 'Lyrics Lab', icon: Subtitles },
   { id: 'prototype', label: 'Prototype', icon: Smartphone },
   { id: 'parity', label: 'Parity Matrix', icon: Table2 },
   { id: 'project', label: 'Project', icon: Package },
@@ -99,14 +103,22 @@ export default function WebLabPage() {
                     type="button"
                     onClick={() => selectTab(tab.id)}
                     aria-current={selected ? 'page' : undefined}
-                    className={`flex min-h-[40px] items-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm transition-colors ${
+                    className={`relative flex min-h-[40px] items-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm transition-colors ${
                       selected
-                        ? 'bg-primary/15 font-medium text-primary'
+                        ? 'text-primary'
                         : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
                     }`}
                   >
-                    <Icon className="h-4 w-4" aria-hidden="true" />
-                    {tab.label}
+                    {selected && (
+                      <motion.span
+                        layoutId="lab-tab-pill"
+                        className="absolute inset-0 rounded-lg bg-primary/15"
+                        transition={{ type: 'spring', stiffness: 420, damping: 34 }}
+                        aria-hidden="true"
+                      />
+                    )}
+                    <Icon className="relative h-4 w-4" aria-hidden="true" />
+                    <span className="relative">{tab.label}</span>
                   </button>
                 );
               })}
@@ -116,19 +128,27 @@ export default function WebLabPage() {
       </header>
 
       <main className="mx-auto w-full max-w-6xl flex-1 px-4 py-6 sm:px-6 sm:py-8">
-        {activeTab === 'dashboard' && <DashboardTab />}
-        {activeTab === 'playground' && <SearchPlaygroundTab />}
-        {activeTab === 'fixtures' && <FixtureTesterTab />}
-        {activeTab === 'prototype' && <PrototypeTab />}
-        {activeTab === 'parity' && <ParityTab />}
-        {activeTab === 'project' && <ProjectTab />}
+        <motion.div
+          key={activeTab}
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.25, ease: 'easeOut' }}
+        >
+          {activeTab === 'dashboard' && <DashboardTab />}
+          {activeTab === 'playground' && <SearchPlaygroundTab />}
+          {activeTab === 'fixtures' && <FixtureTesterTab />}
+          {activeTab === 'lyrics' && <LyricsTab />}
+          {activeTab === 'prototype' && <PrototypeTab />}
+          {activeTab === 'parity' && <ParityTab />}
+          {activeTab === 'project' && <ProjectTab />}
+        </motion.div>
       </main>
 
       <footer className="mt-auto border-t border-border bg-background/95 pb-[env(safe-area-inset-bottom)]">
         <div className="mx-auto flex w-full max-w-6xl flex-col gap-1 px-4 py-4 text-xs text-muted-foreground sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <p>
-            Ridho Music Web Lab — mirrors the Java parser contract on shared fixtures
-            (<span className="font-mono">fixtures/ytm</span> ⇄ <span className="font-mono">app/src/test/resources/ytm</span>).
+            Ridho Music Web Lab — mirrors the Java parser contracts (search + LRC) on shared fixtures
+            (<span className="font-mono">fixtures/</span> ⇄ <span className="font-mono">app/src/test/resources/</span>).
           </p>
           <p>
             Prototype playback is <span className="font-medium text-foreground/80">simulated</span> — the Android app

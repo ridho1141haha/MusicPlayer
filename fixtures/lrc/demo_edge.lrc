@@ -1,0 +1,9 @@
+[ti:Edge-case demo (SYNTHETIC)]
+[ar:Web Lab]
+[by:fixture]
+[x:metadata-looking line that the parser skips]
+[00:05.00]Normal line
+[00:10.00]
+[00:15.00]Line after a timestamp-only entry
+[this line ends with a bracket but never opened properly
+[00:20.00]Final line

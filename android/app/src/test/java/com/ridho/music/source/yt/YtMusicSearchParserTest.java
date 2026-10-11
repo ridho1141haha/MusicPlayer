@@ -173,6 +173,33 @@ public class YtMusicSearchParserTest {
         assertNull(YtMusicSearchParser.parse(null));
     }
 
+    /** Locks the loop behavior: one itemSectionRenderer can carry several items. */
+    @Test
+    public void multipleItemsInsideOneItemSectionAreAllParsed() throws Exception {
+        String json = "{\"contents\":{\"tabbedSearchResultsRenderer\":{\"tabs\":[{\"tabRenderer\":{\"content\":"
+                + "{\"sectionListRenderer\":{\"contents\":[{\"itemSectionRenderer\":{\"contents\":["
+                + item("A", "v1", "Song", "Artist A") + "," + item("B", "v2", "Song", "Artist B") + ","
+                + item("C", "v3", "Song", "Artist C")
+                + "]}}]}}}}]}}}";
+        List<SearchSection> sections = YtMusicSearchParser.parse(new JSONObject(json));
+        assertNotNull(sections);
+        assertEquals(1, sections.size());
+        assertEquals("Songs", sections.get(0).title);
+        assertEquals(3, sections.get(0).tracks.size());
+        assertEquals("ytm:v1", sections.get(0).tracks.get(0).id);
+        assertEquals("Artist A", sections.get(0).tracks.get(0).artist);
+        assertEquals("ytm:v3", sections.get(0).tracks.get(2).id);
+    }
+
+    /** Builds a flat-layout item JSON with a typed subtitle ("Song • <artist>"). */
+    private static String item(String title, String videoId, String kind, String artist) {
+        return "{\"musicResponsiveListItemRenderer\":{\"flexColumns\":["
+                + "{\"musicResponsiveListItemFlexColumnRenderer\":{\"text\":{\"runs\":[{\"text\":\"" + title + "\"}]}}},"
+                + "{\"musicResponsiveListItemFlexColumnRenderer\":{\"text\":{\"runs\":[{\"text\":\"" + kind + " • "
+                + artist + "\"}]}}}],"
+                + "\"navigationEndpoint\":{\"watchEndpoint\":{\"videoId\":\"" + videoId + "\"}}}}";
+    }
+
     // ---------------------------------------------------------------- classification units
 
     @Test

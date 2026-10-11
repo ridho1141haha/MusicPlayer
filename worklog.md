@@ -234,3 +234,29 @@ Stage Summary:
 - Web Lab COMPLETE: Dashboard (real numbers only), Search Playground (live+fixture, typed errors, trace), Fixtures & Parser tester (add/inspect/provenance), interactive Prototype (honest simulation), Parity Matrix, preserved Project dashboard.
 - Verified: web 28/28 + android 28/28 + lint 0 + builds green + E2E golden path. Untested: device/instrumented, real audio playback (blocked: LOGIN_REQUIRED), Room DAOs.
 - Still blocked (external, by policy): YTM streaming playback without sign-in. Next best steps: device testing on Galaxy A05s; optional continuation support if YouTube adds tokens; hook run-qa.sh into the cron loop.
+
+---
+Task ID: WEBLAB-7 (cron review round 1 — Lyrics Lab + polish)
+Agent: Z.ai Code (main orchestrator, webDevReview cron)
+Task: Status assessment + agent-browser QA; then feature round: LRC harness, Lyrics Lab, synced demo lyrics, styling polish.
+
+Work Log:
+- STATUS ASSESSMENT: dev server was DOWN on cron wake (background processes die between shell calls — known sandbox behavior) → restarted detached via setsid; GET / 200. Tree was clean at 0ae4dd0; no new failures pending.
+- Features shipped this round:
+  1. src/lib/lab/lrc-parser.ts — faithful TS port of LrcParser.java (TIME_TAG regex incl. [.:] fraction separator, multi-tag lines, metadata skip, timestamp-only skip, stable sort, activeLineIndex, normalizeFraction). Web-only extras (parseWithStats: metadataTags/timestampOnlyLines/plainLines) never affect output.
+  2. tests/unit/lrc-parser.test.ts — 15 tests: all 7 LrcParserTest golden expectations mirrored + robustness (CRLF/CR, colon-fraction, timestamp-only, partial bracket, duplicate-tag replace parity) + 3 synthetic fixtures. Web suite: 28→43.
+  3. fixtures/lrc/{demo_synced,demo_unsynced,demo_edge}.lrc + index.json — clearly labeled SYNTHETIC (LRC is an app-side artifact, not a network capture).
+  4. GET /api/lab/lrc (list + sandboxed content read).
+  5. Lyrics Lab tab (7th tab): fixture loader, paste area, parse stats badges, parsed-lines table, synced scrub slider driving activeLineIndex highlight.
+  6. Prototype Now Playing: demo lyrics section (labeled SYNTHETIC) synced to the simulated clock with auto-scroll; TrackRow playing accent; "Copy track info" with HONEST clipboard states (copied ✓ / "Clipboard blocked by the browser").
+  7. Dashboard: suite rows get status-colored left accent + hover; history rows get pass-proportion mini-bars (sm+).
+  8. Styling: animated nav pill (framer-motion layoutId spring), per-tab fade/rise transition, shared EmptyState component.
+  9. Android: YtMusicSearchParserTest +1 test (multiple items inside ONE itemSectionRenderer — locks loop behavior; production code untouched) → android suite 28→29.
+- BUGS found & fixed during this round's E2E: (1) dev server down on wake (restarted); (2) PrototypeTab crash — useCallback used but not imported (SWC compiles without type-check; caught by agent-browser "Application error" + window error listener discipline); (3) clipboard fallback initially showed false success → now honest 3-state.
+- E2E (agent-browser): Lyrics Lab — demo_synced.lrc → synced badge, 9 lines, metadata-skipped badge, scrubber 500→800ms via keyboard arrows keeps exactly 1 active row (line 0 spans 500–4000ms — correct); Prototype — play → Now Playing sheet shows 9 demo lyric lines with activeIdx advancing with the simulated clock; copy button shows honest "blocked" state in headless (no false success); Dashboard renders fresh run 17:23:38Z all-green + history bars; console clean; screenshot data/e2e-weblab7-lyrics.png.
+- Full pipeline: bash scripts/run-qa.sh → ALL GREEN recorded 2026-10-11 17:23:38Z: web lint ✓, vitest 43/43, android testDebugUnitTest --rerun 29/29 (Track 4, Lrc 7, YTSource 7, YTParser 11), lintDebug ✓, assembleDebug ✓ (APK unchanged 11,542,468 B sha256 939c938a…), fixture sync no drift.
+
+Stage Summary:
+- Web Lab now covers BOTH Java parser contracts (InnerTube search + LRC lyrics) with mirrored golden tests; prototype gained synced demo lyrics + copy; dashboard/UX polished.
+- Verified: 43 web + 29 android tests, lint 0, builds green, E2E golden path incl. new features. Untested on device: unchanged (no hardware).
+- Risks/next: keep cron rounds bounded (this round ≈ 12 min); next candidate work — fixture diff view (compare two parses), queue context menu, top-tracks bar chart, Android instrumented test when a device appears. Playback stays blocked (LOGIN_REQUIRED, policy: no bypass).

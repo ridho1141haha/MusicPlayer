@@ -169,8 +169,14 @@ function SuiteCard({ qa }: { qa: QaResults | null }) {
         {qa.suites.map((suite) => (
           <div
             key={suite.name}
-            className="flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background/40 px-3 py-2"
-          >
+            className={`flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background/40 px-3 py-2 transition-colors hover:bg-secondary/30 ${
+              suite.status === 'pass'
+                ? 'border-l-2 border-l-emerald-500/70'
+                : suite.status === 'fail'
+                  ? 'border-l-2 border-l-rose-500/70'
+                  : 'border-l-2 border-l-zinc-500/50'
+            }`
+          }>
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{suite.name}</p>
               <p className="truncate font-mono text-[11px] text-muted-foreground">{suite.command}</p>
@@ -376,19 +382,30 @@ export function DashboardTab() {
               <Separator className="mb-2 sm:block" />
               <ScrollArea className="rm-scroll max-h-56">
                 <div className="space-y-1">
-                  {qa.history.map((entry) => (
-                    <div
-                      key={entry.recordedAt}
-                      className="grid grid-cols-2 gap-2 rounded-md px-3 py-2 text-sm hover:bg-secondary/40 sm:grid-cols-4"
-                    >
-                      <span className="text-foreground/90">{entry.recordedAt}</span>
-                      <span className="text-right text-emerald-300 sm:text-right">{entry.passed} passed</span>
-                      <span className={`text-right ${entry.failed > 0 ? 'text-rose-300' : 'text-muted-foreground'}`}>
-                        {entry.failed} failed
-                      </span>
-                      <span className="text-right text-muted-foreground">{entry.skipped} skipped</span>
-                    </div>
-                  ))}
+                  {qa.history.map((entry) => {
+                    const total = entry.passed + entry.failed + entry.skipped;
+                    const passPct = total > 0 ? Math.round((entry.passed / total) * 100) : 0;
+                    return (
+                      <div
+                        key={entry.recordedAt}
+                        className="grid grid-cols-2 items-center gap-2 rounded-md px-3 py-2 text-sm hover:bg-secondary/40 sm:grid-cols-5"
+                      >
+                        <span className="text-foreground/90">{entry.recordedAt}</span>
+                        <span className="text-right text-emerald-300 sm:text-right">{entry.passed} passed</span>
+                        <span className={`text-right ${entry.failed > 0 ? 'text-rose-300' : 'text-muted-foreground'}`}>
+                          {entry.failed} failed
+                        </span>
+                        <span className="text-right text-muted-foreground">{entry.skipped} skipped</span>
+                        <span
+                          className="hidden h-1.5 w-full overflow-hidden rounded-full bg-rose-500/50 sm:block"
+                          role="img"
+                          aria-label={`${passPct}% of assertions passed in run ${entry.recordedAt}`}
+                        >
+                          <span className="block h-full rounded-full bg-emerald-500/80" style={{ width: `${passPct}%` }} />
+                        </span>
+                      </div>
+                    );
+                  })}
                 </div>
               </ScrollArea>
             </>

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -21,6 +21,7 @@ import { CSS } from '@dnd-kit/utilities';
 import {
   AlertTriangle,
   ChevronRight,
+  Copy,
   Flame,
   GripVertical,
   Heart,
@@ -63,6 +64,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Slider } from '@/components/ui/slider';
 import { Switch } from '@/components/ui/switch';
 import { formatDuration } from '@/lib/lab/format';
+import { activeLineIndex, parse as parseLrc, type LrcLyrics } from '@/lib/lab/lrc-parser';
 import { effectiveDuration, useLabStore } from '@/lib/lab/store';
 import type { LabTrack } from '@/lib/lab/types';
 
@@ -159,7 +161,11 @@ function TrackRow({
   const togglePlayId = useLabStore((s) => s.togglePlayId);
   return (
     <li>
-      <div className="flex items-center gap-2 rounded-md border border-border bg-background/40 p-2 transition-colors hover:bg-secondary/40">
+      <div
+        className={`flex items-center gap-2 rounded-md border bg-background/40 p-2 transition-colors hover:bg-secondary/40 ${
+          isPlaying ? 'border-primary/60 bg-primary/5 shadow-[inset_2px_0_0_0] shadow-primary' : 'border-border'
+        }`}
+      >
         <span className="w-5 shrink-0 text-center font-mono text-[11px] text-muted-foreground">{index + 1}</span>
         <Artwork track={track} className="h-11 w-11" />
         <button
@@ -285,6 +291,11 @@ export function PrototypeTab() {
   const failureInjection = useLabStore((s) => s.failureInjection);
   const setFailureInjection = useLabStore((s) => s.setFailureInjection);
 
+  // Demo lyrics for the Now Playing sheet (SYNTHETIC fixture, loaded for real).
+  const [demoLyrics, setDemoLyrics] = useState<LrcLyrics | null>(null);
+  const [lyricsOpen, setLyricsOpen] = useState(true);
+  const lyricsListRef = useRef<HTMLDivElement | null>(null);
+
   const currentTrackId = useLabStore((s) => s.currentTrackId);
   const isPlaying = useLabStore((s) => s.isPlaying);
   const progressMs = useLabStore((s) => s.progressMs);
@@ -307,10 +318,26 @@ export function PrototypeTab() {
   const [nowPlayingOpen, setNowPlayingOpen] = useState(false);
   const [qaControlsOpen, setQaControlsOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [copiedInfo, setCopiedInfo] = useState<'idle' | 'copied' | 'blocked'>('idle');
 
   useEffect(() => {
     if (useLabStore.getState().catalogStatus === 'idle') void loadCatalog();
   }, [loadCatalog]);
+
+  // Load the labeled demo .lrc once, when the Now Playing sheet is first opened.
+  useEffect(() => {
+    if (!nowPlayingOpen || demoLyrics !== null) return;
+    void (async () => {
+      try {
+        const res = await fetch('/api/lab/lrc?name=demo_synced.lrc', { cache: 'force-cache' });
+        if (!res.ok) return;
+        const data = (await res.json()) as { content: string };
+        setDemoLyrics(parseLrc(data.content));
+      } catch {
+        // Lyrics stay unavailable; the sheet simply hides the section.
+      }
+    })();
+  }, [nowPlayingOpen, demoLyrics]);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
@@ -336,6 +363,35 @@ export function PrototypeTab() {
   }, [catalog, query]);
 
   const favoriteTracks = useMemo(() => catalog.filter((t) => favorites.includes(t.id)), [catalog, favorites]);
+
+  const lyricActiveIdx = useMemo(() => {
+    if (demoLyrics === null || !demoLyrics.synced) return -1;
+    return activeLineIndex(demoLyrics.lines, progressMs);
+  }, [demoLyrics, progressMs]);
+
+  // Keep the active lyric line visible inside the scroll container.
+  useEffect(() => {
+    if (!nowPlayingOpen || lyricActiveIdx < 0 || lyricsListRef.current === null) return;
+    const container = lyricsListRef.current;
+    const activeEl = container.querySelector<HTMLElement>(`[data-lyric-idx="${lyricActiveIdx}"]`);
+    if (activeEl !== null) {
+      const top = activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2;
+      container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+    }
+  }, [lyricActiveIdx, nowPlayingOpen]);
+
+  const copyTrackInfo = useCallback(async (track: LabTrack) => {
+    const info = `${track.title} — ${track.artist}${track.album !== null ? ` · ${track.album}` : ''} [${track.id}] (Ridho Music Web Lab)`;
+    let ok = false;
+    try {
+      await navigator.clipboard.writeText(info);
+      ok = true;
+    } catch {
+      // Clipboard blocked (permissions/insecure context) — surface honestly below.
+    }
+    setCopiedInfo(ok ? 'copied' : 'blocked');
+    window.setTimeout(() => setCopiedInfo('idle'), 2500);
+  }, []);
 
   const topTracks = useMemo(() => {
     return Object.entries(playCounts)
@@ -712,6 +768,53 @@ export function PrototypeTab() {
                   <p className="font-mono">{currentTrack.id}</p>
                   <p>plays (simulated): {playCounts[currentTrack.id] ?? 0}</p>
                 </div>
+
+                {demoLyrics !== null && demoLyrics.lines.length > 0 && (
+                  <div className="w-full max-w-sm">
+                    <div className="mb-1.5 flex items-center justify-between gap-2">
+                      <p className="text-xs font-medium text-foreground/80">Lyrics</p>
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-[11px] text-muted-foreground"
+                        onClick={() => setLyricsOpen((open) => !open)}
+                        aria-expanded={lyricsOpen}
+                        aria-label={lyricsOpen ? 'Hide demo lyrics' : 'Show demo lyrics'}
+                      >
+                        {lyricsOpen ? 'Hide' : 'Show'}
+                      </Button>
+                    </div>
+                    {lyricsOpen && (
+                      <>
+                        <div
+                          ref={lyricsListRef}
+                          className="rm-scroll max-h-44 overflow-y-auto rounded-md border border-border bg-background/40 p-2"
+                          aria-label="Synced demo lyrics"
+                        >
+                          <ol className="space-y-1">
+                            {demoLyrics.lines.map((line, index) => (
+                              <li
+                                key={`${line.timeMs}-${index}`}
+                                data-lyric-idx={index}
+                                className={`rounded px-2 py-1 text-xs transition-colors ${
+                                  demoLyrics.synced && index === lyricActiveIdx
+                                    ? 'bg-primary/15 font-medium text-primary'
+                                    : 'text-muted-foreground'
+                                }`}
+                              >
+                                {line.text}
+                              </li>
+                            ))}
+                          </ol>
+                        </div>
+                        <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
+                          Demo lyrics — SYNTHETIC fixture (fixtures/lrc/demo_synced.lrc). Fixtures carry no real lyric
+                          sources; highlighting follows the simulated clock.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
                 <Button
                   variant="outline"
                   className="gap-2"
@@ -789,6 +892,29 @@ export function PrototypeTab() {
                     Queue
                   </Button>
                 </div>
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  className="gap-1.5 text-xs text-muted-foreground"
+                  onClick={() => void copyTrackInfo(detailTrack)}
+                  aria-label={`Copy metadata of ${detailTrack.title} to clipboard`}
+                >
+                  {copiedInfo === 'copied' && (
+                    <>
+                      <Check aria-hidden="true" /> Copied to clipboard ✓
+                    </>
+                  )}
+                  {copiedInfo === 'blocked' && (
+                    <>
+                      <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" /> Clipboard blocked by the browser
+                    </>
+                  )}
+                  {copiedInfo === 'idle' && (
+                    <>
+                      <Copy className="h-3.5 w-3.5" aria-hidden="true" /> Copy track info
+                    </>
+                  )}
+                </Button>
               </div>
             </>
           )}

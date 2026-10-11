@@ -52,7 +52,7 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     name: 'LRC lyrics parsing (synced/unsynced)',
     area: 'Library',
     status: 'pass',
-    note: 'LrcParserTest 7/7 JVM tests.',
+    note: 'LrcParserTest 7/7 JVM tests (+1 new multi-item parser test → android suite now 29). Web mirror: 15 vitest tests incl. all JVM golden expectations; Lyrics Lab tab parses fixtures interactively.',
   },
   {
     id: 'local-playback',
@@ -116,5 +116,12 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     area: 'Web Lab',
     status: 'pass',
     note: 'Golden path verified in a real browser: dashboard real numbers, live search (HTTP 200 · LATHI), offline fixture parsing, add-fixture, prototype play/queue-drag/favorites/error-retry, parity + project tabs, mobile 390px without horizontal scroll, sticky footer both states. Screenshots: data/e2e-*.png.',
+  },
+  {
+    id: 'weblab-lyrics-lab',
+    name: 'Lyrics Lab (LRC parser harness + synced preview)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-7: /api/lab/lrc + Lyrics Lab tab (fixture load, paste, parse stats, scrub-driven active-line highlight). E2E verified: active line follows the scrubber; Now Playing shows labeled demo lyrics synced to the simulated clock.',
   },
 ];

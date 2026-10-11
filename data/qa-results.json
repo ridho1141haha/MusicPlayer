@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-11 17:04:38Z",
+  "recordedAt": "2026-10-11 17:23:38Z",
   "suites": [
     {
       "name": "web lint (eslint)",
@@ -8,28 +8,28 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 6300,
+      "durationMs": 6813,
       "exitCode": 0,
       "detail": "eslint . completed with no findings."
     },
     {
       "name": "web unit tests (vitest)",
       "status": "pass",
-      "passed": 28,
+      "passed": 43,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 22,
-      "detail": "28 assertions passed across 1 file(s) on shared fixtures.",
+      "durationMs": 31,
+      "detail": "43 assertions passed across 2 file(s) on shared fixtures.",
       "command": "bunx vitest run"
     },
     {
       "name": "android unit tests (testDebugUnitTest --rerun)",
       "status": "pass",
-      "passed": 28,
+      "passed": 29,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 407,
-      "detail": "com.ridho.music.domain.model.TrackTest: 4 tests, 0 failures, 0 errors, 0 skipped, 0.016s\ncom.ridho.music.lyrics.LrcParserTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.008s\ncom.ridho.music.source.yt.YouTubeMusicSourceTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.33s\ncom.ridho.music.source.yt.YtMusicSearchParserTest: 10 tests, 0 failures, 0 errors, 0 skipped, 0.053s\n\nTOTAL: 28 tests, 0 failures, 0 errors, 0 skipped.",
+      "durationMs": 293,
+      "detail": "com.ridho.music.domain.model.TrackTest: 4 tests, 0 failures, 0 errors, 0 skipped, 0.005s\ncom.ridho.music.lyrics.LrcParserTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.003s\ncom.ridho.music.source.yt.YouTubeMusicSourceTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.237s\ncom.ridho.music.source.yt.YtMusicSearchParserTest: 11 tests, 0 failures, 0 errors, 0 skipped, 0.048s\n\nTOTAL: 29 tests, 0 failures, 0 errors, 0 skipped.",
       "command": "gradle :app:testDebugUnitTest --rerun"
     },
     {
@@ -39,7 +39,7 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 14160,
+      "durationMs": 13999,
       "exitCode": 0,
       "detail": "lintDebug passed with abortOnError=true (0 lint errors)."
     },
@@ -50,7 +50,7 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 14745,
+      "durationMs": 14173,
       "exitCode": 0,
       "detail": "assembleDebug BUILD SUCCESSFUL (may be UP-TO-DATE if inputs unchanged)."
     },
@@ -75,6 +75,20 @@
     "versionCode": 3
   },
   "history": [
+    {
+      "recordedAt": "2026-10-11 17:19:39Z",
+      "passed": 72,
+      "failed": 0,
+      "skipped": 0,
+      "allPassed": true
+    },
+    {
+      "recordedAt": "2026-10-11 17:04:38Z",
+      "passed": 56,
+      "failed": 0,
+      "skipped": 0,
+      "allPassed": true
+    },
     {
       "recordedAt": "2026-10-11 16:52:37Z",
       "passed": 56,

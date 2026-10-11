@@ -1,0 +1,12 @@
+[ti:Demo Song (synthetic LRC fixture)]
+[ar:Ridho Music Web Lab]
+[al:Web Lab Fixtures]
+
+[00:00.50]This lyric file is a SYNTHETIC fixture (not a real song)
+[00:04.00]It demonstrates synced LRC parsing in the Web Lab
+[00:08.20]Timestamps drive the active-line highlight
+[00:12.00]The same parser logic runs on Android (LrcParser.java)
+[00:16.40]Lines are sorted by their timestamps
+[00:21.00]Multiple tags per line work too
+[00:21.00][00:26.00]This line repeats at 26 seconds
+[00:30.00]Keikkou sayonara — end of demo
