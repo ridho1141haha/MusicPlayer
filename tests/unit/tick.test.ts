@@ -1,33 +1,74 @@
 import { describe, expect, it } from 'vitest';
 
-import { computeTick } from '../../src/lib/lab/tick';
+import { computeNextIndex, computeTick, repeatModeLabel } from '../../src/lib/lab/tick';
 
-describe('computeTick (simulated playback, repeat-one)', () => {
+describe('computeTick (simulated playback, repeat tri-state)', () => {
   const TOTAL = 200_000;
   const STEP = 250;
 
   it('advances by the step while inside the track', () => {
-    const result = computeTick(TOTAL, 0, false, STEP);
+    const result = computeTick(TOTAL, 0, 'off', STEP);
     expect(result).toEqual({ action: 'progress', progressMs: STEP });
   });
 
-  it('ends → advance when repeat-one is off', () => {
-    expect(computeTick(TOTAL, TOTAL - 1, false, STEP)).toEqual({ action: 'advance' });
-    expect(computeTick(TOTAL, TOTAL, false, STEP)).toEqual({ action: 'advance' });
-    expect(computeTick(TOTAL, TOTAL + 5_000, false, STEP)).toEqual({ action: 'advance' });
+  it('ends → advance when repeat is off or all (advance target decided by computeNextIndex)', () => {
+    expect(computeTick(TOTAL, TOTAL - 1, 'off', STEP)).toEqual({ action: 'advance' });
+    expect(computeTick(TOTAL, TOTAL, 'off', STEP)).toEqual({ action: 'advance' });
+    expect(computeTick(TOTAL, TOTAL + 5_000, 'all', STEP)).toEqual({ action: 'advance' });
   });
 
-  it('ends → restart (same track from 0) when repeat-one is on', () => {
-    expect(computeTick(TOTAL, TOTAL - 1, true, STEP)).toEqual({ action: 'restart' });
-    expect(computeTick(TOTAL, TOTAL + 5_000, true, STEP)).toEqual({ action: 'restart' });
+  it('ends → restart (same track from 0) when repeat is one', () => {
+    expect(computeTick(TOTAL, TOTAL - 1, 'one', STEP)).toEqual({ action: 'restart' });
+    expect(computeTick(TOTAL, TOTAL + 5_000, 'one', STEP)).toEqual({ action: 'restart' });
   });
 
   it('non-positive total always advances (guards zero-length tracks)', () => {
-    expect(computeTick(0, 0, true, STEP)).toEqual({ action: 'advance' });
-    expect(computeTick(-1, 0, false, STEP)).toEqual({ action: 'advance' });
+    expect(computeTick(0, 0, 'one', STEP)).toEqual({ action: 'advance' });
+    expect(computeTick(-1, 0, 'off', STEP)).toEqual({ action: 'advance' });
   });
 
   it('custom step is honored', () => {
-    expect(computeTick(TOTAL, 0, false, 500)).toEqual({ action: 'progress', progressMs: 500 });
+    expect(computeTick(TOTAL, 0, 'off', 500)).toEqual({ action: 'progress', progressMs: 500 });
+  });
+});
+
+describe('computeNextIndex (auto-advance target, WEBLAB-11)', () => {
+  const Q = 4;
+
+  it('empty queue → stop', () => {
+    expect(computeNextIndex(0, 0, 'all')).toBe(-1);
+    expect(computeNextIndex(0, -1, 'off')).toBe(-1);
+  });
+
+  it('mid-queue advances by one regardless of mode', () => {
+    expect(computeNextIndex(Q, 0, 'off')).toBe(1);
+    expect(computeNextIndex(Q, 1, 'all')).toBe(2);
+    expect(computeNextIndex(Q, 2, 'one')).toBe(3); // 'one' only matters via computeTick restart
+  });
+
+  it("repeat 'off' at the last track → stop (-1)", () => {
+    expect(computeNextIndex(Q, 3, 'off')).toBe(-1);
+  });
+
+  it("repeat 'all' at the last track → wraps to 0", () => {
+    expect(computeNextIndex(Q, 3, 'all')).toBe(0);
+    expect(computeNextIndex(1, 0, 'all')).toBe(0);
+  });
+
+  it('out-of-range current index falls back to the first track', () => {
+    expect(computeNextIndex(Q, -5, 'off')).toBe(0);
+    expect(computeNextIndex(Q, 99, 'all')).toBe(0);
+  });
+
+  it('single-track queue with repeat off → stop', () => {
+    expect(computeNextIndex(1, 0, 'off')).toBe(-1);
+  });
+});
+
+describe('repeatModeLabel (a11y + badge copy)', () => {
+  it('labels all three modes honestly', () => {
+    expect(repeatModeLabel('off')).toContain('repeat off');
+    expect(repeatModeLabel('all')).toContain('repeat ALL');
+    expect(repeatModeLabel('one')).toContain('repeat ONE');
   });
 });

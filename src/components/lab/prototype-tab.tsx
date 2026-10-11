@@ -36,6 +36,7 @@ import {
   Pause,
   Play,
   Plus,
+  Repeat,
   Repeat1,
   RotateCcw,
   Search,
@@ -80,6 +81,7 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { formatDuration } from '@/lib/lab/format';
 import { activeLineIndex, parse as parseLrc, type LrcLyrics } from '@/lib/lab/lrc-parser';
+import { repeatModeLabel } from '@/lib/lab/tick';
 import { effectiveDuration, useLabStore } from '@/lib/lab/store';
 import type { LabTrack } from '@/lib/lab/types';
 
@@ -191,6 +193,11 @@ function TrackRow({
         >
           <span className="flex items-center gap-1.5">
             <span className="truncate text-sm font-medium">{track.title}</span>
+            {isPlaying && (
+              <span className="rm-eq shrink-0 text-primary" aria-hidden="true">
+                <span /><span /><span /><span />
+              </span>
+            )}
             {isPlaying && (
               <Badge variant="outline" className="border-primary/40 bg-primary/10 px-1 text-[9px] text-primary">
                 playing
@@ -443,8 +450,8 @@ export function PrototypeTab() {
   const seekTo = useLabStore((s) => s.seekTo);
   const next = useLabStore((s) => s.next);
   const previous = useLabStore((s) => s.previous);
-  const repeatOne = useLabStore((s) => s.repeatOne);
-  const toggleRepeatOne = useLabStore((s) => s.toggleRepeatOne);
+  const repeatMode = useLabStore((s) => s.repeatMode);
+  const cycleRepeatMode = useLabStore((s) => s.cycleRepeatMode);
 
   const queue = useLabStore((s) => s.queue);
   const reorderQueue = useLabStore((s) => s.reorderQueue);
@@ -902,7 +909,14 @@ export function PrototypeTab() {
               <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
                 <Artwork track={currentTrack} className="h-44 w-44 sm:h-56 sm:w-56" />
                 <div className="min-w-0">
-                  <p className="truncate text-lg font-semibold">{currentTrack.title}</p>
+                  <div className="flex min-w-0 items-center gap-2">
+                    {isPlaying && (
+                      <span className="rm-eq shrink-0 text-primary" aria-hidden="true">
+                        <span /><span /><span /><span />
+                      </span>
+                    )}
+                    <p className="truncate text-lg font-semibold">{currentTrack.title}</p>
+                  </div>
                   <p className="truncate text-sm text-muted-foreground">
                     {currentTrack.artist}
                     {currentTrack.album !== null ? ` · ${currentTrack.album}` : ''}
@@ -918,6 +932,7 @@ export function PrototypeTab() {
                     step={1000}
                     onValueChange={([value]) => seekTo(value)}
                     aria-label="Seek position (simulated)"
+                    className="rm-slider-fill"
                   />
                   <div className="mt-1 flex justify-between text-xs text-muted-foreground">
                     <span>{formatDuration(progressMs)}</span>
@@ -936,22 +951,31 @@ export function PrototypeTab() {
                     <SkipForward className="h-5 w-5" aria-hidden="true" />
                   </Button>
                   <Button
-                    variant={repeatOne ? 'default' : 'outline'}
+                    variant={repeatMode === 'off' ? 'outline' : 'default'}
                     size="icon"
-                    className={`h-12 w-12 ${repeatOne ? 'text-primary-foreground' : ''}`}
-                    onClick={toggleRepeatOne}
-                    aria-pressed={repeatOne}
-                    aria-label={repeatOne ? 'Repeat one on (simulated) — the track restarts when it ends' : 'Repeat one off (simulated)'}
-                    title={repeatOne ? 'Repeat ONE is ON (simulated) — track restarts at the end' : 'Repeat one (simulated)'}
+                    className={`h-12 w-12 ${repeatMode === 'off' ? '' : 'text-primary-foreground'}`}
+                    onClick={cycleRepeatMode}
+                    aria-pressed={repeatMode !== 'off'}
+                    aria-label={`Repeat mode (simulated): ${repeatModeLabel(repeatMode)}`}
+                    title={`Repeat (simulated) — ${repeatModeLabel(repeatMode)}. Click to cycle off → all → one.`}
                   >
-                    <Repeat1 className={`h-5 w-5 ${repeatOne ? '' : 'text-muted-foreground'}`} aria-hidden="true" />
+                    {repeatMode === 'one' ? (
+                      <Repeat1 className="h-5 w-5" aria-hidden="true" />
+                    ) : (
+                      <Repeat className={`h-5 w-5 ${repeatMode === 'off' ? 'text-muted-foreground' : ''}`} aria-hidden="true" />
+                    )}
                   </Button>
                 </div>
-                {repeatOne && (
-                  <Badge variant="outline" className="border-primary/40 bg-primary/10 text-[10px] text-primary">
-                    repeat ONE on (simulated) — the track restarts at the end
-                  </Badge>
-                )}
+                <Badge
+                  variant="outline"
+                  className={
+                    repeatMode === 'off'
+                      ? 'border-border text-[10px] text-muted-foreground'
+                      : 'border-primary/40 bg-primary/10 text-[10px] text-primary'
+                  }
+                >
+                  {repeatModeLabel(repeatMode)} (simulated)
+                </Badge>
                 <div className="text-xs text-muted-foreground">
                   <p className="font-mono">{currentTrack.id}</p>
                   <p>plays (simulated): {playCounts[currentTrack.id] ?? 0}</p>

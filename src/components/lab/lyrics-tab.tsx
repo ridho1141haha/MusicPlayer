@@ -1,9 +1,10 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   Captions,
   FileText,
+  FileUp,
   Info,
   Loader2,
   Play,
@@ -47,6 +48,8 @@ export function LyricsTab() {
   const [sourceNote, setSourceNote] = useState<string | null>(null);
   const [result, setResult] = useState<ParseOutput | null>(null);
   const [scrubMs, setScrubMs] = useState(0);
+  const [uploadedName, setUploadedName] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
 
   const refresh = useCallback(async () => {
     try {
@@ -96,6 +99,26 @@ export function LyricsTab() {
       setParsing(false);
     }
   }, [text]);
+
+  /** WEBLAB-11 — parse a REAL .lrc file picked locally. Client-side FileReader:
+   *  the file never leaves the browser; the parser is the same TS mirror. */
+  const onLrcFilePicked = useCallback((file: File | undefined) => {
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onerror = () => setSourceNote(`Could not read "${file.name}" (browser file-read error).`);
+    reader.onload = () => {
+      const content = typeof reader.result === 'string' ? reader.result : '';
+      setText(content);
+      setUploadedName(`${file.name} · ${(file.size / 1024).toFixed(1)} KB`);
+      const output = parseWithStats(content);
+      setResult(output);
+      setSourceNote(
+        `Parsed from uploaded file "${file.name}" (${file.size} bytes) — read locally in the browser, never uploaded to a server.`,
+      );
+      setScrubMs(output.lines.length > 0 ? output.lines[0].timeMs : 0);
+    };
+    reader.readAsText(file);
+  }, []);
 
   const maxMs = useMemo(() => {
     if (result === null || result.lines.length === 0) return 0;
@@ -166,6 +189,37 @@ export function LyricsTab() {
               className="rm-scroll min-h-44 font-mono text-xs"
               aria-label="LRC content"
             />
+          </div>
+
+          {/* WEBLAB-11 — real .lrc file upload (client-side read, honest provenance). */}
+          <div className="flex flex-wrap items-center gap-2">
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept=".lrc,.txt,text/plain"
+              className="sr-only"
+              aria-label="Pick a local .lrc file to parse"
+              onChange={(event) => {
+                onLrcFilePicked(event.target.files?.[0]);
+                event.target.value = ''; // allow re-picking the same file
+              }}
+            />
+            <Button
+              variant="outline"
+              size="sm"
+              className="gap-1.5"
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Upload a real .lrc file (read locally in the browser)"
+            >
+              <FileUp className="h-3.5 w-3.5" aria-hidden="true" />
+              Upload real .lrc file
+            </Button>
+            {uploadedName !== null && (
+              <Badge variant="outline" className="gap-1 border-emerald-500/40 bg-emerald-500/10 font-mono text-[10px] text-emerald-300">
+                <FileText className="h-3 w-3" aria-hidden="true" />
+                {uploadedName}
+              </Badge>
+            )}
           </div>
 
           <Button onClick={runParse} disabled={parsing || text.trim().length === 0} className="gap-2">

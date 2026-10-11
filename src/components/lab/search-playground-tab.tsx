@@ -422,7 +422,6 @@ export function SearchPlaygroundTab() {
       setFixture({
         phase: 'success',
         fixtureName,
-        durationMs,
         data: {
           ok: true,
           httpStatus: 0, // offline: no HTTP involved
@@ -541,14 +540,14 @@ export function SearchPlaygroundTab() {
         </CardContent>
       </Card>
 
-      {/* Session-local search history (WEBLAB-10) — real outcomes only, click to re-run. */}
+      {/* Search history (WEBLAB-10, persisted in localStorage since WEBLAB-11) — real outcomes only, click to re-run. */}
       {mode === 'live' && searchHistory.length > 0 && (
         <Card>
           <CardContent className="p-3">
             <div className="mb-2 flex items-center justify-between gap-2">
               <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
                 <History className="h-3.5 w-3.5" aria-hidden="true" />
-                Recent live searches ({searchHistory.length}/8) — this browser session only
+                Recent live searches ({searchHistory.length}/8) — persisted in this browser (localStorage)
               </p>
               <Button
                 variant="ghost"

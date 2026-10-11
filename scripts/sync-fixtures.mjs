@@ -20,9 +20,14 @@ const SRC = join(ROOT, 'fixtures', 'ytm');
 const DEST = join(ROOT, 'android', 'app', 'src', 'test', 'resources', 'ytm');
 
 const SYNC_PATTERN = /^search_live_.*\.json$/;
+// WEBLAB-11: the golden expectations contract is shared too — the Android suite
+// (GoldenExpectationsTest) evaluates the SAME file as the TS harness so parser
+// parity is enforced in BOTH directions from one source of truth.
+const EXTRA_FILES = ['expectations.json'];
 const check = process.argv.includes('--check');
 
-const names = readdirSync(SRC).filter((n) => SYNC_PATTERN.test(n) && statSync(join(SRC, n)).isFile());
+const names = readdirSync(SRC)
+  .filter((n) => (SYNC_PATTERN.test(n) || EXTRA_FILES.includes(n)) && statSync(join(SRC, n)).isFile());
 if (names.length === 0) {
   console.error('sync-fixtures: no matching fixtures found in', SRC);
   process.exit(1);

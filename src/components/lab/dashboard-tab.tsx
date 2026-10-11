@@ -241,9 +241,9 @@ function SuiteCard({ qa }: { qa: QaResults | null }) {
             key={suite.name}
             className={`flex flex-wrap items-center justify-between gap-2 rounded-md border border-border bg-background/40 px-3 py-2 transition-colors hover:bg-secondary/30 ${
               suite.status === 'pass'
-                ? 'border-l-2 border-l-emerald-500/70'
+                ? 'rm-suite-pass'
                 : suite.status === 'fail'
-                  ? 'border-l-2 border-l-rose-500/70'
+                  ? 'rm-suite-fail'
                   : 'border-l-2 border-l-zinc-500/50'
             }`
           }>

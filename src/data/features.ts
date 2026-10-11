@@ -189,16 +189,37 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
   },
   {
     id: 'weblab-search-history',
-    name: 'Search Playground history (session-local re-run chips)',
+    name: 'Search Playground history (re-run chips, persisted in this browser)',
     area: 'Web Lab',
     status: 'pass',
-    note: 'WEBLAB-10: every live run records its real outcome (HTTP status, item count, duration, or typed error) to a session-local store (cap 8, consecutive-dup replace); chips re-run the query on click; failures styled red; clear button. Never persisted, never invented.',
+    note: 'WEBLAB-10/11: every live run records its real outcome (HTTP status, item count, duration, or typed error) to the store (cap 8, consecutive-dup replace); chips re-run the query on click; failures styled red; clear button. Persisted via localStorage since WEBLAB-11 — real outcomes survive reloads, never invented.'
   },
   {
     id: 'weblab-repeat-one',
-    name: 'Repeat one (simulated) with provable tick logic',
+    name: 'Repeat modes off / all / one (simulated) with provable tick logic',
     area: 'Web Lab',
     status: 'pass',
-    note: 'WEBLAB-10: pure computeTick (unit-tested: advance/restart/progress, zero-length guard) drives the simulated clock; repeat-one toggles from Now Playing with active accent + explanatory badge; behavior labeled simulated.',
+    note: 'WEBLAB-10/11: pure computeTick + computeNextIndex (unit-tested: advance/restart/progress, zero-length guard, stop-at-queue-end, wrap-around) drive the simulated clock; the Now Playing button cycles off → all → one with per-state icon, aria-pressed and honest badge; auto-advance honors the mode while manual next/previous keeps wrap-around.'
+  },
+  {
+    id: 'weblab-golden-parity-android',
+    name: 'Android-side golden contract parity (JUnit evaluates the same expectations.json)',
+    area: 'Android',
+    status: 'pass',
+    note: 'WEBLAB-11: GoldenExpectationsTest evaluates the SAME fixtures/ytm/expectations.json (synced verbatim by sync-fixtures.mjs) with the real YtMusicSearchParser — parser parity enforced in BOTH directions. Collects all drift into one honest report; coverage guard fails if a synced live fixture has no golden entry; schema guard requires counts + provenance note per entry. Negative-tested: corrupting a golden value turns the suite red.',
+  },
+  {
+    id: 'weblab-lrc-upload',
+    name: 'Lyrics Lab real .lrc file upload (client-side, honest provenance)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-11: pick a local .lrc/.txt file — parsed with the same TS mirror via FileReader; the file never leaves the browser (stated in the source note); file name + size badge; parse output identical to fixture/paste paths.',
+  },
+  {
+    id: 'weblab-styling-details',
+    name: 'Playback + dashboard styling details (equalizer, gradient slider, suite glow, nav lift)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-11: CSS equalizer bars on playing rows + Now Playing (pure CSS, prefers-reduced-motion aware); teal→amber gradient on the seek slider; pass/fail glow on dashboard suite cards; nav pill hover lift with active shadow.',
   },
 ];

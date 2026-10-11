@@ -146,11 +146,12 @@ export default function WebLabPage() {
                     onClick={() => selectTab(tab.id)}
                     aria-current={selected ? 'page' : undefined}
                     title={`${tab.label} — shortcut ${index + 1}`}
-                    className={`relative flex min-h-[40px] items-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm transition-colors ${
+                    className={`rm-nav-pill relative flex min-h-[40px] items-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm transition-colors ${
                       selected
                         ? 'text-primary'
                         : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
                     }`}
+                    data-active={selected ? 'true' : 'false'}
                   >
                     {selected && (
                       <motion.span

@@ -3,10 +3,10 @@
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
 import { shuffledQueue } from './shuffle';
-import { computeTick } from './tick';
+import { computeNextIndex, computeTick, type RepeatMode } from './tick';
 import type { LabTrack } from './types';
 
-export type LabTab = 'dashboard' | 'playground' | 'fixtures' | 'prototype' | 'parity' | 'project';
+export type LabTab = 'dashboard' | 'playground' | 'fixtures' | 'lyrics' | 'prototype' | 'parity' | 'project';
 
 export type CatalogStatus = 'idle' | 'loading' | 'ready' | 'error';
 
@@ -37,9 +37,9 @@ interface LabStore {
   currentTrackId: string | null;
   isPlaying: boolean;
   progressMs: number;
-  /** Simulated repeat-one: the current track restarts instead of advancing (WEB-LAB-10). */
-  repeatOne: boolean;
-  toggleRepeatOne(): void;
+  /** Tri-state simulated repeat (WEBLAB-11): 'off' stops at queue end, 'all' wraps, 'one' restarts. */
+  repeatMode: RepeatMode;
+  cycleRepeatMode(): void;
   playTrack(id: string): void;
   togglePlay(): void;
   togglePlayId(id: string): void;
@@ -63,7 +63,7 @@ interface LabStore {
   toggleFavorite(id: string): void;
   playCounts: Record<string, number>;
 
-  // ---- search history (session-local, WEB-LAB-10) ----------------------------
+  // ---- search history (persisted in this browser, WEB-LAB-10/11) -------------
   searchHistory: SearchHistoryEntry[];
   addSearchHistory(entry: SearchHistoryEntry): void;
   clearSearchHistory(): void;
@@ -139,8 +139,12 @@ export const useLabStore = create<LabStore>()(
       currentTrackId: null,
       isPlaying: false,
       progressMs: 0,
-      repeatOne: false,
-      toggleRepeatOne: () => set({ repeatOne: !get().repeatOne }),
+      repeatMode: 'off',
+      cycleRepeatMode: () => {
+        const order: RepeatMode[] = ['off', 'all', 'one'];
+        const nextMode = order[(order.indexOf(get().repeatMode) + 1) % order.length];
+        set({ repeatMode: nextMode });
+      },
       playTrack: (id) => {
         const { currentTrackId, playCounts } = get();
         set({
@@ -161,17 +165,24 @@ export const useLabStore = create<LabStore>()(
       },
       seekTo: (ms) => set({ progressMs: Math.max(0, ms) }),
       tick: () => {
-        const { isPlaying, currentTrackId, progressMs, catalog, repeatOne } = get();
+        const { isPlaying, currentTrackId, progressMs, catalog, repeatMode, queue } = get();
         if (!isPlaying || currentTrackId === null) return;
         const track = catalog.find((t) => t.id === currentTrackId);
         const total = durationOf(track);
-        const decision = computeTick(total, progressMs, repeatOne);
+        const decision = computeTick(total, progressMs, repeatMode);
         if (decision.action === 'progress') {
           set({ progressMs: decision.progressMs });
         } else if (decision.action === 'restart') {
           set({ progressMs: 0 }); // repeat-one: same track, still playing
         } else {
-          get().next();
+          // Auto-advance honors the repeat mode (manual next() keeps wrap-around).
+          const idx = queue.indexOf(currentTrackId);
+          const nextIdx = computeNextIndex(queue.length, idx, repeatMode);
+          if (nextIdx < 0 || !catalog.some((t) => t.id === queue[nextIdx])) {
+            set({ isPlaying: false, progressMs: 0 }); // honest stop at queue end
+            return;
+          }
+          set({ currentTrackId: queue[nextIdx], progressMs: 0, isPlaying: true });
         }
       },
       next: () => {
@@ -251,7 +262,12 @@ export const useLabStore = create<LabStore>()(
       name: 'ridho-lab-store',
       storage: createJSONStorage(() => localStorage),
       // Persist only user data; navigation/catalog/simulation stay session-local.
-      partialize: (state) => ({ favorites: state.favorites, playCounts: state.playCounts }),
+      // WEBLAB-11: search history now persists too (real outcomes survive reloads).
+      partialize: (state) => ({
+        favorites: state.favorites,
+        playCounts: state.playCounts,
+        searchHistory: state.searchHistory,
+      }),
       skipHydration: true,
     },
   ),

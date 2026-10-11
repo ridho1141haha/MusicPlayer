@@ -1,11 +1,18 @@
 /**
- * Simulated-playback tick decision (WEBLAB-10) — pure + unit-tested so the
- * repeat-one behavior is provable without running the browser clock.
+ * Simulated-playback tick decision (WEBLAB-10 tri-state in WEBLAB-11) — pure +
+ * unit-tested so repeat behavior is provable without running the browser clock.
  *
- * The prototype's clock ticks +250 ms per beat. This decides what happens for
- * one tick. "End" (progressMs >= totalMs) normally advances the queue; with
- * repeat-one enabled the SAME track restarts from 0 (still playing).
+ * The prototype's clock ticks +250 ms per beat. computeTick decides what happens
+ * for ONE tick; computeNextIndex decides where auto-advance lands.
+ *
+ * Manual controls stay user-intent (next/previous always move, wrapping) —
+ * only AUTOMATIC end-of-track honoring the repeat mode:
+ *   'off' → queue ends when the last track ends (stop)
+ *   'all' → the queue wraps around forever
+ *   'one' → the same track restarts from 0 (still playing)
  */
+
+export type RepeatMode = 'off' | 'all' | 'one';
 
 export type TickAction =
   | { action: 'progress'; progressMs: number }
@@ -15,11 +22,35 @@ export type TickAction =
 export function computeTick(
   totalMs: number,
   progressMs: number,
-  repeatOne: boolean,
+  repeatMode: RepeatMode,
   stepMs = 250,
 ): TickAction {
   if (totalMs <= 0) return { action: 'advance' };
   const next = progressMs + stepMs;
   if (next < totalMs) return { action: 'progress', progressMs: next };
-  return repeatOne ? { action: 'restart' } : { action: 'advance' };
+  return repeatMode === 'one' ? { action: 'restart' } : { action: 'advance' };
+}
+
+/**
+ * Index the queue advances to when a track ends. Returns -1 → stop playback
+ * (repeat off at the end of the queue). Manual next/previous intentionally
+ * bypasses this (explicit user intent wraps like every mainstream player).
+ */
+export function computeNextIndex(queueLength: number, currentIndex: number, repeatMode: RepeatMode): number {
+  if (queueLength <= 0) return -1;
+  if (currentIndex < 0 || currentIndex >= queueLength) return 0;
+  if (repeatMode === 'off' && currentIndex === queueLength - 1) return -1;
+  return (currentIndex + 1) % queueLength;
+}
+
+/** Human-readable one-liner for the current repeat mode (used by UI + a11y labels). */
+export function repeatModeLabel(mode: RepeatMode): string {
+  switch (mode) {
+    case 'one':
+      return 'repeat ONE — the track restarts when it ends';
+    case 'all':
+      return 'repeat ALL — the queue wraps around when it ends';
+    default:
+      return 'repeat off — playback stops at the end of the queue';
+  }
 }
