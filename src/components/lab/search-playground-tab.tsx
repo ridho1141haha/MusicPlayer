@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertTriangle,
   Ban,
@@ -8,6 +8,7 @@ import {
   ChevronDown,
   Clock,
   Database,
+  FilePlus2,
   Info,
   Loader2,
   Play,
@@ -23,12 +24,23 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+import { useToast } from '@/hooks/use-toast';
 import { formatDuration } from '@/lib/lab/format';
+import { isValidFixtureName, suggestFixtureName } from '@/lib/lab/fixture-name';
 import { parseWithTrace } from '@/lib/lab/yt-search-parser';
 import type { FixtureMeta, LabTrack, SearchSection, TraceEntry } from '@/lib/lab/types';
 import { useLabStore } from '@/lib/lab/store';
@@ -46,6 +58,8 @@ type LiveSuccess = {
   rendererStats: Array<{ type: string; count: number }>;
   continuationToken: string | null;
   note: string | null;
+  /** Present on live runs — the untouched response root, for capture-as-fixture. */
+  raw?: unknown;
 };
 
 type LiveFailure = {
@@ -252,6 +266,7 @@ export function SearchPlaygroundTab() {
   const setMode = useLabStore((s) => s.setPlaygroundMode);
   // A fixture "opened" from the Fixtures tab lands in the store; local picks win after that.
   const storeFixture = useLabStore((s) => s.playgroundFixture);
+  const { toast } = useToast();
 
   const [query, setQuery] = useState('Lathi');
   const [live, setLive] = useState<LiveState>({ phase: 'idle' });
@@ -260,25 +275,30 @@ export function SearchPlaygroundTab() {
   const [fixture, setFixture] = useState<FixtureState>({ phase: 'idle' });
   const [fixtureContent, setFixtureContent] = useState<unknown>(null);
 
+  // Capture-as-fixture dialog state (live mode, WEB-LAB-9).
+  const [captureOpen, setCaptureOpen] = useState(false);
+  const [captureName, setCaptureName] = useState('');
+  const [captureNote, setCaptureNote] = useState('');
+  const [captureSaving, setCaptureSaving] = useState(false);
+  const [savedFixtureName, setSavedFixtureName] = useState<string | null>(null);
+
   const fixtureName = localFixtureName ?? storeFixture;
 
-  // Load fixture list once (all state updates happen after await boundaries).
-  useEffect(() => {
-    let cancelled = false;
-    void (async () => {
-      try {
-        const res = await fetch('/api/lab/fixtures', { cache: 'no-store' });
-        if (!res.ok) return;
-        const data = (await res.json()) as { builtIn: FixtureMeta[]; user: FixtureMeta[] };
-        if (!cancelled) setFixtureList([...data.builtIn, ...data.user]);
-      } catch {
-        // honest: list simply stays empty; fixture mode will error if used
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
+  const loadFixtureList = useCallback(async () => {
+    try {
+      const res = await fetch('/api/lab/fixtures', { cache: 'no-store' });
+      if (!res.ok) return;
+      const data = (await res.json()) as { builtIn: FixtureMeta[]; user: FixtureMeta[] };
+      setFixtureList([...data.builtIn, ...data.user]);
+    } catch {
+      // honest: list simply stays empty; fixture mode will error if used
+    }
   }, []);
+
+  // Load fixture list once.
+  useEffect(() => {
+    void loadFixtureList();
+  }, [loadFixtureList]);
 
   const runLive = async () => {
     setLive({ phase: 'loading' });
@@ -286,7 +306,9 @@ export function SearchPlaygroundTab() {
       const res = await fetch('/api/lab/search', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ query }),
+        // includeRaw: the untouched response root rides along so the capture
+        // button can save it as a fixture without a second request.
+        body: JSON.stringify({ query, includeRaw: true }),
       });
       const data = (await res.json()) as LiveSuccess | LiveFailure;
       if (data.ok) setLive({ phase: 'success', data });
@@ -300,6 +322,64 @@ export function SearchPlaygroundTab() {
           message: `Could not reach the lab API: ${error instanceof Error ? error.message : 'unknown'}`,
         },
       });
+    }
+  };
+
+  const openCaptureDialog = () => {
+    if (live.phase !== 'success') return;
+    setCaptureName(suggestFixtureName(live.data.query, new Date()));
+    setCaptureNote(`Live capture of query "${live.data.query}" via the Search Playground.`);
+    setCaptureOpen(true);
+  };
+
+  const saveCapture = async () => {
+    if (live.phase !== 'success') return;
+    const raw = live.data.raw;
+    if (raw === undefined || raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+      toast({ title: 'Nothing to save', description: 'This run has no raw response attached.', variant: 'destructive' });
+      return;
+    }
+    if (!isValidFixtureName(captureName.trim())) {
+      toast({
+        title: 'Invalid fixture name',
+        description: 'Use letters, digits, dot, dash, underscore — must end with .json',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setCaptureSaving(true);
+    try {
+      const res = await fetch('/api/lab/fixtures', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          name: captureName.trim(),
+          description: captureNote.trim() || `Live capture of query "${live.data.query}".`,
+          query: live.data.query,
+          capturedAt: new Date().toISOString(),
+          content: raw,
+        }),
+      });
+      const data = (await res.json()) as { error?: string; fixture?: FixtureMeta };
+      if (!res.ok) {
+        toast({ title: 'Capture failed', description: data.error ?? `HTTP ${res.status}`, variant: 'destructive' });
+        return;
+      }
+      setSavedFixtureName(captureName.trim());
+      setCaptureOpen(false);
+      await loadFixtureList();
+      toast({
+        title: 'Fixture saved ✓',
+        description: `${captureName.trim()} — now available in Fixtures & Parser and the diff tool.`,
+      });
+    } catch (error) {
+      toast({
+        title: 'Capture failed',
+        description: error instanceof Error ? error.message : 'Unknown network error',
+        variant: 'destructive',
+      });
+    } finally {
+      setCaptureSaving(false);
     }
   };
 
@@ -509,6 +589,29 @@ export function SearchPlaygroundTab() {
             stats={successData.rendererStats}
             continuationToken={successData.continuationToken}
           />
+          {mode === 'live' && (
+            <div className="flex flex-wrap items-center gap-2">
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-2"
+                onClick={openCaptureDialog}
+                disabled={successData.raw === undefined}
+              >
+                <FilePlus2 className="h-3.5 w-3.5" aria-hidden="true" />
+                Capture as fixture
+              </Button>
+              {savedFixtureName !== null && (
+                <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300">
+                  <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden="true" />
+                  saved {savedFixtureName}
+                </Badge>
+              )}
+              <span className="text-xs text-muted-foreground">
+                Saves the untouched response JSON as a user fixture (1 MB max) for offline diffing.
+              </span>
+            </div>
+          )}
           {successData.note !== null && (
             <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
               <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
@@ -558,6 +661,68 @@ export function SearchPlaygroundTab() {
           )}
         </div>
       )}
+
+      {/* Capture-as-fixture dialog (live mode, WEB-LAB-9) */}
+      <Dialog
+        open={captureOpen}
+        onOpenChange={(open) => {
+          if (!captureSaving) setCaptureOpen(open);
+        }}
+      >
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <FilePlus2 className="h-4 w-4 text-primary" aria-hidden="true" />
+              Capture live response as fixture
+            </DialogTitle>
+            <DialogDescription>
+              The raw JSON from this exact InnerTube response is saved to{' '}
+              <span className="font-mono text-[11px]">data/fixtures-user/</span> with full provenance (query +
+              timestamp). Nothing is sent anywhere else.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label htmlFor="capture-name">Fixture name</Label>
+              <Input
+                id="capture-name"
+                value={captureName}
+                onChange={(event) => setCaptureName(event.target.value)}
+                className="font-mono text-xs"
+                placeholder="search_live_2026-10-12_query.json"
+                autoComplete="off"
+              />
+              {captureName.trim().length > 0 && !isValidFixtureName(captureName.trim()) && (
+                <p className="text-xs text-rose-300">
+                  Must match <span className="font-mono">[A-Za-z0-9][A-Za-z0-9._-]*.json</span>
+                </p>
+              )}
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="capture-note">Note (provenance)</Label>
+              <Input
+                id="capture-note"
+                value={captureNote}
+                onChange={(event) => setCaptureNote(event.target.value)}
+                placeholder="Where/how this was captured"
+                autoComplete="off"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Query: <span className="font-mono">{live.phase === 'success' ? live.data.query : '—'}</span>
+            </p>
+          </div>
+          <DialogFooter className="gap-2">
+            <Button variant="outline" onClick={() => setCaptureOpen(false)} disabled={captureSaving}>
+              Cancel
+            </Button>
+            <Button onClick={() => void saveCapture()} disabled={captureSaving || !isValidFixtureName(captureName.trim())}>
+              {captureSaving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FilePlus2 className="h-4 w-4" aria-hidden="true" />}
+              Save fixture
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

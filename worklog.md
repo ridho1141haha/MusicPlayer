@@ -282,3 +282,26 @@ Stage Summary:
 - Web Lab now has 8 tabs of working tooling and 59 web / 29 android green tests; fixture diffing turns the parser's format migration into an inspectable artifact; QA results are exportable as a self-honest Markdown report.
 - Untested on device: unchanged (no hardware/emulator). Playback still blocked (LOGIN_REQUIRED, policy: no bypass).
 - Risks/next candidates: per-fixture "expected parse" assertions (golden snapshot editor); live-search response capture button to grow the real-fixture corpus; queue "shuffle (simulated)"; diff against LIVE search results (not only stored fixtures); Android instrumented tests when a device appears.
+---
+Task ID: WEBLAB-9 (cron review round 3 — live capture, diff-vs-live, shuffle, shortcuts, polish)
+Agent: Z.ai Code (main orchestrator, webDevReview cron)
+Task: Status assessment + agent-browser QA; then feature round from the WEBLAB-8 next-candidates list.
+
+Work Log:
+- STATUS ASSESSMENT: dev server up (GET / 200); tree clean at 85ec6a9 (cron auto-commit of tool-results only); all 7 tabs rendered with ZERO console errors in a fresh agent-browser sweep; baseline run-qa.sh all green. Stable → chose a new-features round.
+- BUG FOUND BY E2E (and fixed): the fixtures POST cap (512 KB) rejected real pretty-printed live captures (~725 KB for "Lathi") — "Capture failed: Fixture too large". Raised MAX_USER_FIXTURE_BYTES to 1 MB + UI copy updated. The feature is useless against real responses without this.
+- Features shipped this round:
+  1. Live capture → user fixture (real-corpus growth): /api/lab/search accepts includeRaw (returns untouched response root); Search Playground live success gains "Capture as fixture" → dialog with unit-tested name suggestion (suggestFixtureName, mirrors built-in convention), note field, client NAME_PATTERN pre-check; POST /api/lab/fixtures now records provenance (query, capturedAt) and listUser honors stored origin → captured fixtures show origin 'real-capture'. E2E: saved data/fixtures-user/search_live_2026-10-11_lathi_weblab9.json (742 KB, _meta origin real-capture + query + capturedAt), "saved …" badge + toast, fixture list refreshed.
+  2. Diff vs LIVE: Diff panel side B gains fixture/live toggle; live mode runs the exact InnerTube request and reassembles a ParseResult via parseResultFromLivePayload (structural type guard, honest null on shape mismatch — never an empty parse); failures surface as-is; amber "live · X ms" badge in the summary strip; swap disabled in live mode (needs two fixtures). E2E: legacy shelf → LIVE "Lathi" · 391 ms · +15 added · −2 removed · 2→15 items.
+  3. Queue shuffle (simulated): pure shuffledQueue (Fisher–Yates, injectable RNG; current track keeps its INDEX; no mutation) + store action + toolbar button (disabled < 2 tracks) + queue context-menu entry, all labeled simulated. E2E: 6-track queue shuffled, members preserved.
+  4. Keyboard shortcuts 1–7 for lab sections: ignored while typing (input/textarea/select/contenteditable) and with modifiers; kbd number chips in the nav (sm+ only), footer documents the keys. E2E: 3 → #fixtures, 1 → #dashboard, typing "3" into the search input does NOT navigate.
+  5. Styling/details: animated SVG pass-rate donut on the QA run card (100% emerald / rose / amber by outcome, aria-labeled); hydration-safe "recorded X ago" chip (relativeTime unit-tested, refreshes every 30 s); slim gradient accent on the sticky header; scroll-to-top floating button (appears > 320 px, smooth scroll, hides at top — E2E verified); ring on the active nav pill.
+- Tests: +26 (fixture-name 9, shuffle 6, live-diff 7, relativeTime 4) → web suite 59 → 85/85. bun run lint clean.
+- Verification: bash scripts/run-qa.sh → ALL GREEN recorded 2026-10-11 18:03:39Z: web lint ✓, vitest 85/85, android testDebugUnitTest --rerun 29/29 (Track 4, Lrc 7, YTSource 7, YTParser 11), lintDebug ✓, assembleDebug ✓ (APK 11,542,468 B, sha256 939c938a… unchanged v1.2.0 code 3), fixture sync no drift. Dashboard donut shows the fresh run (114/114, "just now").
+- Mobile 390×844: no horizontal scroll on dashboard/fixtures/playground; screenshots data/e2e-weblab9-mobile-dashboard.png + e2e-weblab9-desktop-dashboard.png. All-tab console sweep after changes: 0 errors.
+- data/fixtures-user/api_probe_weblab9.json (curl probe) removed; the real lathi_weblab9 capture kept as a legitimate corpus growth.
+
+Stage Summary:
+- Web Lab now grows its own real-fixture corpus in one click and diffs stored parses against the live API — the format-drift story is now an ongoing monitor, not just a stored demo. 85 web / 29 android tests green; QA pipeline all green; APK unchanged.
+- Untested on device: unchanged (no hardware/emulator). Playback still blocked (LOGIN_REQUIRED, policy: no bypass). visitorData in captures comes from the unauthenticated WEB_REMIX request — same as existing built-in fixtures, no credentials involved.
+- Risks/next candidates: per-fixture "expected parse" golden assertions (drift alarm on run-qa), playground search history, queue repeat toggle, LRC fixture from a real .lrc file, Android instrumented tests when a device appears, extension page for android/dist release APK refresh.

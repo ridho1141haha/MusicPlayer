@@ -35,9 +35,11 @@ import {
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Skeleton } from '@/components/ui/skeleton';
+import { motion } from 'framer-motion';
+
 import { useToast } from '@/hooks/use-toast';
 import { FEATURE_CHECKS, type FeatureCheck } from '@/data/features';
-import { formatBytes } from '@/lib/lab/format';
+import { formatBytes, relativeTime } from '@/lib/lab/format';
 import { buildQaMarkdownReport, qaReportFileName } from '@/lib/lab/qa-report';
 import type { QaResults } from '@/lib/lab/types';
 import type { ProjectPayload } from '@/lib/ridho';
@@ -109,6 +111,63 @@ function FeatureRow({ feature }: { feature: FeatureCheck }) {
   );
 }
 
+/** SVG donut of the recorded run's pass proportion — dependency-free, animated stroke. */
+function PassRateDonut({ passed, failed, skipped }: { passed: number; failed: number; skipped: number }) {
+  const total = passed + failed + skipped;
+  const ratio = total > 0 ? passed / total : 0;
+  const size = 56;
+  const stroke = 6;
+  const r = (size - stroke) / 2;
+  const c = 2 * Math.PI * r;
+  const allGreen = failed === 0 && skipped === 0 && total > 0;
+  return (
+    <div
+      className="relative shrink-0"
+      role="img"
+      aria-label={`Pass rate: ${passed} of ${total} assertions passed (${Math.round(ratio * 100)}%)`}
+    >
+      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90">
+        <circle cx={size / 2} cy={size / 2} r={r} fill="none" strokeWidth={stroke} className="stroke-secondary" />
+        <motion.circle
+          cx={size / 2}
+          cy={size / 2}
+          r={r}
+          fill="none"
+          strokeWidth={stroke}
+          strokeLinecap="round"
+          className={allGreen ? 'stroke-emerald-400' : failed > 0 ? 'stroke-rose-400' : 'stroke-amber-400'}
+          strokeDasharray={c}
+          initial={{ strokeDashoffset: c }}
+          animate={{ strokeDashoffset: c * (1 - ratio) }}
+          transition={{ duration: 0.9, ease: 'easeOut' }}
+        />
+      </svg>
+      <div className="absolute inset-0 flex flex-col items-center justify-center">
+        <span className="text-[11px] font-bold leading-none">{Math.round(ratio * 100)}%</span>
+        <span className="text-[8px] leading-none text-muted-foreground">pass</span>
+      </div>
+    </div>
+  );
+}
+
+/** Relative "recorded X ago" chip — computed after mount so SSR never disagrees with the client. */
+function RecordedAgo({ recordedAt }: { recordedAt: string }) {
+  const [label, setLabel] = useState<string | null>(null);
+  useEffect(() => {
+    const compute = () => setLabel(relativeTime(recordedAt, new Date()));
+    compute();
+    const id = setInterval(compute, 30_000);
+    return () => clearInterval(id);
+  }, [recordedAt]);
+  if (label === null) return null; // pre-hydration: nothing misleading rendered
+  return (
+    <Badge variant="outline" className="border-border bg-background/60 text-[10px] text-muted-foreground">
+      <History className="mr-1 h-3 w-3" aria-hidden="true" />
+      {label}
+    </Badge>
+  );
+}
+
 function SuiteCard({ qa }: { qa: QaResults | null }) {
   if (qa === null || qa.suites.length === 0) {
     return (
@@ -151,22 +210,30 @@ function SuiteCard({ qa }: { qa: QaResults | null }) {
   return (
     <Card>
       <CardHeader>
-        <CardTitle className="flex items-center gap-2 text-base">
-          <FlaskConical className="h-4 w-4 text-primary" aria-hidden="true" />
-          Automated QA run
-          {totals.failedSuites === 0 ? (
-            <Badge className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300" variant="outline">
-              all suites green
-            </Badge>
-          ) : (
-            <Badge className="border-rose-500/40 bg-rose-500/10 text-rose-300" variant="outline">
-              {totals.failedSuites} suite(s) failing
-            </Badge>
-          )}
-        </CardTitle>
-        <CardDescription>
-          Recorded {qa.recordedAt} · {totals.passed} passed · {totals.failed} failed · {totals.skipped} skipped
-        </CardDescription>
+        <div className="flex items-start justify-between gap-3">
+          <div className="min-w-0">
+            <CardTitle className="flex flex-wrap items-center gap-2 text-base">
+              <FlaskConical className="h-4 w-4 text-primary" aria-hidden="true" />
+              Automated QA run
+              {totals.failedSuites === 0 ? (
+                <Badge className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300" variant="outline">
+                  all suites green
+                </Badge>
+              ) : (
+                <Badge className="border-rose-500/40 bg-rose-500/10 text-rose-300" variant="outline">
+                  {totals.failedSuites} suite(s) failing
+                </Badge>
+              )}
+            </CardTitle>
+            <CardDescription className="mt-1 flex flex-wrap items-center gap-2">
+              <span>
+                Recorded {qa.recordedAt} · {totals.passed} passed · {totals.failed} failed · {totals.skipped} skipped
+              </span>
+              <RecordedAgo recordedAt={qa.recordedAt} />
+            </CardDescription>
+          </div>
+          <PassRateDonut passed={totals.passed} failed={totals.failed} skipped={totals.skipped} />
+        </div>
       </CardHeader>
       <CardContent className="space-y-2">
         {qa.suites.map((suite) => (

@@ -145,4 +145,32 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     status: 'pass',
     note: 'WEBLAB-8: animated Top Tracks bar chart (labeled SIMULATED, browser-local counts) and right-click/long-press queue menu (play, play next, move top/bottom, favorite, copy info with honest clipboard states, remove). E2E verified: chart matches play actions; move-to-top reorders; favorite persists.',
   },
+  {
+    id: 'weblab-live-capture',
+    name: 'Live search → capture as fixture (real-corpus growth)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-9: /api/lab/search accepts includeRaw (untouched response root); Search Playground saves it via POST /api/lab/fixtures with query+capturedAt provenance (origin flips to real-capture); name suggested by unit-tested suggestFixtureName. 7+4 unit tests cover naming/validation.',
+  },
+  {
+    id: 'weblab-diff-vs-live',
+    name: 'Fixture Diff vs LIVE search (drift-on-demand visibility)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-9: Diff panel side B gains a LIVE mode — runs the exact InnerTube request, reassembles a ParseResult via unit-tested parseResultFromLivePayload (honest null on shape mismatch), labels the run amber "live · X ms". Live failures surface as-is, never as empty parses.',
+  },
+  {
+    id: 'weblab-queue-shuffle',
+    name: 'Queue shuffle (simulated) — current track keeps its slot',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-9: pure shuffledQueue (Fisher–Yates, injectable RNG, 6 seeded unit tests: anchor keeps index, no mutation, deterministic) + store action + toolbar button + queue context-menu entry, all labeled simulated.',
+  },
+  {
+    id: 'weblab-shortcuts-polish',
+    name: 'Keyboard shortcuts (1–7) + dashboard pass-rate donut',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-9: number keys switch lab sections (ignored while typing / with modifiers; kbd hints in nav + footer), floating scroll-to-top, animated SVG pass-rate donut + "recorded X ago" chip (relativeTime unit-tested, hydration-safe).',
+  },
 ];

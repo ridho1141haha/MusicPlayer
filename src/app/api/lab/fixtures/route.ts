@@ -21,7 +21,7 @@ const ROOT = process.cwd();
 const BUILTIN_DIR = join(ROOT, 'fixtures', 'ytm');
 const USER_DIR = join(ROOT, 'data', 'fixtures-user');
 const NAME_PATTERN = /^[A-Za-z0-9][A-Za-z0-9._-]{0,120}\.json$/;
-const MAX_USER_FIXTURE_BYTES = 512 * 1024;
+const MAX_USER_FIXTURE_BYTES = 1024 * 1024; // 1 MB — pretty-printed live captures run ~0.5 MB (WEBLAB-9)
 
 function sanitizeName(raw: unknown): string | null {
   if (typeof raw !== 'string') return null;
@@ -59,9 +59,12 @@ function listUser(): FixtureMeta[] {
       const path = join(USER_DIR, name);
       const content = JSON.parse(readFileSync(path, 'utf8'));
       const meta = content && typeof content === 'object' && content['_meta'] ? content['_meta'] : {};
+      // Honor the stored provenance: live captures saved via the playground carry
+      // origin 'real-capture' + capturedAt; manual adds stay 'user-added'.
+      const storedOrigin = meta['origin'] === 'real-capture' ? 'real-capture' : 'user-added';
       out.push({
         name,
-        origin: 'user-added',
+        origin: storedOrigin,
         capturedAt: typeof meta.capturedAt === 'string' ? meta.capturedAt : null,
         query: typeof meta.query === 'string' ? meta.query : null,
         description:
@@ -132,7 +135,7 @@ export async function POST(request: Request) {
 
   const serialized = JSON.stringify(content, null, 2);
   if (serialized.length > MAX_USER_FIXTURE_BYTES) {
-    return NextResponse.json({ error: 'Fixture too large (max 512 KB).' }, { status: 413 });
+    return NextResponse.json({ error: 'Fixture too large (max 1 MB).' }, { status: 413 });
   }
 
   const description =
@@ -140,15 +143,36 @@ export async function POST(request: Request) {
       ? envelope['description'].slice(0, 500)
       : 'User-added fixture.';
 
+  // Optional provenance (WEB-LAB-9): live captures record the query + instant so
+  // the registry stays honest about where the bytes came from.
+  const metaExtra: Record<string, string> = {};
+  if (typeof envelope?.['query'] === 'string' && envelope['query'].length > 0) {
+    metaExtra['query'] = envelope['query'].slice(0, 200);
+  }
+  if (typeof envelope?.['capturedAt'] === 'string' && envelope['capturedAt'].length > 0) {
+    metaExtra['capturedAt'] = envelope['capturedAt'].slice(0, 40);
+  }
+  const origin = metaExtra['capturedAt'] !== undefined ? 'real-capture' : 'user-added';
+
   try {
     mkdirSync(USER_DIR, { recursive: true });
     const path = join(USER_DIR, name);
     if (existsSync(path)) {
       return NextResponse.json({ error: `Fixture "${name}" already exists.` }, { status: 409 });
     }
-    writeFileSync(path, JSON.stringify({ _meta: { origin: 'user-added', note: description }, ...content }, null, 2));
+    writeFileSync(
+      path,
+      JSON.stringify({ _meta: { origin, note: description, ...metaExtra }, ...content }, null, 2),
+    );
     return NextResponse.json({
-      fixture: { name, origin: 'user-added', capturedAt: null, query: null, description, sizeBytes: serialized.length },
+      fixture: {
+        name,
+        origin,
+        capturedAt: metaExtra['capturedAt'] ?? null,
+        query: metaExtra['query'] ?? null,
+        description,
+        sizeBytes: serialized.length,
+      },
     });
   } catch (error) {
     return NextResponse.json(

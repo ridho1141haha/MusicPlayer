@@ -38,6 +38,7 @@ import {
   Plus,
   RotateCcw,
   Search,
+  Shuffle,
   SkipBack,
   SkipForward,
   Trash2,
@@ -326,6 +327,10 @@ function SortableQueueRow({
             <ListPlus className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
             Play next
           </ContextMenuItem>
+          <ContextMenuItem onSelect={() => useLabStore.getState().shuffleQueue()} disabled={useLabStore.getState().queue.length < 2}>
+            <Shuffle className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+            Shuffle queue (simulated)
+          </ContextMenuItem>
           <ContextMenuSeparator />
           <ContextMenuItem onSelect={() => moveTo('top')} disabled={position === 0}>
             <ArrowUpToLine className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
@@ -442,6 +447,7 @@ export function PrototypeTab() {
   const reorderQueue = useLabStore((s) => s.reorderQueue);
   const removeFromQueue = useLabStore((s) => s.removeFromQueue);
   const clearQueue = useLabStore((s) => s.clearQueue);
+  const shuffleQueue = useLabStore((s) => s.shuffleQueue);
 
   const favorites = useLabStore((s) => s.favorites);
   const playCounts = useLabStore((s) => s.playCounts);
@@ -718,26 +724,40 @@ export function PrototypeTab() {
                   </div>
                 ) : (
                   <>
-                    <div className="mb-2 flex items-center justify-between gap-2">
+                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
                       <p className="text-xs text-muted-foreground">{queue.length} in queue · drag the handle to reorder</p>
-                      <Button
-                        variant="outline"
-                        size="sm"
-                        className="gap-1.5 text-rose-300 hover:text-rose-200"
-                        onClick={() => {
-                          if (confirmClear) {
-                            clearQueue();
-                            setConfirmClear(false);
-                          } else {
-                            setConfirmClear(true);
-                            window.setTimeout(() => setConfirmClear(false), 4000);
-                          }
-                        }}
-                        aria-label={confirmClear ? 'Confirm clear queue' : 'Clear queue (press again to confirm)'}
-                      >
-                        <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
-                        {confirmClear ? 'Press again to confirm' : 'Clear'}
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5"
+                          onClick={() => shuffleQueue()}
+                          disabled={queue.length < 2}
+                          aria-label={`Shuffle queue (simulated) — ${queue.length} tracks`}
+                          title="Fisher–Yates shuffle; the playing track keeps its slot"
+                        >
+                          <Shuffle className="h-3.5 w-3.5" aria-hidden="true" />
+                          Shuffle
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="gap-1.5 text-rose-300 hover:text-rose-200"
+                          onClick={() => {
+                            if (confirmClear) {
+                              clearQueue();
+                              setConfirmClear(false);
+                            } else {
+                              setConfirmClear(true);
+                              window.setTimeout(() => setConfirmClear(false), 4000);
+                            }
+                          }}
+                          aria-label={confirmClear ? 'Confirm clear queue' : 'Clear queue (press again to confirm)'}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+                          {confirmClear ? 'Press again to confirm' : 'Clear'}
+                        </Button>
+                      </div>
                     </div>
                     <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
                       <SortableContext items={queue} strategy={verticalListSortingStrategy}>

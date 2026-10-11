@@ -2,6 +2,7 @@
 
 import { create } from 'zustand';
 import { createJSONStorage, persist } from 'zustand/middleware';
+import { shuffledQueue } from './shuffle';
 import type { LabTrack } from './types';
 
 export type LabTab = 'dashboard' | 'playground' | 'fixtures' | 'prototype' | 'parity' | 'project';
@@ -50,6 +51,8 @@ interface LabStore {
   removeFromQueue(id: string): void;
   reorderQueue(fromIndex: number, toIndex: number): void;
   clearQueue(): void;
+  /** Simulated shuffle: keeps the current track at its index, shuffles the rest (WEB-LAB-9). */
+  shuffleQueue(): void;
 
   // ---- favorites / play counts (persisted) -----------------------------------
   favorites: string[];
@@ -195,6 +198,10 @@ export const useLabStore = create<LabStore>()(
         set({ queue });
       },
       clearQueue: () => set({ queue: [], isPlaying: false, progressMs: 0, currentTrackId: null }),
+      shuffleQueue: () => {
+        const { queue, currentTrackId } = get();
+        set({ queue: shuffledQueue(queue, currentTrackId, Math.random) });
+      },
 
       favorites: [],
       toggleFavorite: (id) => {

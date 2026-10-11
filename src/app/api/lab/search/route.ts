@@ -33,10 +33,12 @@ export async function POST(request: Request) {
     return NextResponse.json({ ok: false, errorKind: 'bad-request', message: 'Body must be JSON.' }, { status: 400 });
   }
 
+  const envelope = body !== null && typeof body === 'object' ? (body as Record<string, unknown>) : {};
   const query =
-    body !== null && typeof body === 'object' && typeof (body as Record<string, unknown>)['query'] === 'string'
-      ? ((body as Record<string, unknown>)['query'] as string).trim()
-      : '';
+    typeof envelope['query'] === 'string' ? (envelope['query'] as string).trim() : '';
+  // includeRaw: the caller wants the untouched response root back so it can be
+  // saved as a user fixture. Off by default — normal runs stay small.
+  const includeRaw = envelope['includeRaw'] === true;
   if (query.length === 0) {
     return NextResponse.json({ ok: false, errorKind: 'bad-request', message: 'query must be a non-empty string.' }, { status: 400 });
   }
@@ -115,6 +117,8 @@ export async function POST(request: Request) {
     trace: result.trace,
     rendererStats: result.rendererStats,
     continuationToken: result.continuationToken,
+    // Only present when requested (capture-as-fixture flow). Untouched response root.
+    ...(includeRaw ? { raw: root } : {}),
     // Honest note: gibberish queries get fuzzy-matched by the API (never truly empty).
     note:
       trackCount === 0
