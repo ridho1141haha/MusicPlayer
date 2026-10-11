@@ -59,7 +59,7 @@ cd android
 > keystore.
 
 Prebuilt artifacts produced by this project's automated build:
-`android/dist/app-debug.apk` (10.2 MB) and `android/dist/app-release-unsigned.apk` (3.0 MB).
+`android/dist/app-debug.apk` (9.8 MB) and `android/dist/app-release-unsigned.apk` (2.9 MB).
 
 ## 3. Architecture
 
@@ -154,7 +154,7 @@ maintenance churn. Either way, the integration point is a single class
 results observed, not assumed):
 
 - `gradle :app:assembleDebug` → **BUILD SUCCESSFUL**, `app-debug.apk` produced.
-- `gradle :app:assembleRelease` → **BUILD SUCCESSFUL** (R8 minified, 3.0 MB).
+- `gradle :app:assembleRelease` → **BUILD SUCCESSFUL** (R8 minified, 2.9 MB).
 - `gradle :app:testDebugUnitTest` → **22/22 tests passed**, zero failures:
   - `TrackTest` (4) — JSON round-trip serialization.
   - `LrcParserTest` (7) — LRC formats, multi-tags, sorting, active-line lookup.

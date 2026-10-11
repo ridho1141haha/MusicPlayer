@@ -72,4 +72,13 @@ public class SettingsRepository {
     public void clearQueueState() {
         prefs.edit().remove("queue_index").remove("queue_position_ms").apply();
     }
+
+    /** Remembered playback speed (0.5–2.0); applied when the player is created. */
+    public float playbackSpeed() {
+        return prefs.getFloat("playback_speed", 1.0f);
+    }
+
+    public void setPlaybackSpeed(float speed) {
+        prefs.edit().putFloat("playback_speed", speed).apply();
+    }
 }

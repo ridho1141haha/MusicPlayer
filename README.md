@@ -9,10 +9,10 @@ This repository contains:
 | Path | What it is |
 |---|---|
 | `android/` | The complete Android Studio project (Java 17, minSdk 24, targetSdk 35) — **start here**: [android/README.md](android/README.md) |
-| `android/dist/` | Prebuilt APKs from the automated build (debug 10.2 MB, release unsigned 3.0 MB) |
+| `android/dist/` | Prebuilt APKs from the automated build (debug 9.8 MB, release unsigned 2.9 MB) |
 | `android/app/build/outputs/` | ignored — build locally to regenerate |
 | `src/` | Next.js 16 "delivery dashboard" that browses the Android sources and reports build/test status live (`/api/project`, `/api/file`) |
-| `public/ridho-music-v1.0.0-debug.apk` | Directly downloadable debug APK |
+| `public/ridho-music-v1.1.0-debug.apk` | Directly downloadable debug APK |
 | [worklog.md](worklog.md) | Engineering work log (build iterations, fixes, verification results) |
 
 ## Quick start (Android app)

@@ -234,7 +234,7 @@ export default function Home() {
             ))}
           </nav>
           <Button asChild size="sm" className="h-9 shrink-0">
-            <a href="/ridho-music-v1.0.0-debug.apk" download aria-label="Download debug APK">
+            <a href="/ridho-music-v1.1.0-debug.apk" download aria-label="Download debug APK">
               <Download className="h-4 w-4" aria-hidden="true" />
               APK
             </a>

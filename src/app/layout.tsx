@@ -16,7 +16,7 @@ const geistMono = Geist_Mono({
 export const metadata: Metadata = {
   title: "Ridho Music — Open-source Android music player",
   description:
-    "Delivery dashboard for Ridho Music v1.0.0: Java 17 · Media3 1.5.1 · Room 2.6.1. Download the debug APK, browse the verified source, unit tests, acceptance criteria and docs.",
+    "Delivery dashboard for Ridho Music v1.1.0: Java 17 · Media3 1.5.1 · Room 2.6.1. Download the debug APK, browse the verified source, unit tests, acceptance criteria and docs.",
   keywords: ["Ridho Music", "Android", "Java", "Media3", "ExoPlayer", "open source", "music player"],
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",

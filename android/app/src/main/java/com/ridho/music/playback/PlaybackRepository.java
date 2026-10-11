@@ -2,6 +2,7 @@ package com.ridho.music.playback;
 
 import android.content.ComponentName;
 import android.content.Context;
+import android.os.Bundle;
 import android.util.Log;
 
 import androidx.annotation.NonNull;
@@ -209,6 +210,34 @@ public class PlaybackRepository {
         MediaController c = controller;
         if (c == null) return;
         c.removeMediaItem(position);
+    }
+
+    /**
+     * Pauses playback after {@code delayMs} (sleep timer). Pass 0 to cancel.
+     * The timer lives in the playback service, so it survives UI process death.
+     */
+    public void setSleepTimerAfterMs(long delayMs) {
+        MediaController c = controller;
+        if (c == null) return;
+        Bundle args = new Bundle();
+        args.putLong(PlaybackService.EXTRA_SLEEP_DELAY_MS, Math.max(0L, delayMs));
+        c.sendCustomCommand(
+                new androidx.media3.session.SessionCommand(
+                        PlaybackService.COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY),
+                args);
+    }
+
+    /** Sets playback speed (0.5–2.0). Persisted via SettingsRepository by callers. */
+    public void setPlaybackSpeed(float speed) {
+        MediaController c = controller;
+        if (c == null) return;
+        c.setPlaybackSpeed(speed);
+    }
+
+    public float playbackSpeed() {
+        MediaController c = controller;
+        if (c == null) return 1.0f;
+        return c.getPlaybackParameters().speed;
     }
 
     public void skipToQueueItem(int position) {

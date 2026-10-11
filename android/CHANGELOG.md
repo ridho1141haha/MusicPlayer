@@ -1,5 +1,28 @@
 # Changelog
 
+## 1.1.0 — 2026-10-11
+
+### Added
+- **Sleep timer** (Now Playing top bar → moon icon): Off / 5 / 10 / 15 / 30 / 60 min.
+  Implemented as a Media3 custom session command handled inside `PlaybackService`, so
+  the timer survives UI process death; firing only pauses playback (never stops the
+  service or clears the queue). Least-privilege `onConnect` exposes exactly one
+  custom session command.
+- **Playback speed** (Now Playing top bar → "1x" chip): 0.75x / 1x / 1.25x / 1.5x /
+  2x via `Player.setPlaybackSpeed`, persisted in preferences and re-applied when the
+  player is created.
+
+### Fixed (root causes)
+- `MediaSession.ConnectionResult` is a nested class (no top-level
+  `androidx.media3.session.ConnectionResult`) — verified against the AAR with javap.
+- `SessionCommand` has no single-String constructor; requires `(String, Bundle)`.
+- `SessionCommands.Builder#addAllSessionCommands()` is package-private — replaced
+  with an explicit least-privilege command list.
+
+### Verification
+- `assembleDebug` + `assembleRelease` (R8) + `testDebugUnitTest` (22/22) +
+  `lintDebug` (0 errors) — all executed and green (Gradle 8.9 / AGP 8.7.3 / SDK 35).
+
 ## 1.0.0 — 2026-10-11
 
 First release. Built and verified with Gradle 8.9 / AGP 8.7.3 / JDK 17 / SDK 35.

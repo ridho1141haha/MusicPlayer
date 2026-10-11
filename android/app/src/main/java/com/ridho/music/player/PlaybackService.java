@@ -21,6 +21,7 @@ import androidx.media3.session.DefaultMediaNotificationProvider;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
 import androidx.media3.session.SessionCommand;
+import androidx.media3.session.SessionCommands;
 import androidx.media3.session.SessionResult;
 
 import com.google.common.collect.ImmutableList;
@@ -68,6 +69,10 @@ public class PlaybackService extends MediaSessionService {
     /** Above this position we treat "previous" as a seek-to-start, matching platform conventions. */
     private static final long PREVIOUS_SEEK_THRESHOLD_MS = 3_000L;
 
+    /** Custom session command: pause playback after {@code delayMs} (0 cancels the timer). */
+    public static final String COMMAND_SET_SLEEP_TIMER = "com.ridho.music.SET_SLEEP_TIMER";
+    public static final String EXTRA_SLEEP_DELAY_MS = "delayMs";
+
     private ExoPlayer player;
     private MediaSession session;
     private LibraryRepository library;
@@ -103,6 +108,7 @@ public class PlaybackService extends MediaSessionService {
                 .setSeekForwardIncrementMs(10_000L)
                 .build();
         player.setSkipSilenceEnabled(settings.skipSilence());
+        player.setPlaybackSpeed(settings.playbackSpeed());
         player.addListener(playerListener);
 
         session = new MediaSession.Builder(this, player)
@@ -145,6 +151,8 @@ public class PlaybackService extends MediaSessionService {
 
     @Override
     public void onDestroy() {
+        mainHandler.removeCallbacks(persistRunnable);
+        mainHandler.removeCallbacks(sleepTimerTask);
         persistQueueNow();
         if (session != null) {
             session.release();
@@ -163,6 +171,20 @@ public class PlaybackService extends MediaSessionService {
     // ---------------------------------------------------------------- session callbacks
 
     private final MediaSession.Callback sessionCallback = new MediaSession.Callback() {
+
+        @NonNull
+        @Override
+        public MediaSession.ConnectionResult onConnect(
+                @NonNull MediaSession mediaSession,
+                @NonNull MediaSession.ControllerInfo controller) {
+            // Least-privilege: expose only the custom commands this app supports.
+            SessionCommands sessionCommands = new SessionCommands.Builder()
+                    .add(new SessionCommand(COMMAND_SET_SLEEP_TIMER, Bundle.EMPTY))
+                    .build();
+            return new MediaSession.ConnectionResult.AcceptedResultBuilder(mediaSession)
+                    .setAvailableSessionCommands(sessionCommands)
+                    .build();
+        }
 
         @NonNull
         @Override
@@ -194,7 +216,32 @@ public class PlaybackService extends MediaSessionService {
                 @NonNull MediaSession.ControllerInfo controller,
                 @NonNull SessionCommand customCommand,
                 @NonNull Bundle args) {
+            if (COMMAND_SET_SLEEP_TIMER.equals(customCommand.customAction)) {
+                long delayMs = args.getLong(EXTRA_SLEEP_DELAY_MS, 0L);
+                scheduleSleepTimer(delayMs);
+                return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+            }
             return Futures.immediateFuture(new SessionResult(SessionResult.RESULT_SUCCESS));
+        }
+    };
+
+    /** Schedules (or cancels with 0) a sleep timer that pauses playback — never kills the process. */
+    private void scheduleSleepTimer(long delayMs) {
+        mainHandler.removeCallbacks(sleepTimerTask);
+        if (delayMs <= 0L) {
+            Log.i(TAG, "sleepTimer canceled");
+            return;
+        }
+        Log.i(TAG, "sleepTimer scheduled");
+        mainHandler.postDelayed(sleepTimerTask, delayMs);
+    }
+
+    private final Runnable sleepTimerTask = new Runnable() {
+        @Override
+        public void run() {
+            if (player != null && player.isPlaying()) {
+                player.pause();
+            }
         }
     };
 

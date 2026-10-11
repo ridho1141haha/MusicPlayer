@@ -45,7 +45,7 @@ export function Hero({ debugApk, releaseApk }: HeroProps) {
             <h1 id="hero-title" className="text-4xl font-bold tracking-tight sm:text-5xl">
               Ridho Music
             </h1>
-            <Badge className="bg-primary/15 text-[#7fd8ce] hover:bg-primary/15">v1.0.0</Badge>
+            <Badge className="bg-primary/15 text-[#7fd8ce] hover:bg-primary/15">v1.1.0</Badge>
             <Badge variant="outline" className="border-border text-muted-foreground">
               open source
             </Badge>
@@ -72,9 +72,9 @@ export function Hero({ debugApk, releaseApk }: HeroProps) {
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button asChild size="lg" className="h-11 px-6 font-semibold sm:h-12">
           <a
-            href="/ridho-music-v1.0.0-debug.apk"
+            href="/ridho-music-v1.1.0-debug.apk"
             download
-            aria-label={`Download Ridho Music v1.0.0 debug APK${sizeLabel}`}
+            aria-label={`Download Ridho Music v1.1.0 debug APK${sizeLabel}`}
           >
             <Download className="h-4 w-4" aria-hidden="true" />
             Download debug APK{sizeLabel}

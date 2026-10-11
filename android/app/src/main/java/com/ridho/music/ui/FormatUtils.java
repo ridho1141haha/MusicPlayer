@@ -36,6 +36,19 @@ public final class FormatUtils {
         return String.format(Locale.US, "%.1f MB", mb);
     }
 
+    /** Formats a playback speed like "1x" / "1.25x" / "1.5x". */
+    @NonNull
+    public static String formatSpeed(float speed) {
+        if (Math.abs(speed - Math.rint(speed)) < 0.001f) {
+            return String.format(Locale.US, "%dx", (int) speed);
+        }
+        String value = String.format(Locale.US, "%.2f", speed);
+        if (value.contains(".")) {
+            value = value.replaceAll("0+$", "").replaceAll("\\.$", "");
+        }
+        return value + "x";
+    }
+
     /** Robust application versionName via PackageManager (BuildConfig is disabled by default in AGP 8). */
     @NonNull
     public static String appVersion(@NonNull Context context) {

@@ -82,6 +82,16 @@
     <string name="queue_empty">Queue is empty.</string>
     <string name="lyrics_none">No lyrics available for this track.</string>
 
+    <!-- Sleep timer & speed -->
+    <string name="cd_sleep_timer">Sleep timer</string>
+    <string name="cd_playback_speed">Playback speed</string>
+    <string name="sleep_timer_title">Sleep timer</string>
+    <string name="sleep_off">Off</string>
+    <string name="sleep_timer_set_toast">Sleep timer: %1$d min</string>
+    <string name="sleep_timer_off_toast">Sleep timer off</string>
+    <string name="playback_speed_title">Playback speed</string>
+    <string name="playback_speed_default">1x</string>
+
     <!-- Settings -->
     <string name="settings_title">Settings</string>
     <string name="settings_playback_header">Playback</string>

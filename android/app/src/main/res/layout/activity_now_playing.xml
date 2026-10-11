@@ -34,6 +34,36 @@
         app:layout_constraintBottom_toBottomOf="@id/np_close" />
 
     <ImageButton
+        android:id="@+id/np_sleep"
+        android:layout_width="44dp"
+        android:layout_height="44dp"
+        android:layout_marginEnd="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/cd_sleep_timer"
+        android:src="@drawable/ic_bedtime"
+        app:tint="@color/on_surface"
+        app:layout_constraintEnd_toStartOf="@id/np_speed"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintBottom_toBottomOf="@id/np_queue" />
+
+    <TextView
+        android:id="@+id/np_speed"
+        android:layout_width="wrap_content"
+        android:layout_height="44dp"
+        android:layout_marginEnd="4dp"
+        android:background="?attr/selectableItemBackgroundBorderless"
+        android:contentDescription="@string/cd_playback_speed"
+        android:gravity="center"
+        android:minWidth="44dp"
+        android:paddingHorizontal="6dp"
+        android:text="@string/playback_speed_default"
+        android:textColor="@color/secondary_text_teal"
+        android:textStyle="bold"
+        app:layout_constraintEnd_toStartOf="@id/np_queue"
+        app:layout_constraintTop_toTopOf="@id/np_queue"
+        app:layout_constraintBottom_toBottomOf="@id/np_queue" />
+
+    <ImageButton
         android:id="@+id/np_queue"
         android:layout_width="44dp"
         android:layout_height="44dp"

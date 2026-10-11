@@ -85,6 +85,11 @@ public class NowPlayingActivity extends AppCompatActivity implements PlaybackRep
         ImageButton closeButton = findViewById(R.id.np_close);
         closeButton.setOnClickListener(v -> finish());
 
+        ImageButton sleepButton = findViewById(R.id.np_sleep);
+        TextView speedButton = findViewById(R.id.np_speed);
+        sleepButton.setOnClickListener(v -> showSleepTimerDialog());
+        speedButton.setOnClickListener(v -> showPlaybackSpeedDialog());
+
         flipper = findViewById(R.id.np_flipper);
         artwork = findViewById(R.id.np_artwork);
         title = findViewById(R.id.np_title);
@@ -171,6 +176,8 @@ public class NowPlayingActivity extends AppCompatActivity implements PlaybackRep
 
         title.setText(track.title);
         artist.setText(track.artist);
+        ((TextView) findViewById(R.id.np_speed)).setText(
+                FormatUtils.formatSpeed(playback.playbackSpeed()));
         Glide.with(this)
                 .load(MediaItemConverter.artworkUri(track))
                 .placeholder(R.drawable.bg_artwork_placeholder)
@@ -225,6 +232,49 @@ public class NowPlayingActivity extends AppCompatActivity implements PlaybackRep
                     ? R.drawable.ic_heart_filled : R.drawable.ic_heart_outline);
             favoriteButton.setTag(isFavorite);
         });
+    }
+
+    private void showSleepTimerDialog() {
+        final int[] minutesOptions = {0, 5, 10, 15, 30, 60};
+        String[] labels = new String[minutesOptions.length];
+        labels[0] = getString(R.string.sleep_off);
+        for (int i = 1; i < minutesOptions.length; i++) {
+            labels[i] = minutesOptions[i] + " min";
+        }
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.sleep_timer_title)
+                .setItems(labels, (dialog, which) -> {
+                    int minutes = minutesOptions[which];
+                    playback.setSleepTimerAfterMs(minutes * 60_000L);
+                    Toast.makeText(this,
+                            minutes == 0
+                                    ? getString(R.string.sleep_timer_off_toast)
+                                    : getString(R.string.sleep_timer_set_toast, minutes),
+                            Toast.LENGTH_SHORT).show();
+                })
+                .show();
+    }
+
+    private void showPlaybackSpeedDialog() {
+        final float[] speeds = {0.75f, 1.0f, 1.25f, 1.5f, 2.0f};
+        String[] labels = new String[speeds.length];
+        int checked = 1;
+        float current = playback.playbackSpeed();
+        for (int i = 0; i < speeds.length; i++) {
+            labels[i] = FormatUtils.formatSpeed(speeds[i]);
+            if (Math.abs(speeds[i] - current) < 0.01f) checked = i;
+        }
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.playback_speed_title)
+                .setSingleChoiceItems(labels, checked, (dialog, which) -> {
+                    float speed = speeds[which];
+                    playback.setPlaybackSpeed(speed);
+                    App.locator().settings().setPlaybackSpeed(speed);
+                    ((TextView) findViewById(R.id.np_speed)).setText(FormatUtils.formatSpeed(speed));
+                    dialog.dismiss();
+                })
+                .setNegativeButton(R.string.playlist_cancel, null)
+                .show();
     }
 
     private void loadLyrics(Track track) {
