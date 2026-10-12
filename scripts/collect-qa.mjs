@@ -146,8 +146,13 @@ const webLint = {
     : 'eslint . completed with no findings.',
 };
 
-const webUnit = { ...readVitest(), command: 'bunx vitest run' };
-const androidUnit = { ...readAndroidTests(), command: 'gradle :app:testDebugUnitTest --rerun' };
+const webUnit = { ...readVitest(), command: 'bunx vitest run', exitCode: process.env.RM_VITEST === '0' ? 1 : 0 };
+// WEBLAB-16: record the real gradle exit code for the JUnit suite too (evidence parity).
+const androidUnit = {
+  ...readAndroidTests(),
+  command: 'gradle :app:testDebugUnitTest --rerun',
+  exitCode: process.env.RM_ANDROID_UNIT_TEST === '0' ? 1 : 0,
+};
 
 const androidLint = {
   name: 'android lint (lintDebug)',

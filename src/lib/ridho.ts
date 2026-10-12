@@ -55,6 +55,8 @@ export interface ApkAvailable {
   available: true;
   sizeBytes: number;
   mtime: string;
+  /** SHA-256 of the artifact actually on disk (WEBLAB-16 — evidence, not claims). */
+  sha256: string;
 }
 
 export interface ApkMissing {
@@ -105,10 +107,25 @@ export interface ProjectCounts {
   javaLines: number;
 }
 
+/**
+ * Evidence-backed gradle-task status (WEBLAB-16). Derived from the recorded
+ * run-qa execution + the CURRENT toolchain presence — never hardcoded.
+ */
 export interface BuildCheck {
   task: string;
-  status: string;
+  status: 'pass' | 'fail' | 'unverified' | 'toolchain-unavailable';
   detail?: string;
+  /** recordedAt of the run-qa execution backing this check (null = none). */
+  recordedAt?: string | null;
+  exitCode?: number | null;
+}
+
+/** Whether the Gradle/SDK/JDK toolchain is installed right now. */
+export interface ToolchainStatus {
+  gradle: boolean;
+  androidSdk: boolean;
+  jdk: boolean;
+  complete: boolean;
 }
 
 export type CriterionStatus = 'verified' | 'requires-device';
@@ -138,6 +155,10 @@ export interface ProjectPayload {
   buildChecks: BuildCheck[];
   criteria: Criterion[];
   docs: DocsExcerpts;
+  /** Toolchain presence on disk at generatedAt — gates what can be re-run. */
+  toolchain: ToolchainStatus;
+  /** recordedAt of the last recorded run-qa execution (null = none on disk). */
+  qaRecordedAt: string | null;
 }
 
 // ---------------------------------------------------------------------------

@@ -10,6 +10,18 @@ GRADLE_VER=8.9
 
 echo "== $(date) starting toolchain bootstrap =="
 
+# ---- Full JDK 21 (Temurin) ----
+# AGP requires jlink for JdkImageTransform; the sandbox system java-21 is a
+# JRE-only variant WITHOUT jlink, so a full JDK is mandatory (WEBLAB-16).
+if [ ! -x /home/z/jdk-21/bin/javac ]; then
+  curl -sSL -o /home/z/jdk21.tar.gz "https://api.adoptium.net/v3/binary/latest/21/ga/linux/x64/jdk/hotspot/normal/eclipse"
+  tar -xzf /home/z/jdk21.tar.gz -C /home/z/
+  rm -f /home/z/jdk21.tar.gz
+  ln -sfn /home/z/jdk-21.* /home/z/jdk-21
+fi
+export JAVA_HOME=/home/z/jdk-21
+echo "== jdk done: $(/home/z/jdk-21/bin/javac -version 2>&1) jlink=$([ -x /home/z/jdk-21/bin/jlink ] && echo yes || echo NO) =="
+
 # ---- Gradle ----
 if [ ! -x "/home/z/gradle-${GRADLE_VER}/bin/gradle" ]; then
   curl -sSL -o /tmp/gradle.zip "https://services.gradle.org/distributions/gradle-${GRADLE_VER}-bin.zip"
@@ -27,7 +39,7 @@ if [ ! -x "$SDK/cmdline-tools/latest/bin/sdkmanager" ]; then
   rm -f /tmp/clt.zip
 fi
 export ANDROID_HOME="$SDK"
-export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
+export JAVA_HOME=/home/z/jdk-21
 
 # ---- Licenses + packages ----
 yes | "$SDK/cmdline-tools/latest/bin/sdkmanager" --licenses >/dev/null 2>&1

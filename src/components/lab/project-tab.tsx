@@ -86,9 +86,16 @@ export function ProjectTab() {
           icon={ListChecks}
           eyebrow="Verification"
           title="Build & tests"
-          description="Parsed live from JUnit XMLs and APK files on disk."
+          description="Evidence-based: APK files on disk + the last recorded run-qa execution (timestamps & exit codes) — no hardcoded numbers."
         />
-        <BuildStats debug={debugApk} release={releaseApk} tests={data.tests} buildChecks={data.buildChecks} />
+        <BuildStats
+          debug={debugApk}
+          release={releaseApk}
+          tests={data.tests}
+          buildChecks={data.buildChecks}
+          qaRecordedAt={data.qaRecordedAt}
+          toolchainComplete={data.toolchain.complete}
+        />
       </section>
 
       <section id="criteria" className="scroll-mt-24">

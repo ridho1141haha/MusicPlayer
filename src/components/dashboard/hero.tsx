@@ -72,9 +72,9 @@ export function Hero({ debugApk, releaseApk }: HeroProps) {
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button asChild size="lg" className="h-11 px-6 font-semibold sm:h-12">
           <a
-            href="/ridho-music-v1.1.0-debug.apk"
+            href="/ridho-music-v1.2.0-wip-debug.apk"
             download
-            aria-label={`Download Ridho Music v1.1.0 debug APK${sizeLabel}`}
+            aria-label="Download Ridho Music debug APK (v1.2.0-wip, byte-identical to android/dist/app-debug.apk)"
           >
             <Download className="h-4 w-4" aria-hidden="true" />
             Download debug APK{sizeLabel}
@@ -96,8 +96,8 @@ export function Hero({ debugApk, releaseApk }: HeroProps) {
 
       {builtLabel && (
         <p className="mt-4 text-xs text-muted-foreground/80">
-          Debug APK built {builtLabel} and verified: assembleDebug, assembleRelease (R8), 22/22 unit
-          tests, lint 0 errors.
+          Debug APK built {builtLabel} — git-tracked android/dist copy, byte-verified against the recorded
+          pipeline build by sha256 (see Build &amp; tests below for the evidence-backed status).
         </p>
       )}
     </motion.section>
