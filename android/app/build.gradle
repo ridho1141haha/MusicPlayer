@@ -30,8 +30,13 @@ android {
         applicationId "com.ridho.music"
         minSdk 24          // Android 7.0 — sensible floor for Media3 + modern notification APIs
         targetSdk 35       // Android 15 — matches Samsung Galaxy A05s (One UI 6/7, API 34/35)
-        versionCode 3
-        versionName "1.2.0"
+        // WEBLAB-22B versioning decision (documented in CHANGELOG):
+        // versionCodes 1-3 = released 1.0.0/1.1.0/1.2.0; 4 = unaccounted (lost in
+        // a sandbox reset, treated as burned); 5 = v1.2.2, verified installed on
+        // the Samsung A05s (WEBLAB-20A-VERIFY evidence). Next code = 6 so this
+        // build is never rejected as a downgrade on that device.
+        versionCode 6
+        versionName "1.2.3"
         vectorDrawables.useSupportLibrary = true
         buildConfigField "String", "JAMENDO_CLIENT_ID", "\"${jamendoClientId}\""
     }

@@ -1,6 +1,14 @@
 # Changelog
 
-## Unreleased — WEBLAB-22A (2026-10-12)
+## 1.2.3 (versionCode 6) — 2026-10-13 · WEBLAB-22A + WEBLAB-22B
+
+> Versioning note: this is the first APK release of the Jamendo work (built
+> during WEBLAB-22A but left at versionCode 3 at the time). versionCode jumps
+> 3 → 6 because codes 4 and 5 were consumed before a sandbox reset (5 = v1.2.2
+> was verified installed on the Samsung Galaxy A05s in WEBLAB-20A-VERIFY);
+> codes are never reused, and 6 guarantees install-over on that device.
+> versionName follows semver: PATCH — one bug fix + validation/traceability
+> round, no new app features in WEBLAB-22B.
 
 ### Added
 - **Jamendo source (official v3.0 API)** — free, legal Creative Commons catalog of
@@ -23,24 +31,49 @@
   first, then `BuildConfig.JAMENDO_CLIENT_ID` (injected from gitignored
   `android/local.properties` key `jamendoClientId`). No id in committed source, no
   client secret anywhere, no OAuth, id masked in messages and fixtures.
-- 18 new JVM tests (50 total): parser vs real sanitized API captures, documented
-  quirks (singles/https-only/no-id), envelope error mapping, request-time
-  credential switching, stream-resolution contract (fresh-lookup-first with
-  cached-URL fallback), client-id masking hygiene.
+- 18 Jamendo JVM tests vs real sanitized API captures (parser, documented quirks,
+  envelope error mapping, request-time credential switching, stream-resolution
+  contract, client-id masking hygiene).
 
 ### Fixed (root causes)
+- **History recorded queue restores as "recently played" (WEBLAB-22B)** —
+  history was written from `onMediaItemTransition` for every non-repeat reason;
+  restoring a persisted queue at launch fires that callback
+  (`PLAYLIST_CHANGED`) while paused, so a track the user never played this
+  session appeared in Recently Played. Root cause: transition reason was the
+  only playback signal. Fix: history now records REAL playback only — playing
+  + `STATE_READY` + a media item different from the last recorded one — via a
+  new pure-logic `HistoryPolicy` (JVM-tested) wired into the player listener;
+  repeat-one loops and pause/resume of the same track dedupe to one row.
+  Regression tests: `HistoryPolicyTest` (5 tests).
 - `scripts/setup-android-sdk.sh`: `python3 -m zipfile` drops the executable bit, so
   `sdkmanager` died with "Permission denied" after a sandbox reset — now chmods
   `cmdline-tools/latest/bin/*` explicitly.
 
-### Verification (2026-10-12, sandbox — no hardware; device tests NOT RUN)
-- `testDebugUnitTest` **50/50** · `lintDebug` **0 errors** · `assembleDebug` OK
-  (APK 10,279,693 B) · run-qa pipeline ALL RECORDED SUITES GREEN (web 158/158,
-  golden 8/8).
-- Live API evidence (client id masked): real search HTTP 200 `status:success`
-  (5 tracks for "acoustic love"); stream URL HEAD 200 `audio/mpeg` 3,565,369 B;
-  range GET 206 with ID3 magic bytes; id-lookup re-resolution verified live
-  (eventually-consistent behavior documented and handled).
+### Verification (2026-10-12/13 — sandbox; device tests NOT RUN, no hardware/emulator/AVD)
+- `testDebugUnitTest` **55/55** (50 + 5 new) · `lintDebug` **0 errors** ·
+  `assembleDebug` OK · web lint **0 errors** · vitest **158/158** · golden 8/8 ·
+  run-qa pipeline **ALL RECORDED SUITES GREEN** @ 2026-10-12T23:46:28Z (live YTM
+  probe 4/4 drift — non-gating, external catalog volatility, unrelated).
+- APK `ridho-music-v1.2.3-debug.apk` 10,280,113 B · sha256 `7ccfcf287bd2d9fe…` ·
+  aapt-verified versionCode 6 / versionName 1.2.3-debug · build metadata in
+  `data/build-info-v1.2.3.json` (no credentials).
+- Live Jamendo evidence (client id masked, `data/weblab-22b-build-validation.json`):
+  search HTTP 200 `status:success` 5 tracks ("Acoustic Love" — lesfm, 188 s, CC
+  license, artwork); stream HEAD 200 `audio/mpeg` 4,853,248 B `accept-ranges:
+  bytes`; range GET 206 with ID3 magic bytes (ExoPlayer progressive/seek
+  compatible); unknown-id lookup → success + 0 results (NO_RESULTS); invalid id →
+  HTTP 200 envelope `failed` code 5 (CONFIGURATION_REQUIRED). Documented live:
+  Jamendo's full-text index is query-flaky — the same query returned 0 results
+  and 5 results minutes apart; 0-result blips are index behavior, not credential
+  failure (invalid ids produce code 5).
+
+### Known limitations / unverified behavior
+- On-device playback, pause/resume, seek, failed-stream recovery, local playback,
+  lock-screen controls: **NOT RUN** (no hardware in the build sandbox) — manual
+  checklist in the repository worklog (WEBLAB-22B section).
+- Jamendo search can return 0 results for some multi-word queries (index
+  behavior) — surfaced as an honest empty state, not an error.
 
 ## 1.1.0 — 2026-10-11
 

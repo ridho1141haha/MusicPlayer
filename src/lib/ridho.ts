@@ -147,7 +147,18 @@ export interface ProjectPayload {
   apks: {
     debug: ApkEntry;
     release: ApkEntry;
+    /**
+     * WEBLAB-22B — the current validated debug artifact under its unique
+     * versioned filename (android/dist/ridho-music-v*-debug.apk, newest by
+     * mtime). null when no versioned artifact exists yet.
+     */
+    served: ApkEntry | null;
   };
+  /**
+   * WEBLAB-22B — versionName/versionCode parsed live from
+   * android/app/build.gradle (single source of truth for UI badges).
+   */
+  version: { name: string; code: number } | null;
   counts: ProjectCounts;
   /** Root node (path === '') whose children are the top level of android/. */
   tree: TreeNode;

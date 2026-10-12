@@ -1,0 +1,94 @@
+{
+  "taskId": "WEBLAB-22B",
+  "recordedAt": "2026-10-12T23:49:25.532Z",
+  "sanitization": "client_id masked as dd•••••• (length-hiding); all printed URLs have query params elided; envelope echoes limited to safe fields + final scrub pass",
+  "probe": [
+    {
+      "id": "A_real_search",
+      "label": "search via official v3.0 API (client_id dd••••••); query=acoustic love",
+      "status": "PASS",
+      "evidence": {
+        "httpStatus": 200,
+        "envelope": {
+          "status": "success",
+          "code": 0,
+          "results_count": 5
+        },
+        "durationMs": 610,
+        "queryAttempts": [
+          {
+            "query": "acoustic love",
+            "envelope": {
+              "status": "success",
+              "code": 0,
+              "results_count": 5
+            },
+            "results": 5
+          }
+        ],
+        "indexFlakinessNote": "0-result blips are a documented Jamendo full-text index behavior, NOT a credential failure (invalid ids produce code 5 — check E)",
+        "firstResult": {
+          "id": "1896504",
+          "name": "Acoustic Love",
+          "artist": "lesfm",
+          "album": "Acoustic Love",
+          "durationSec": 188,
+          "streamUrl": "https://prod-1.storage.jamendo.com/ (query params elided)",
+          "hasArtwork": true,
+          "license": "CC deed url present"
+        }
+      }
+    },
+    {
+      "id": "B_stream_head",
+      "label": "HEAD on official stream URL (params elided)",
+      "status": "PASS",
+      "evidence": {
+        "httpStatus": 200,
+        "contentType": "audio/mpeg",
+        "contentLength": "4853248",
+        "acceptRanges": "bytes"
+      }
+    },
+    {
+      "id": "C_stream_range",
+      "label": "Range GET first 1024 bytes (params elided)",
+      "status": "PASS",
+      "evidence": {
+        "httpStatus": 206,
+        "bytes": 1024,
+        "mp3Signature": "ID3 header",
+        "contentRange": "bytes 0-1023/4853248"
+      }
+    },
+    {
+      "id": "D_unknown_id_lookup",
+      "label": "id lookup for a track that does not exist",
+      "status": "PASS",
+      "evidence": {
+        "httpStatus": 200,
+        "envelope": {
+          "status": "success",
+          "code": 0,
+          "error_message": "",
+          "warnings": "",
+          "results_count": 0
+        }
+      }
+    },
+    {
+      "id": "E_invalid_client_id",
+      "label": "envelope behavior for an invalid client id",
+      "status": "PASS",
+      "evidence": {
+        "httpStatus": 200,
+        "envelope": {
+          "status": "failed",
+          "code": 5,
+          "error_message": "Jamendo Api Invalid Client Id Error: Your credential is not authorized."
+        }
+      }
+    }
+  ],
+  "verdict": "ALL LIVE CHECKS PASS (API search + stream resolution; playback itself requires a device — NOT RUN)"
+}

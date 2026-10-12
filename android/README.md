@@ -59,7 +59,11 @@ cd android
 > keystore.
 
 Prebuilt artifacts produced by this project's automated build:
-`android/dist/app-debug.apk` (9.8 MB) and `android/dist/app-release-unsigned.apk` (2.9 MB).
+`android/dist/ridho-music-v1.2.3-debug.apk` (10.3 MB — **current**, v1.2.3 /
+versionCode 6), the pinned historical `android/dist/app-debug.apk` (11.0 MB,
+pre-1.2.3), and `android/dist/app-release-unsigned.apk` (2.9 MB). Older versioned
+APKs are preserved under unique filenames; see the root
+[CHANGELOG.md](../CHANGELOG.md) for per-version build metadata and checksums.
 
 ## 3. Architecture
 
@@ -207,7 +211,13 @@ results observed, not assumed):
 
 - `gradle :app:assembleDebug` → **BUILD SUCCESSFUL**, `app-debug.apk` produced.
 - `gradle :app:assembleRelease` → **BUILD SUCCESSFUL** (R8 minified, 2.9 MB).
-- `gradle :app:testDebugUnitTest` → **22/22 tests passed**, zero failures:
+- `gradle :app:testDebugUnitTest` → **55/55 tests passed**, zero failures
+  (latest recorded run 2026-10-12; see `data/qa-results.json` for the live
+  recorded totals):
+  - `HistoryPolicyTest` (5) — history records REAL playback only (queue
+    restore / repeat-one / resume dedupe).
+  - `JamendoSourceTest` (18) — parser vs sanitized real captures, envelope
+    error mapping, credential switching, stream-resolution contract.
   - `TrackTest` (4) — JSON round-trip serialization.
   - `LrcParserTest` (7) — LRC formats, multi-tags, sorting, active-line lookup.
   - `YouTubeMusicSourceTest` (7) — stream selection rules (itag 140 preference,

@@ -155,6 +155,46 @@ async function apkEntry(name: string, rebuildTask: string): Promise<ApkEntry> {
   }
 }
 
+/**
+ * WEBLAB-22B — the CURRENT validated debug artifact, under its unique versioned
+ * filename (older artifacts are preserved, never overwritten). Picks the newest
+ * android/dist/ridho-music-v*-debug.apk by mtime; null when none exists yet.
+ * The download card serves the byte-identical copy from public/.
+ */
+async function servedApkEntry(): Promise<ApkEntry | null> {
+  let names: string[] = [];
+  try {
+    names = (await fs.readdir(DIST_DIR)).filter((n) =>
+      /^ridho-music-v[\w.+-]+-debug\.apk$/.test(n),
+    );
+  } catch {
+    return null;
+  }
+  if (names.length === 0) return null;
+  const withMtime = await Promise.all(
+    names.map(async (n) => ({ n, m: (await fs.stat(path.join(DIST_DIR, n))).mtimeMs })),
+  );
+  withMtime.sort((a, b) => b.m - a.m);
+  return apkEntry(withMtime[0].n, 'assembleDebug');
+}
+
+/**
+ * WEBLAB-22B — parse versionName/versionCode from android/app/build.gradle so
+ * the UI shows the version the artifacts were actually built with (single
+ * source of truth, no hardcoded badge).
+ */
+async function readAppVersion(): Promise<{ name: string; code: number } | null> {
+  try {
+    const gradle = await fs.readFile(path.join(ANDROID_DIR, 'app', 'build.gradle'), 'utf8');
+    const name = gradle.match(/versionName\s+"([^"]+)"/)?.[1];
+    const code = gradle.match(/versionCode\s+(\d+)/)?.[1];
+    if (!name || !code) return null;
+    return { name, code: Number(code) };
+  } catch {
+    return null;
+  }
+}
+
 // ---------------------------------------------------------------------------
 // Unit-test XML results (JUnit/Gradle format)
 // ---------------------------------------------------------------------------
@@ -370,7 +410,7 @@ export async function GET() {
       children: treeChildren,
     };
 
-    const [counts, debug, release, tests, docs, toolchain, qaEvidence] = await Promise.all([
+    const [counts, debug, release, tests, docs, toolchain, qaEvidence, served, version] = await Promise.all([
       computeCounts(flattenFiles(treeChildren)),
       apkEntry('app-debug.apk', 'assembleDebug'),
       apkEntry('app-release-unsigned.apk', 'assembleRelease'),
@@ -378,6 +418,8 @@ export async function GET() {
       readDocs(),
       Promise.resolve(readToolchain()),
       readQaEvidence(),
+      servedApkEntry(),
+      readAppVersion(),
     ]);
 
     const apkMatch = apkDistMatch(
@@ -391,7 +433,8 @@ export async function GET() {
 
     const payload: ProjectPayload = {
       generatedAt: new Date().toISOString(),
-      apks: { debug, release },
+      apks: { debug, release, served },
+      version,
       counts,
       tree,
       tests,

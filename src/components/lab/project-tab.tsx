@@ -74,12 +74,14 @@ export function ProjectTab() {
 
   const emptyTree: TreeNode = { name: '', path: '', type: 'dir', children: [] };
   const tree: TreeNode = data.tree ?? emptyTree;
-  const debugApk = data.apks.debug;
+  // WEBLAB-22B: the download card serves the CURRENT validated artifact
+  // (versioned filename), falling back to the pinned dist copy.
+  const debugApk = data.apks.served ?? data.apks.debug;
   const releaseApk = data.apks.release;
 
   return (
     <div className="space-y-14">
-      <Hero debugApk={debugApk} releaseApk={releaseApk} />
+      <Hero debugApk={debugApk} releaseApk={releaseApk} version={data.version} />
 
       <section id="build" className="scroll-mt-24">
         <SectionHeading

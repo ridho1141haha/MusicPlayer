@@ -82,6 +82,10 @@ public class PlaybackService extends MediaSessionService {
     private final Runnable persistRunnable = this::persistQueueNow;
     private boolean queueRestored = false;
 
+    /** Media id of the track last written to history (dedupe; see maybeRecordHistory). */
+    @Nullable
+    private String lastHistoryMediaItemId;
+
     // ---------------------------------------------------------------- lifecycle
 
     @Override
@@ -282,24 +286,51 @@ public class PlaybackService extends MediaSessionService {
 
     // ---------------------------------------------------------------- player events
 
+    /**
+     * WEBLAB-22B fix — history records REAL playback only: playing + STATE_READY
+     * + a media item different from the last recorded one (decision in
+     * {@link HistoryPolicy}). Previously every non-repeat media-item transition
+     * wrote history, so restoring a persisted queue at launch (setMediaItems +
+     * prepare while paused, reason PLAYLIST_CHANGED) recorded a row for a track
+     * the user never played this session. Event pairs (READY→isPlaying,
+     * mid-play seeks) dedupe via {@code lastHistoryMediaItemId}; the repository's
+     * 30 s per-track rate limit remains as a backstop.
+     */
+    private void maybeRecordHistory() {
+        if (player == null) return;
+        Track track = MediaItemConverter.toTrack(player.getCurrentMediaItem());
+        if (track == null) return;
+        if (!HistoryPolicy.shouldRecord(player.isPlaying(), player.getPlaybackState(),
+                track.id, lastHistoryMediaItemId)) {
+            return;
+        }
+        lastHistoryMediaItemId = track.id;
+        library.addHistory(track);
+    }
+
     private final Player.Listener playerListener = new Player.Listener() {
 
         @Override
         public void onMediaItemTransition(@Nullable MediaItem mediaItem, int reason) {
-            Track track = MediaItemConverter.toTrack(mediaItem);
-            if (track != null && reason != Player.MEDIA_ITEM_TRANSITION_REASON_REPEAT) {
-                library.addHistory(track);
-            }
+            maybeRecordHistory();
             schedulePersist();
         }
 
         @Override
         public void onPlaybackStateChanged(int playbackState) {
+            maybeRecordHistory();
             schedulePersist();
         }
 
         @Override
         public void onPlayWhenReadyChanged(boolean playWhenReady, int reason) {
+            maybeRecordHistory();
+            schedulePersist();
+        }
+
+        @Override
+        public void onIsPlayingChanged(boolean isPlaying) {
+            maybeRecordHistory();
             schedulePersist();
         }
 

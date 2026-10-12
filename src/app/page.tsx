@@ -21,7 +21,7 @@ import { ParityTab } from '@/components/lab/parity-tab';
 import { ProjectTab } from '@/components/lab/project-tab';
 import { PrototypeTab } from '@/components/lab/prototype-tab';
 import { SearchPlaygroundTab } from '@/components/lab/search-playground-tab';
-import { Badge } from '@/components/ui/badge';
+import { VersionBadge } from '@/components/lab/version-badge';
 import { Button } from '@/components/ui/button';
 import type { LabTab } from '@/lib/lab/store';
 import { useLabStore } from '@/lib/lab/store';
@@ -130,9 +130,7 @@ export default function WebLabPage() {
                 </p>
               </div>
             </div>
-            <Badge variant="outline" className="border-primary/40 bg-primary/10 text-primary">
-              v1.2.0-wip
-            </Badge>
+            <VersionBadge />
           </div>
           <nav aria-label="Lab sections" className="-mx-1 overflow-x-auto pb-1">
             <div className="flex min-w-max gap-1 px-1">

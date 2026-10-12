@@ -1,0 +1,39 @@
+{
+  "taskId": "WEBLAB-22B",
+  "application": "com.ridho.music (debug build: com.ridho.music.debug)",
+  "versionName": "1.2.3",
+  "versionCode": 6,
+  "versioningDecision": "versionCodes 1-3 = 1.0.0/1.1.0/1.2.0; 4 unaccounted (lost in sandbox reset, treated as burned); 5 = v1.2.2 verified installed on the Samsung A05s (WEBLAB-20A-VERIFY evidence). Next free code = 6; versionName PATCH bump 1.2.0 -> 1.2.3 (bug fix + validation round, no new features). Ensures install-over works on a device holding versionCode 5.",
+  "variant": "debug",
+  "buildTimestampUtc": "2026-10-12T23:44:31Z",
+  "gitCommitAtBuild": "dea14f3 (parent commit) + WEBLAB-22B working tree; committed immediately after this build (final hash recorded in worklog.md WEBLAB-22B section)",
+  "toolchain": "Gradle 8.9 / AGP 8.7.3 / JDK 21 (Temurin, /home/z/jdk-21) / Android SDK 35 (build-tools 35.0.0)",
+  "artifact": {
+    "filename": "ridho-music-v1.2.3-debug.apk",
+    "workspacePath": "/home/z/my-project/android/dist/ridho-music-v1.2.3-debug.apk",
+    "servedCopy": "/home/z/my-project/public/ridho-music-v1.2.3-debug.apk (byte-identical, served by the web dashboard download card)",
+    "sizeBytes": 10280113,
+    "sha256": "7ccfcf287bd2d9fe9e35136c9575ecf09b0883617c66e94baedb3b53e3c865c3",
+    "distCopySha256": "7ccfcf287bd2d9fe9e35136c9575ecf09b0883617c66e94baedb3b53e3c865c3",
+    "buildStatus": "BUILD SUCCESSFUL (:app:assembleDebug, exit 0)"
+  },
+  "aaptVerified": {
+    "versionCode": 6,
+    "versionName": "1.2.3-debug",
+    "package": "com.ridho.music.debug",
+    "minSdk": 24,
+    "targetSdk": 35
+  },
+  "tests": {
+    "androidUnitTest": "55/55 PASS (50 previous + 5 new HistoryPolicyTest)",
+    "webVitest": "158/158 PASS",
+    "lintDebug": "0 errors",
+    "webEslint": "0 errors",
+    "goldenParse": "8/8 PASS",
+    "recordedPipeline": "run-qa.sh ALL RECORDED SUITES GREEN @ 2026-10-12T23:46:28Z",
+    "liveYtmProbe": "4/4 DRIFT (non-gating; known external catalog volatility; unrelated to Jamendo)"
+  },
+  "liveJamendoVerification": "5/5 PASS (sanitized) — see data/weblab-22b-build-validation.json",
+  "deviceTesting": "NOT RUN — no hardware/emulator/AVD in the sandbox (adb devices empty; no emulator binary)",
+  "credentialNote": "Jamendo client_id injected at build time from gitignored android/local.properties (jamendoClientId). NO client secret exists or is embedded. No credentials in this metadata; ids masked as dd•••••• in all evidence."
+}

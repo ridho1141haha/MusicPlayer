@@ -19,9 +19,11 @@ const TECH_BADGES = [
 interface HeroProps {
   debugApk: ApkEntry;
   releaseApk: ApkEntry;
+  /** WEBLAB-22B — parsed live from android/app/build.gradle (null = unknown). */
+  version: { name: string; code: number } | null;
 }
 
-export function Hero({ debugApk, releaseApk }: HeroProps) {
+export function Hero({ debugApk, releaseApk, version }: HeroProps) {
   const sizeLabel = debugApk.available ? ` · ${formatBytes(debugApk.sizeBytes)}` : '';
   const builtLabel = debugApk.available ? formatDate(debugApk.mtime) : null;
 
@@ -45,9 +47,11 @@ export function Hero({ debugApk, releaseApk }: HeroProps) {
             <h1 id="hero-title" className="text-4xl font-bold tracking-tight sm:text-5xl">
               Ridho Music
             </h1>
-            <Badge className="bg-primary/15 text-[#7fd8ce] hover:bg-primary/15">v1.1.0</Badge>
+            <Badge className="bg-primary/15 text-[#7fd8ce] hover:bg-primary/15">
+              {version ? `v${version.name}` : 'open source'}
+            </Badge>
             <Badge variant="outline" className="border-border text-muted-foreground">
-              open source
+              {version ? `versionCode ${version.code}` : 'open source'}
             </Badge>
           </div>
           <p className="mt-2 max-w-2xl text-base leading-relaxed text-muted-foreground sm:text-lg">
@@ -72,9 +76,13 @@ export function Hero({ debugApk, releaseApk }: HeroProps) {
       <div className="mt-8 flex flex-col gap-3 sm:flex-row sm:items-center">
         <Button asChild size="lg" className="h-11 px-6 font-semibold sm:h-12">
           <a
-            href="/ridho-music-v1.2.0-wip-debug.apk"
+            href={debugApk.available ? `/${debugApk.name}` : '#'}
             download
-            aria-label="Download Ridho Music debug APK (v1.2.0-wip, byte-identical to android/dist/app-debug.apk)"
+            aria-label={
+              debugApk.available
+                ? `Download Ridho Music debug APK (${version ? `v${version.name}, versionCode ${version.code}` : 'current build'} — android/dist/${debugApk.name})`
+                : 'Debug APK is not built yet'
+            }
           >
             <Download className="h-4 w-4" aria-hidden="true" />
             Download debug APK{sizeLabel}
