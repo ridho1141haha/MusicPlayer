@@ -306,4 +306,11 @@ export const FEATURE_CHECKS: FeatureCheck[] = [
     status: 'pass',
     note: 'WEBLAB-15: refreshed captures carry GitBranch lineage chips in the fixture list (amber "superseded by", teal "supersedes"); the live probe card detects a replaced contract, explains why the old capture is kept, and offers a one-click switch to the successor. Shared live-search client extracted so the API route and the pipeline probe send byte-identical requests (unit-tested).',
   },
+  {
+    id: 'weblab-evidence-based-build-status',
+    name: 'Evidence-based Android build status (no hardcoded verdicts)',
+    area: 'Web Lab',
+    status: 'pass',
+    note: 'WEBLAB-16 audit fix: the build card used to show hardcoded \'SUCCESS\' strings sourced from an old worklog entry — after a sandbox reset wiped the Gradle/SDK toolchain the UI still claimed a fresh green build. All gradle-task checks are now derived from the last recorded run-qa execution (real exit codes + timestamps) plus the CURRENT toolchain presence; toolchain-down is shown honestly (amber) while citing recorded evidence, assembleRelease is labelled unverified-by-pipeline with its persisted artifact pinned by sha256, and the git-tracked android/dist APK copy is cross-checked against the recorded build sha.',
+  },
 ];

@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import {
   Activity,
+  BadgeCheck,
   Download,
   FileJson,
   FlaskConical,
@@ -14,10 +15,12 @@ import {
   ShieldAlert,
   Target,
   TerminalSquare,
+  TriangleAlert,
   Wrench,
 } from 'lucide-react';
 
 import { StatusBadge } from '@/components/lab/status-badge';
+import { apkDistMatch, recordedAndroidUnitLine, totalsBreakdown, totalsBreakdownLine } from '@/lib/lab/build-evidence';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import {
@@ -244,6 +247,15 @@ function SuiteCard({ qa }: { qa: QaResults | null }) {
               </span>
               <RecordedAgo recordedAt={qa.recordedAt} />
             </CardDescription>
+            {(() => {
+              const breakdown = totalsBreakdown(qa.suites);
+              if (breakdown === null) return null;
+              return (
+                <p className="mt-1 text-[11px] leading-relaxed text-muted-foreground/75">
+                  {totalsBreakdownLine(breakdown)}
+                </p>
+              );
+            })()}
           </div>
           <PassRateDonut passed={totals.passed} failed={totals.failed} skipped={totals.skipped} />
         </div>
@@ -556,18 +568,31 @@ export function DashboardTab() {
           <CardHeader>
             <CardTitle className="flex items-center gap-2 text-base">
               <Wrench className="h-4 w-4 text-emerald-400" aria-hidden="true" />
-              Android build (live from android/)
+              Android build (evidence-based)
             </CardTitle>
-            <CardDescription>Parsed from real APK files and JUnit XMLs on disk — no hardcoded numbers.</CardDescription>
+            <CardDescription>
+              Parsed from real APK files on disk + the last recorded run-qa execution — no hardcoded numbers.
+              {qa?.recordedAt ? ` Recorded ${qa.recordedAt}.` : ''}
+            </CardDescription>
           </CardHeader>
           <CardContent className="space-y-3">
             {project === null ? (
               <p className="text-sm text-rose-300">{data?.projectError ?? 'Project data unavailable.'}</p>
             ) : (
               <>
+                {project.toolchain && !project.toolchain.complete && (
+                  <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200" role="status">
+                    <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+                    <p>
+                      Gradle/SDK toolchain not installed right now (sandbox reset wiped the ephemeral paths) — Gradle-backed
+                      suites and XML generation are paused until re-bootstrap. Everything below cites the recorded run
+                      {qa?.recordedAt ? ` ${qa.recordedAt}` : ''}, not fresh executions.
+                    </p>
+                  </div>
+                )}
                 <div className="grid grid-cols-2 gap-3">
                   <div className="rounded-md border border-border bg-background/40 p-3">
-                    <p className="text-xs text-muted-foreground">Debug APK</p>
+                    <p className="text-xs text-muted-foreground">Debug APK (android/dist)</p>
                     <p className="mt-1 text-sm font-semibold">
                       {apk !== null && apk.available
                         ? `${formatBytes(apk.sizeBytes)} · ${new Date(apk.mtime).toLocaleString()}`
@@ -581,11 +606,47 @@ export function DashboardTab() {
                         ? `${tests.totals.passed}/${tests.totals.tests} passed`
                         : 'no XMLs found'}
                     </p>
+                    {tests !== null && !tests.available && (
+                      <p className="mt-1 text-[11px] leading-snug text-muted-foreground/80">
+                        XMLs are ephemeral Gradle outputs (android/app/build). Last recorded JVM run:
+                        {' '}{recordedAndroidUnitLine(qa?.suites ?? []) ?? 'none on record'}{qa?.recordedAt ? ` · ${qa.recordedAt}` : ''}.
+                      </p>
+                    )}
                   </div>
                 </div>
+                {apk !== null && apk.available && (
+                  <div className="flex items-start gap-2 rounded-md border border-border bg-background/40 p-3 text-xs">
+                    {apkDistMatch(apk.sha256, qa?.apk?.sha256) === 'match' ? (
+                      <>
+                        <BadgeCheck className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true" />
+                        <p className="text-muted-foreground">
+                          Git-tracked copy <span className="font-mono text-foreground/90">android/dist/{apk.name}</span> is byte-identical to the recorded build — sha256 <span className="break-all font-mono">{apk.sha256.slice(0, 16)}…</span> matches ✓
+                        </p>
+                      </>
+                    ) : (
+                      <>
+                        <TriangleAlert className="mt-0.5 h-3.5 w-3.5 shrink-0 text-amber-400" aria-hidden="true" />
+                        <p className="text-muted-foreground">
+                          Git-tracked copy <span className="font-mono">android/dist/{apk.name}</span> (sha256 <span className="break-all font-mono">{apk.sha256.slice(0, 16)}…</span>) does not match the recorded build sha — the recorded APK may have been rebuilt since.
+                        </p>
+                      </>
+                    )}
+                  </div>
+                )}
                 <div className="flex flex-wrap gap-2">
                   {(project.buildChecks ?? []).map((check) => (
-                    <Badge key={check.task} variant="outline" className="border-border bg-background/40 text-xs">
+                    <Badge
+                      key={check.task}
+                      variant="outline"
+                      title={check.detail}
+                      className={
+                        check.status === 'pass'
+                          ? 'border-border bg-background/40 text-xs text-foreground/90'
+                          : check.status === 'fail'
+                            ? 'border-rose-500/40 bg-rose-500/10 text-xs text-rose-300'
+                            : 'border-amber-500/40 bg-amber-500/10 text-xs text-amber-300'
+                      }
+                    >
                       {check.task}: {check.status}
                     </Badge>
                   ))}
@@ -595,6 +656,7 @@ export function DashboardTab() {
                     <p className="mb-1 flex items-center gap-1.5 font-medium text-foreground/80">
                       <FileJson className="h-3.5 w-3.5" aria-hidden="true" />
                       Last recorded run APK
+                      <span className="font-normal text-muted-foreground/70">(recorded build path — ephemeral build output)</span>
                     </p>
                     <p className="break-all font-mono">{qa.apk.path}</p>
                     <p>

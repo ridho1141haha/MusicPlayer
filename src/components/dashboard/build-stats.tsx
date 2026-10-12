@@ -1,6 +1,6 @@
 'use client';
 
-import { CheckCircle2, FlaskConical, PackageOpen, Rocket, ShieldCheck, type LucideIcon } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, CircleDashed, FlaskConical, PackageOpen, Rocket, ShieldCheck, XCircle, type LucideIcon } from 'lucide-react';
 
 import { formatBytes, formatDate, type BuildCheck, type TestResults, type ApkEntry } from '@/lib/ridho';
 
@@ -9,6 +9,10 @@ interface BuildStatsProps {
   release: ApkEntry;
   tests: TestResults;
   buildChecks: BuildCheck[];
+  /** recordedAt of the last recorded run-qa execution (shown on evidence-backed stats). */
+  qaRecordedAt?: string | null;
+  /** Whether the Gradle/SDK toolchain is installed right now. */
+  toolchainComplete?: boolean;
 }
 
 interface Stat {
@@ -18,7 +22,41 @@ interface Stat {
   sub: string;
 }
 
-export function BuildStats({ debug, release, tests, buildChecks }: BuildStatsProps) {
+/** Evidence-based badge styling — green only for recorded PASS, never by default. */
+function checkVisual(status: BuildCheck['status']): { icon: LucideIcon; iconColor: string; label: string } {
+  switch (status) {
+    case 'pass':
+      return { icon: CheckCircle2, iconColor: 'text-[#7fd8ce]', label: 'pass (recorded)' };
+    case 'fail':
+      return { icon: XCircle, iconColor: 'text-rose-400', label: 'FAIL (recorded)' };
+    case 'unverified':
+      return { icon: AlertTriangle, iconColor: 'text-amber-400', label: 'unverified' };
+    case 'toolchain-unavailable':
+      return { icon: CircleDashed, iconColor: 'text-amber-400', label: 'toolchain down — citing recorded evidence' };
+  }
+}
+
+export function BuildStats({ debug, release, tests, buildChecks, qaRecordedAt, toolchainComplete = true }: BuildStatsProps) {
+  const lintCheck = buildChecks.find((c) => c.task === ':app:lintDebug') ?? null;
+  const lintStat: Stat = {
+    icon: ShieldCheck,
+    label: 'Lint gate',
+    value:
+      lintCheck === null
+        ? '—'
+        : lintCheck.status === 'pass'
+          ? '0 errors (recorded)'
+          : lintCheck.status === 'fail'
+            ? 'FAILED'
+            : lintCheck.status === 'toolchain-unavailable'
+              ? 'toolchain down'
+              : 'unverified',
+    sub:
+      lintCheck === null
+        ? 'No lint evidence recorded.'
+        : `${lintCheck.detail} · UnstableApiUsage disabled deliberately`,
+  };
+
   const stats: Stat[] = [
     {
       icon: PackageOpen,
@@ -44,16 +82,21 @@ export function BuildStats({ debug, release, tests, buildChecks }: BuildStatsPro
         ? `${tests.suites.length} suites · ${tests.totals.failures} failures · ${tests.totals.errors} errors`
         : (tests.message ?? 'results not found'),
     },
-    {
-      icon: ShieldCheck,
-      label: 'Lint gate',
-      value: '0 errors',
-      sub: 'abortOnError = true · UnstableApiUsage disabled deliberately',
-    },
+    lintStat,
   ];
 
   return (
     <div>
+      {!toolchainComplete && (
+        <div className="mb-4 flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200" role="status">
+          <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" aria-hidden="true" />
+          <p>
+            The Android toolchain (Gradle + SDK) is not installed right now — ephemeral sandbox paths were wiped.
+            Gradle-backed suites cannot re-run until re-bootstrap; the statuses below cite the <strong>last recorded run</strong>
+            {qaRecordedAt ? ` (${qaRecordedAt})` : ''}, not fresh executions.
+          </p>
+        </div>
+      )}
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
         {stats.map((stat) => (
           <div
@@ -78,16 +121,21 @@ export function BuildStats({ debug, release, tests, buildChecks }: BuildStatsPro
       </div>
 
       <ul className="mt-4 flex flex-wrap gap-2" aria-label="Gradle build checks">
-        {buildChecks.map((check) => (
-          <li
-            key={check.task}
-            className="flex min-h-11 flex-wrap items-center gap-x-2 gap-y-0.5 rounded-full border border-primary/20 bg-primary/5 px-4 py-1.5 text-xs"
-          >
-            <CheckCircle2 className="h-3.5 w-3.5 shrink-0 text-[#7fd8ce]" aria-hidden="true" />
-            <span className="font-mono text-foreground/90">{check.task}</span>
-            <span className="text-muted-foreground">{check.detail}</span>
-          </li>
-        ))}
+        {buildChecks.map((check) => {
+          const visual = checkVisual(check.status);
+          return (
+            <li
+              key={check.task}
+              title={check.detail}
+              className="flex min-h-11 max-w-full flex-wrap items-center gap-x-2 gap-y-0.5 rounded-full border border-border bg-background/40 px-4 py-1.5 text-xs"
+            >
+              <visual.icon className={`h-3.5 w-3.5 shrink-0 ${visual.iconColor}`} aria-hidden="true" />
+              <span className="font-mono text-foreground/90">{check.task}</span>
+              <span className="sr-only">— {visual.label}</span>
+              <span className="text-muted-foreground">{check.detail}</span>
+            </li>
+          );
+        })}
       </ul>
     </div>
   );

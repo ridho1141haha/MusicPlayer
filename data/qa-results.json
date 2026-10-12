@@ -1,5 +1,5 @@
 {
-  "recordedAt": "2026-10-11 19:32:49Z",
+  "recordedAt": "2026-10-12 07:20:15Z",
   "suites": [
     {
       "name": "web lint (eslint)",
@@ -8,19 +8,20 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 7641,
+      "durationMs": 9147,
       "exitCode": 0,
       "detail": "eslint . completed with no findings."
     },
     {
       "name": "web unit tests (vitest)",
       "status": "pass",
-      "passed": 141,
+      "passed": 158,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 75,
-      "detail": "141 assertions passed across 12 file(s) on shared fixtures.",
-      "command": "bunx vitest run"
+      "durationMs": 89,
+      "detail": "158 assertions passed across 14 file(s) on shared fixtures.",
+      "command": "bunx vitest run",
+      "exitCode": 0
     },
     {
       "name": "android unit tests (testDebugUnitTest --rerun)",
@@ -28,9 +29,10 @@
       "passed": 32,
       "failed": 0,
       "skipped": 0,
-      "durationMs": 478,
-      "detail": "com.ridho.music.domain.model.TrackTest: 4 tests, 0 failures, 0 errors, 0 skipped, 0.015s\ncom.ridho.music.lyrics.LrcParserTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.005s\ncom.ridho.music.source.yt.GoldenExpectationsTest: 3 tests, 0 failures, 0 errors, 0 skipped, 0.083s\ncom.ridho.music.source.yt.YouTubeMusicSourceTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.326s\ncom.ridho.music.source.yt.YtMusicSearchParserTest: 11 tests, 0 failures, 0 errors, 0 skipped, 0.049s\n\nTOTAL: 32 tests, 0 failures, 0 errors, 0 skipped.",
-      "command": "gradle :app:testDebugUnitTest --rerun"
+      "durationMs": 426,
+      "detail": "com.ridho.music.domain.model.TrackTest: 4 tests, 0 failures, 0 errors, 0 skipped, 0.04s\ncom.ridho.music.lyrics.LrcParserTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.01s\ncom.ridho.music.source.yt.GoldenExpectationsTest: 3 tests, 0 failures, 0 errors, 0 skipped, 0.051s\ncom.ridho.music.source.yt.YouTubeMusicSourceTest: 7 tests, 0 failures, 0 errors, 0 skipped, 0.273s\ncom.ridho.music.source.yt.YtMusicSearchParserTest: 11 tests, 0 failures, 0 errors, 0 skipped, 0.052s\n\nTOTAL: 32 tests, 0 failures, 0 errors, 0 skipped.",
+      "command": "gradle :app:testDebugUnitTest --rerun",
+      "exitCode": 0
     },
     {
       "name": "android lint (lintDebug)",
@@ -39,7 +41,7 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 13623,
+      "durationMs": 13063,
       "exitCode": 0,
       "detail": "lintDebug passed with abortOnError=true (0 lint errors)."
     },
@@ -50,7 +52,7 @@
       "passed": null,
       "failed": null,
       "skipped": null,
-      "durationMs": 14144,
+      "durationMs": 12709,
       "exitCode": 0,
       "detail": "assembleDebug BUILD SUCCESSFUL (may be UP-TO-DATE if inputs unchanged)."
     },
@@ -72,7 +74,7 @@
       "passed": 8,
       "failed": 0,
       "skipped": null,
-      "durationMs": 50,
+      "durationMs": 30,
       "exitCode": 0,
       "detail": "ok    search_live_2026-10-12_lathi.json — 5 sections · 15 tracks [Top result, Songs, Albums, Artists, Videos]\nok    search_live_2026-10-11_lathi.json — 4 sections · 8 tracks [Top result, Songs, Albums, Artists]\nok    search_live_2026-10-11_test.json — 3 sections · 5 tracks [Top result, Songs, Albums]\nok    search_live_2026-10-11_gibberish.json — 1 sections · 1 tracks [Videos]\nok    search_legacy_shelf.json — 2 sections · 2 tracks [Songs, Albums]\nok    search_synth_edge_cases.json — 1 sections · 1 tracks [Songs]\nok    search_synth_empty_blocks.json — 0 sections · 0 tracks\nok    search_synth_unknown_structure.json — 0 sections · 0 tracks\n\n8/8 golden expectations hold."
     }
@@ -80,12 +82,33 @@
   "apk": {
     "exists": true,
     "path": "android/app/build/outputs/apk/debug/app-debug.apk",
-    "sizeBytes": 11542468,
-    "sha256": "939c938a0657f99487caebb23ded1e3da41bb4064b54650d4e6549c43f2e845b",
+    "sizeBytes": 10257426,
+    "sha256": "807ed256ebfa61a26071f8ef8b9e9c6fd2835e2d38d5c2ed99d65737b2531f4c",
     "versionName": "1.2.0",
     "versionCode": 3
   },
   "history": [
+    {
+      "recordedAt": "2026-10-12 07:16:57Z",
+      "passed": 198,
+      "failed": 0,
+      "skipped": 0,
+      "allPassed": true
+    },
+    {
+      "recordedAt": "2026-10-12 07:11:24Z",
+      "passed": 166,
+      "failed": 0,
+      "skipped": 0,
+      "allPassed": false
+    },
+    {
+      "recordedAt": "2026-10-11 19:32:49Z",
+      "passed": 181,
+      "failed": 0,
+      "skipped": 0,
+      "allPassed": true
+    },
     {
       "recordedAt": "2026-10-11 19:21:34Z",
       "passed": 168,
@@ -204,20 +227,6 @@
       "failed": 0,
       "skipped": 0,
       "allPassed": true
-    },
-    {
-      "recordedAt": "2026-10-11 17:04:38Z",
-      "passed": 56,
-      "failed": 0,
-      "skipped": 0,
-      "allPassed": true
-    },
-    {
-      "recordedAt": "2026-10-11 16:52:37Z",
-      "passed": 56,
-      "failed": 0,
-      "skipped": 0,
-      "allPassed": true
     }
   ],
   "liveProbe": {
@@ -226,20 +235,22 @@
     "holds": 0,
     "drift": 4,
     "errors": 0,
-    "durationMs": 1414,
-    "recordedAt": "2026-10-11T19:32:49.680Z",
+    "durationMs": 2221,
+    "recordedAt": "2026-10-12T07:20:15.197Z",
     "command": "bun scripts/live-probe.ts",
-    "detail": "LIVE drift observed on 4 of 4 probed fixture(s) — investigation signal, NOT a pipeline failure. The stored-fixture golden suite stays authoritative.\n\nDRIFT  search_live_2026-10-12_lathi.json — 5 sections · 14 tracks [Top result, Songs, Albums, Artists, Videos] (HTTP 200 · 412 ms)\n        trackCount: expected 15, got 14\nDRIFT  search_live_2026-10-11_lathi.json — 5 sections · 15 tracks [Top result, Songs, Albums, Artists, Videos] (HTTP 200 · 340 ms)\n        sectionCount: expected 4, got 5\n        trackCount: expected 8, got 15\n        sectionTitles: expected [Top result | Songs | Albums | Artists], got [Top result | Songs | Albums | Artists | Videos]\nDRIFT  search_live_2026-10-11_test.json — 5 sections · 17 tracks [Top result, Albums, Songs, Artists, Videos] (HTTP 200 · 335 ms)\n        sectionCount: expected 3, got 5\n        trackCount: expected 5, got 17\n        sectionTitles: expected [Top result | Songs | Albums], got [Top result | Albums | Songs | Artists | Videos]\nDRIFT  search_live_2026-10-11_gibberish.json — 6 sections · 19 tracks [Top result, Albums, Songs, Videos, Results, Artists] (HTTP 200 · 309 ms)\n        sectionCount: expected 1, got 6\n        trackCount: expected 1, got 19\n        sectionTitles: expected [Videos], got [Top result | Albums | Songs | Videos | Results | Artists]\n        mustIncludeIds: missing \"ytm:ly8H6zLFcMM\"",
+    "detail": "LIVE drift observed on 4 of 4 probed fixture(s) — investigation signal, NOT a pipeline failure. The stored-fixture golden suite stays authoritative.\n\nDRIFT  search_live_2026-10-12_lathi.json — 5 sections · 14 tracks [Top result, Songs, Artists, Videos, Albums] (HTTP 200 · 459 ms)\n        trackCount: expected 15, got 14\n        sectionTitles: expected [Top result | Songs | Albums | Artists | Videos], got [Top result | Songs | Artists | Videos | Albums]\n        mustIncludeIds: missing \"ytm-album:MPREb_CVL4u2p5bWY\"\nDRIFT  search_live_2026-10-11_lathi.json — 5 sections · 14 tracks [Top result, Songs, Albums, Artists, Videos] (HTTP 200 · 414 ms)\n        sectionCount: expected 4, got 5\n        trackCount: expected 8, got 14\n        sectionTitles: expected [Top result | Songs | Albums | Artists], got [Top result | Songs | Albums | Artists | Videos]\nDRIFT  search_live_2026-10-11_test.json — 5 sections · 19 tracks [Top result, Albums, Songs, Artists, Videos] (HTTP 200 · 617 ms)\n        sectionCount: expected 3, got 5\n        trackCount: expected 5, got 19\n        sectionTitles: expected [Top result | Songs | Albums], got [Top result | Albums | Songs | Artists | Videos]\nDRIFT  search_live_2026-10-11_gibberish.json — 6 sections · 19 tracks [Top result, Albums, Songs, Videos, Results, Artists] (HTTP 200 · 714 ms)\n        sectionCount: expected 1, got 6\n        trackCount: expected 1, got 19\n        sectionTitles: expected [Videos], got [Top result | Albums | Songs | Videos | Results | Artists]\n        mustIncludeIds: missing \"ytm:ly8H6zLFcMM\"",
     "entries": [
       {
         "fixture": "search_live_2026-10-12_lathi.json",
         "query": "Lathi",
         "verdict": "drift",
-        "shape": "5 sections · 14 tracks [Top result, Songs, Albums, Artists, Videos]",
+        "shape": "5 sections · 14 tracks [Top result, Songs, Artists, Videos, Albums]",
         "httpStatus": 200,
-        "durationMs": 412,
+        "durationMs": 459,
         "failures": [
-          "trackCount: expected 15, got 14"
+          "trackCount: expected 15, got 14",
+          "sectionTitles: expected [Top result | Songs | Albums | Artists | Videos], got [Top result | Songs | Artists | Videos | Albums]",
+          "mustIncludeIds: missing \"ytm-album:MPREb_CVL4u2p5bWY\""
         ],
         "message": null
       },
@@ -247,12 +258,12 @@
         "fixture": "search_live_2026-10-11_lathi.json",
         "query": "Lathi",
         "verdict": "drift",
-        "shape": "5 sections · 15 tracks [Top result, Songs, Albums, Artists, Videos]",
+        "shape": "5 sections · 14 tracks [Top result, Songs, Albums, Artists, Videos]",
         "httpStatus": 200,
-        "durationMs": 340,
+        "durationMs": 414,
         "failures": [
           "sectionCount: expected 4, got 5",
-          "trackCount: expected 8, got 15",
+          "trackCount: expected 8, got 14",
           "sectionTitles: expected [Top result | Songs | Albums | Artists], got [Top result | Songs | Albums | Artists | Videos]"
         ],
         "message": null
@@ -261,12 +272,12 @@
         "fixture": "search_live_2026-10-11_test.json",
         "query": "test",
         "verdict": "drift",
-        "shape": "5 sections · 17 tracks [Top result, Albums, Songs, Artists, Videos]",
+        "shape": "5 sections · 19 tracks [Top result, Albums, Songs, Artists, Videos]",
         "httpStatus": 200,
-        "durationMs": 335,
+        "durationMs": 617,
         "failures": [
           "sectionCount: expected 3, got 5",
-          "trackCount: expected 5, got 17",
+          "trackCount: expected 5, got 19",
           "sectionTitles: expected [Top result | Songs | Albums], got [Top result | Albums | Songs | Artists | Videos]"
         ],
         "message": null
@@ -277,7 +288,7 @@
         "verdict": "drift",
         "shape": "6 sections · 19 tracks [Top result, Albums, Songs, Videos, Results, Artists]",
         "httpStatus": 200,
-        "durationMs": 309,
+        "durationMs": 714,
         "failures": [
           "sectionCount: expected 1, got 6",
           "trackCount: expected 1, got 19",
