@@ -19,7 +19,7 @@ import type {
 
 export const dynamic = 'force-dynamic';
 
-const PROJECT_ROOT = '/home/z/my-project';
+const PROJECT_ROOT = process.cwd();
 const ANDROID_DIR = path.join(PROJECT_ROOT, 'android');
 const DIST_DIR = path.join(ANDROID_DIR, 'dist');
 const TEST_RESULTS_DIR = path.join(
@@ -31,10 +31,10 @@ const TEST_RESULTS_DIR = path.join(
 );
 
 /** Ephemeral toolchain locations — wiped by sandbox resets, re-bootstrappable via scripts/setup-android-sdk.sh. */
-const GRADLE_BIN = '/home/z/gradle-8.9/bin/gradle';
-const ANDROID_SDK_DIR = '/home/z/android-sdk';
+const GRADLE_BIN = process.env.HOME + '/gradle-8.9/bin/gradle';
+const ANDROID_SDK_DIR = process.env.HOME + '/android-sdk';
 /** Prefer the full Temurin JDK (has jlink); fall back to the system JRE-only java-21. */
-const JDK_BIN = existsSync('/home/z/jdk-21/bin/java') ? '/home/z/jdk-21/bin/java' : '/usr/lib/jvm/java-21-openjdk-amd64/bin/java';
+const JDK_BIN = existsSync(process.env.HOME + '/jdk-21/bin/java') ? process.env.HOME + '/jdk-21/bin/java' : '/usr/lib/jvm/java-21-openjdk-amd64/bin/java';
 const QA_RESULTS_PATH = path.join(PROJECT_ROOT, 'data', 'qa-results.json');
 
 /** Directory names skipped when walking the Android project. */

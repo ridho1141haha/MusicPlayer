@@ -6,7 +6,7 @@ import { VIEWABLE_EXTENSIONS, type FilePayload } from '@/lib/ridho';
 
 export const dynamic = 'force-dynamic';
 
-const PROJECT_ROOT = '/home/z/my-project';
+const PROJECT_ROOT = process.cwd();
 
 /** Serve at most the first 100 KB of any file. */
 const MAX_BYTES = 100 * 1024;
