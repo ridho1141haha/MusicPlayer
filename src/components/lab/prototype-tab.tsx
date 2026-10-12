@@ -525,8 +525,15 @@ export function PrototypeTab() {
   );
   const totalMs = effectiveDuration(currentTrack ?? undefined);
 
+  // ⚡ Bolt: Debounce the search query to prevent filtering the catalog on every keystroke
+  const [debouncedQuery, setDebouncedQuery] = useState(query);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedQuery(query), 300);
+    return () => clearTimeout(timer);
+  }, [query]);
+
   const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase();
+    const q = debouncedQuery.trim().toLowerCase();
     if (q.length === 0) return catalog;
     return catalog.filter(
       (t) =>
@@ -534,7 +541,7 @@ export function PrototypeTab() {
         t.artist.toLowerCase().includes(q) ||
         (t.album !== null && t.album.toLowerCase().includes(q)),
     );
-  }, [catalog, query]);
+  }, [catalog, debouncedQuery]);
 
   const favoriteTracks = useMemo(() => catalog.filter((t) => favorites.includes(t.id)), [catalog, favorites]);
 
