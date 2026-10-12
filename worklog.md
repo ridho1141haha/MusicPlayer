@@ -521,3 +521,5 @@ Stage Summary:
 - Feature audit verdicts (this workspace): search history MISSING (Android) / EXISTS (web); Recently Played EXISTS (Android, now correctly only-on-real-playback) / PARTIAL (web); library refresh EXISTS (SAF manual rescan) / EXISTS-as-reprobe (web); UI improvements EXIST on both sides. Nothing fabricated, nothing omitted.
 - All suites green at recording time; YTM live probe drift is external volatility (non-gating, classified).
 - Risks/next: device validation remains the #1 gap (manual checklist ready — install APK, Settings shows Jamendo connected, search "acoustic love", play/pause/resume/seek, airplane-mode failed-stream path, then local playback + history/rescan regression); WEBLAB-21 remaining phases (search-history persistence limits, MediaStore rescan, UI redesign) still future work; consider surfacing Jamendo 0-result blips with a retry affordance.
+
+Post-commit note (WEBLAB-22B): the build's source state was committed as 8a88068 ("WEBLAB-22B: v1.2.3 (versionCode 6) …", parent dea14f3, local only — no push). data/build-info-v1.2.3.json references this commit.
