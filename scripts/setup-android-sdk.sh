@@ -36,6 +36,9 @@ if [ ! -x "$SDK/cmdline-tools/latest/bin/sdkmanager" ]; then
   curl -sSL -o /tmp/clt.zip "https://dl.google.com/android/repository/commandlinetools-linux-11076708_latest.zip"
   python3 -m zipfile -e /tmp/clt.zip "$SDK/cmdline-tools/"
   mv "$SDK/cmdline-tools/cmdline-tools" "$SDK/cmdline-tools/latest"
+  # python3 -m zipfile does not preserve the executable bit — sdkmanager fails
+  # with "Permission denied" without this (observed in the 2026-10-12 reset).
+  chmod +x "$SDK/cmdline-tools/latest/bin/"*
   rm -f /tmp/clt.zip
 fi
 export ANDROID_HOME="$SDK"

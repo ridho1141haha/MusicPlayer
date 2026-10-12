@@ -136,6 +136,55 @@ Option B: implement signature deciphering yourself and keep MIT — expect ongoi
 maintenance churn. Either way, the integration point is a single class
 (`YouTubeMusicSource`) implementing `MusicSource`; nothing else in the app changes.
 
+## 4b. Jamendo integration — status: OPERATIONAL (official API, WEBLAB-22A)
+
+Jamendo is a catalog of ~500k independent tracks released under Creative Commons
+licenses, accessed through a **documented, official** API — no unofficial mechanics
+involved. Verified against the live API and developer.jamendo.com/v3.0/docs on
+2026-10-12.
+
+**What is implemented** (isolated behind `MusicSource` in `source/jamendo/`):
+
+1. `JamendoClient` — HTTPS-only OkHttp client for `GET api.jamendo.com/v3.0/tracks/`
+   with the documented parameters (`search`, `limit` ≤ 200, `audioformat=mp32`,
+   `imagesize=300`, `include=licenses`, `type=single albumtrack`). Note: Jamendo
+   answers **HTTP 200 even for API errors** — the envelope (`headers.status/code`)
+   is the source of truth; code 5 (invalid credential) maps to
+   `CONFIGURATION_REQUIRED`.
+2. `JamendoSearchParser` — defensive parser producing `Track`s with real
+   title/artist/album/duration/artwork, the official `audio` stream URL, and CC
+   attribution metadata (`licenseName`/`licenseUrl` from `license_ccurl`). Documented
+   quirks handled: singles have empty album fields; only `https://` URLs are
+   accepted; entries without ids are skipped.
+3. `JamendoSource` — implements the existing `MusicSource` contract, so search UI
+   and the Media3 playback engine need zero provider-specific code. Stream URLs
+   from search responses are canonical and stable (verified: HEAD 200,
+   `audio/mpeg`, range requests supported). `resolveStreamUri()` prefers a fresh
+   lookup by track id and falls back to the cached URL — Jamendo's id-lookup is
+   eventually consistent (observed live: the same query flips 0↔1 results within
+   seconds), while search-time URLs do not expire.
+
+**Client ID configuration (no secrets anywhere):**
+
+- Reads go through Jamendo's documented **app authentication**: the `client_id`
+  query parameter only. There is **no client secret and no OAuth** — read endpoints
+  don't need them, and none may ever be embedded in the APK.
+- The id is resolved **at request time**, in priority order:
+  1. **Runtime**: Settings → Music sources → "Jamendo client ID" (stored in the
+     app-private SharedPreferences; takes effect immediately, no restart).
+  2. **Build-time default**: `android/local.properties` (gitignored) key
+     `jamendoClientId`, injected into `BuildConfig.JAMENDO_CLIENT_ID` by
+     `app/build.gradle`. Never commit this file.
+- With neither present, every Jamendo call fails typed
+  `CONFIGURATION_REQUIRED` with an actionable message; search shows it, Settings
+  diagnostics show "Not configured". Get a free id at developer.jamendo.com.
+- The id is never logged (`JamendoClient#sanitize` strips it from every message;
+  test fixtures carry it masked).
+
+**Attribution:** every Jamendo track carries its CC license; the track menu shows
+"License (Creative Commons) · CC …" and the license dialog links the CC deed.
+Ridho Music streams progressively and **never downloads** audio files.
+
 ## 5. Privacy
 
 - No ads, analytics, crash-reporting or tracking SDKs.
@@ -143,6 +192,9 @@ maintenance churn. Either way, the integration point is a single class
 - Local files are scanned on-device (SAF); nothing is uploaded.
 - YouTube Music requests (optional, off-able) go directly to `music.youtube.com` over
   HTTPS; no third party sees them; no tokens are stored.
+- Jamendo requests (optional, off-able) go directly to `api.jamendo.com` over HTTPS
+  using only the app's `client_id` (public application identifier, never logged); no
+  account, no OAuth, no secret. Search/stream traffic bypasses any intermediary.
 - Stored data: favorites/playlists/history/queue (app-private Room DB), artwork cache
   in `filesDir/artwork`, preferences. Uninstall removes everything.
 - Logs intentionally avoid URLs and user data (`Track#toString` excludes URLs; error
@@ -194,6 +246,9 @@ Manual acceptance checklist for a device is in `CHANGELOG.md`.
 |---|---|
 | "The selected folder is no longer readable" | Re-pick the folder in Home (Android can revoke SAF grants after provider updates). |
 | YT Music track fails to play | Expected behavior for gated streams — see §4. Local files are unaffected. Toggle the source off in Settings if you don't want it. |
+| Jamendo search says "Jamendo is not configured" | Add your free client ID in Settings → Music sources → Jamendo client ID (developer.jamendo.com). |
+| Jamendo search says the client ID was rejected | The id may be revoked or mistyped — re-enter it in Settings. "Clear" removes the runtime override. |
+| A Jamendo track fails to stream | Rare: check connectivity; the id-lookup can lag — retry usually fixes it. Local files are unaffected. |
 | No sound on Bluetooth | Check system media volume; playback honors audio focus pauses. |
 | Notification controls missing | Grant the notification permission (requested on first playback, Android 13+). |
 | Scan finds no files | Ensure the folder contains `mp3/m4a/flac/wav/ogg/opus/aac`; re-scan from Library → Local files. |

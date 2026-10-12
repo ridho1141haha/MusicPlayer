@@ -1,0 +1,62 @@
+{
+  "taskId": "WEBLAB-22A",
+  "recordedAt": "2026-10-12T22:22:00Z",
+  "client_id_handling": "real credential dd•••86 stored ONLY in gitignored data/secrets/jamendo.client-id (chmod 600) and android/local.properties (gitignored, chmod 600); masked as CLIENT_ID_MASKED / dd\u2022\u2022\u202286 everywhere else",
+  "docs_verification": {
+    "source": "developer.jamendo.com/v3.0/docs + /v3.0/tracks (fetched live 2026-10-12)",
+    "baseUrl": "https://api.jamendo.com/v3.0/<entity>/<subentity>/?<params>",
+    "auth": "client_id query param only (app authentication; no OAuth, no client secret for reads)",
+    "responseEnvelope": "headers{status,code,error_message,warnings,results_count} + results[]",
+    "criticalQuirk": "API errors return HTTP 200 with headers.status=failed (code 5 = invalid client id) \u2014 envelope, not HTTP code, is authoritative",
+    "streamField": "results[].audio (audioformat mp32 = VBR good quality; default mp31 is 96kbps)",
+    "documentedQuirks": [
+      "singles have empty album fields",
+      "type param defaults to albumtracks only",
+      "limit max 200",
+      "audiodownload_allowed governs downloads (we never download)"
+    ]
+  },
+  "real_api_search": {
+    "status": "PASS",
+    "evidence": "HTTP 200, headers.status=success, code=0, results_count=5 for 'acoustic love' (limit 5, audioformat=mp32, include=licenses, type=single albumtrack)",
+    "fieldsVerified": [
+      "id",
+      "name",
+      "artist_name",
+      "album_name",
+      "duration(s)",
+      "image",
+      "audio",
+      "license_ccurl",
+      "audiodownload_allowed"
+    ],
+    "sample": "Acoustic Love \u2014 lesfm \u00b7 188s \u00b7 CC BY-NC-ND 3.0",
+    "emptyQueryBehavior": "gibberish query returns status=success with 0 results (honest NO_RESULTS)",
+    "invalidClientIdBehavior": "HTTP 200, status=failed, code=5, 'Your credential is not authorized'",
+    "fixture": "android/app/src/test/resources/jamendo/search_real_2026-10-12_acoustic-love.json (sanitized)"
+  },
+  "stream_resolution": {
+    "status": "PASS",
+    "evidence": [
+      "search-time audio URL HEAD \u2192 200, content-type audio/mpeg, content-length 3565369",
+      "GET Range bytes=0-1023 \u2192 206 Partial Content, ID3 magic bytes (0x49444333) confirmed real MP3",
+      "accept-ranges: bytes \u2192 ExoPlayer progressive playback + seeking supported",
+      "re-resolution by track id (tracksById) verified live; id-lookup is eventually consistent (same query flipped 0\u21941 results within seconds) \u2192 app falls back to the canonical cached URL"
+    ]
+  },
+  "playback_through_media3": {
+    "status": "NOT RUN (device)",
+    "detail": "No hardware/emulator in sandbox (red line: no fabricated playback proof). Chain verified as far as JVM allows: MusicSource contract + MediaItemConverter setUri path unchanged; stream URL confirmed playable audio (HTTP 206 + ID3). On-device playback on the Galaxy A05s remains NOT RUN."
+  },
+  "regression": {
+    "pipeline": "run-qa.sh @ 2026-10-12 22:21:08Z \u2014 ALL RECORDED SUITES GREEN: web lint PASS, vitest 158/158, android unit 50/50 (was 32; +18 Jamendo), lintDebug 0 errors, assembleDebug OK (APK 10,287,025 B, sha256 0f1656fc\u2026, v1.2.0(3)), fixture sync OK, golden 8/8",
+    "existingFeatures": "local playback / search / listening history / favorites / playlists / queue restore code paths UNCHANGED (verified by full suite); device verification NOT RUN (no hardware)"
+  },
+  "tests": {
+    "android_total": 50,
+    "android_new": 18,
+    "web": 158,
+    "golden": 8,
+    "failures": 0
+  }
+}

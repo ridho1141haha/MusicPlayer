@@ -18,6 +18,7 @@ import com.ridho.music.domain.model.SearchSection;
 import com.ridho.music.domain.source.SourceException;
 import com.ridho.music.settings.SettingsRepository;
 import com.ridho.music.source.LocalMusicSource;
+import com.ridho.music.source.jamendo.JamendoSource;
 import com.ridho.music.source.yt.InnertubeClient;
 import com.ridho.music.source.yt.YouTubeMusicSource;
 
@@ -36,9 +37,12 @@ public class SettingsActivity extends AppCompatActivity {
 
     private SettingsRepository settings;
     private SwitchMaterial ytmSwitch;
+    private SwitchMaterial jamendoSwitch;
     private SwitchMaterial skipSilenceSwitch;
     private SwitchMaterial restoreQueueSwitch;
     private TextView diagYtmStatus;
+    private TextView diagJamendoStatus;
+    private TextView jamendoClientIdStatus;
     private TextView diagLocalStatus;
 
     @Override
@@ -51,9 +55,12 @@ public class SettingsActivity extends AppCompatActivity {
         back.setOnClickListener(v -> finish());
 
         ytmSwitch = findViewById(R.id.switch_ytm);
+        jamendoSwitch = findViewById(R.id.switch_jamendo);
         skipSilenceSwitch = findViewById(R.id.switch_skip_silence);
         restoreQueueSwitch = findViewById(R.id.switch_restore_queue);
         diagYtmStatus = findViewById(R.id.diag_ytm_status);
+        diagJamendoStatus = findViewById(R.id.diag_jamendo_status);
+        jamendoClientIdStatus = findViewById(R.id.jamendo_client_id_status);
         diagLocalStatus = findViewById(R.id.diag_local_status);
         TextView versionText = findViewById(R.id.settings_version);
         View licensesRow = findViewById(R.id.row_licenses);
@@ -67,6 +74,16 @@ public class SettingsActivity extends AppCompatActivity {
             settings.setYoutubeMusicEnabled(isChecked);
             runDiagnostics();
         });
+
+        jamendoSwitch.setChecked(settings.jamendoEnabled());
+        jamendoSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            settings.setJamendoEnabled(isChecked);
+            runDiagnostics();
+        });
+
+        View jamendoClientIdRow = findViewById(R.id.row_jamendo_client_id);
+        jamendoClientIdRow.setOnClickListener(v -> showJamendoClientIdDialog());
+        refreshJamendoClientIdStatus();
 
         skipSilenceSwitch.setChecked(settings.skipSilence());
         skipSilenceSwitch.setOnCheckedChangeListener((buttonView, isChecked) ->
@@ -86,6 +103,7 @@ public class SettingsActivity extends AppCompatActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        refreshJamendoClientIdStatus();
         runDiagnostics();
     }
 
@@ -97,8 +115,56 @@ public class SettingsActivity extends AppCompatActivity {
 
     // ---------------------------------------------------------------- diagnostics
 
+    /** Updates the "Jamendo client ID" summary line without ever showing the full id. */
+    private void refreshJamendoClientIdStatus() {
+        String runtime = settings.jamendoClientId();
+        if (runtime != null) {
+            String masked = runtime.length() <= 4 ? "••••" : "••••" + runtime.substring(runtime.length() - 4);
+            jamendoClientIdStatus.setText(getString(R.string.settings_jamendo_client_id_configured, masked));
+        } else {
+            jamendoClientIdStatus.setText(R.string.settings_jamendo_client_id_missing);
+        }
+    }
+
+    /** Input dialog for the runtime Jamendo client id (stored on-device only). */
+    private void showJamendoClientIdDialog() {
+        final android.widget.EditText input = new android.widget.EditText(this);
+        input.setHint(R.string.settings_jamendo_client_id_hint);
+        input.setSingleLine(true);
+        input.setText(settings.jamendoClientId());
+
+        // setView(View,int,int,int,int) is @RestrictTo — wrap in a padded container instead.
+        float d = getResources().getDisplayMetrics().density;
+        android.widget.LinearLayout wrap = new android.widget.LinearLayout(this);
+        wrap.setOrientation(android.widget.LinearLayout.VERTICAL);
+        wrap.setPadding((int) (24 * d), (int) (8 * d), (int) (24 * d), 0);
+        wrap.addView(input, new android.widget.LinearLayout.LayoutParams(
+                android.view.ViewGroup.LayoutParams.MATCH_PARENT,
+                android.view.ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.settings_jamendo_client_id_title)
+                .setMessage(R.string.settings_jamendo_client_id_message)
+                .setView(wrap)
+                .setPositiveButton(R.string.settings_jamendo_client_id_save, (dialog, which) -> {
+                    settings.setJamendoClientId(input.getText().toString());
+                    refreshJamendoClientIdStatus();
+                    Toast.makeText(this, R.string.settings_jamendo_client_id_saved, Toast.LENGTH_SHORT).show();
+                    runDiagnostics();
+                })
+                .setNeutralButton(R.string.settings_jamendo_client_id_clear, (dialog, which) -> {
+                    settings.setJamendoClientId(null);
+                    refreshJamendoClientIdStatus();
+                    Toast.makeText(this, R.string.settings_jamendo_client_id_cleared, Toast.LENGTH_SHORT).show();
+                    runDiagnostics();
+                })
+                .setNegativeButton(android.R.string.cancel, null)
+                .show();
+    }
+
     private void runDiagnostics() {
         diagYtmStatus.setText(R.string.diag_checking);
+        diagJamendoStatus.setText(R.string.diag_checking);
 
         // Local folder status (already known synchronously from settings + count)
         LocalMusicSource local = App.locator().localSource();
@@ -110,6 +176,8 @@ public class SettingsActivity extends AppCompatActivity {
                 diagLocalStatus.setText(getString(R.string.diag_ok) + " · " + count + " tracks");
             });
         }
+
+        runJamendoDiagnostics();
 
         if (!settings.youtubeMusicEnabled()) {
             diagYtmStatus.setText(R.string.diag_none);
@@ -139,6 +207,39 @@ public class SettingsActivity extends AppCompatActivity {
             runOnUiThread(() -> {
                 if (isFinishing() || isDestroyed()) return;
                 diagYtmStatus.setText(statusText);
+            });
+        });
+    }
+
+    /** WEBLAB-22A: real-search probe of the official Jamendo API with the effective client id. */
+    private void runJamendoDiagnostics() {
+        if (!settings.jamendoEnabled()) {
+            diagJamendoStatus.setText(R.string.diag_none);
+            return;
+        }
+        JamendoSource source = App.locator().jamendoSource();
+        if (source.effectiveClientId() == null) {
+            diagJamendoStatus.setText(R.string.diag_jamendo_not_configured);
+            return;
+        }
+        io.execute(() -> {
+            String status;
+            try {
+                List<SearchSection> sections = source.search("test", 1);
+                int results = 0;
+                for (SearchSection section : sections) {
+                    results += section.tracks.size();
+                }
+                status = results > 0
+                        ? getString(R.string.diag_jamendo_ok_results, results)
+                        : getString(R.string.diag_ytm_no_data);
+            } catch (SourceException e) {
+                status = getString(R.string.diag_jamendo_failed, e.getMessage());
+            }
+            final String statusText = status;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                diagJamendoStatus.setText(statusText);
             });
         });
     }

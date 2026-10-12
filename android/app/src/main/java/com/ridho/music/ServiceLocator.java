@@ -7,6 +7,8 @@ import com.ridho.music.domain.source.MusicSource;
 import com.ridho.music.playback.PlaybackRepository;
 import com.ridho.music.settings.SettingsRepository;
 import com.ridho.music.source.LocalMusicSource;
+import com.ridho.music.source.jamendo.JamendoClient;
+import com.ridho.music.source.jamendo.JamendoSource;
 import com.ridho.music.source.yt.YouTubeMusicSource;
 
 import java.util.ArrayList;
@@ -26,6 +28,7 @@ public final class ServiceLocator {
     private volatile LibraryRepository library;
     private volatile LocalMusicSource localSource;
     private volatile YouTubeMusicSource ytSource;
+    private volatile JamendoSource jamendoSource;
     private volatile PlaybackRepository playback;
 
     public ServiceLocator(Context appContext) {
@@ -72,9 +75,30 @@ public final class ServiceLocator {
         return ytSource;
     }
 
+    /**
+     * WEBLAB-22A — Official Jamendo source. The client id resolves at REQUEST time
+     * (runtime setting → BuildConfig default), so changing it in Settings takes
+     * effect immediately without recreating this singleton.
+     */
+    public JamendoSource jamendoSource() {
+        if (jamendoSource == null) {
+            synchronized (this) {
+                if (jamendoSource == null) {
+                    JamendoSource.ClientIdProvider provider = () -> {
+                        String runtime = settings().jamendoClientId();
+                        if (runtime != null && !runtime.trim().isEmpty()) return runtime.trim();
+                        return BuildConfig.JAMENDO_CLIENT_ID == null ? null : BuildConfig.JAMENDO_CLIENT_ID.trim();
+                    };
+                    jamendoSource = new JamendoSource(new JamendoClient(provider));
+                }
+            }
+        }
+        return jamendoSource;
+    }
+
     /** All registered sources, including ones disabled for browsing (queue resolution still needs them). */
     public List<MusicSource> allSources() {
-        return new ArrayList<>(Arrays.asList(localSource(), ytSource()));
+        return new ArrayList<>(Arrays.asList(localSource(), ytSource(), jamendoSource()));
     }
 
     /** Sources the user may browse/search, honoring their settings. */
@@ -82,6 +106,7 @@ public final class ServiceLocator {
         List<MusicSource> out = new ArrayList<>();
         out.add(localSource());
         if (settings().youtubeMusicEnabled()) out.add(ytSource());
+        if (settings().jamendoEnabled()) out.add(jamendoSource());
         return out;
     }
 

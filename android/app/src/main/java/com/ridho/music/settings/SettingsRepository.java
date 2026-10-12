@@ -39,6 +39,42 @@ public class SettingsRepository {
         prefs.edit().putBoolean("ytm_enabled", enabled).apply();
     }
 
+    // ---------------------------------------------------------------- Jamendo (WEBLAB-22A)
+
+    /**
+     * Runtime Jamendo client id entered by the user in Settings, or null when unset.
+     * Takes precedence over the build-time {@code BuildConfig.JAMENDO_CLIENT_ID} default.
+     * A client id is an application identifier (not a secret) — it travels in every
+     * Jamendo API URL by design — but Ridho Music still treats it as config data:
+     * it is never written to logs.
+     */
+    @Nullable
+    public String jamendoClientId() {
+        String v = prefs.getString("jamendo_client_id", null);
+        if (v == null) return null;
+        v = v.trim();
+        return v.isEmpty() ? null : v;
+    }
+
+    public void setJamendoClientId(@Nullable String clientId) {
+        SharedPreferences.Editor e = prefs.edit();
+        if (clientId == null || clientId.trim().isEmpty()) {
+            e.remove("jamendo_client_id");
+        } else {
+            e.putString("jamendo_client_id", clientId.trim());
+        }
+        e.apply();
+    }
+
+    /** Whether the Jamendo source participates in search (default: on). */
+    public boolean jamendoEnabled() {
+        return prefs.getBoolean("jamendo_enabled", true);
+    }
+
+    public void setJamendoEnabled(boolean enabled) {
+        prefs.edit().putBoolean("jamendo_enabled", enabled).apply();
+    }
+
     public boolean skipSilence() {
         return prefs.getBoolean("skip_silence", false);
     }

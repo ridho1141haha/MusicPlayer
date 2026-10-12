@@ -40,6 +40,14 @@ public final class TrackMenuHelper {
         popup.getMenuInflater().inflate(R.menu.menu_track, popup.getMenu());
         popup.getMenu().findItem(R.id.action_remove_from_playlist).setVisible(allowRemoveFromPlaylist);
 
+        // WEBLAB-22A: CC attribution entry for tracks that carry license metadata.
+        android.view.MenuItem licenseItem = popup.getMenu().findItem(R.id.action_view_license);
+        if (track.licenseName != null) {
+            licenseItem.setVisible(true);
+            licenseItem.setTitle(activity.getString(R.string.menu_view_license)
+                    + " · " + track.licenseName);
+        }
+
         popup.setOnMenuItemClickListener(item -> {
             int id = item.getItemId();
             if (id == R.id.action_add_to_queue) {
@@ -54,10 +62,42 @@ public final class TrackMenuHelper {
                             if (onChanged != null) onChanged.onPlaylistMutated();
                         });
                 return true;
+            } else if (id == R.id.action_view_license) {
+                showLicenseDialog(activity, track);
+                return true;
             }
             return false;
         });
         popup.show();
+    }
+
+    /** WEBLAB-22A: attribution dialog (license name + human-readable explanation). */
+    private static void showLicenseDialog(@NonNull AppCompatActivity activity, @NonNull Track track) {
+        String body = activity.getString(R.string.license_dialog_body,
+                track.licenseName == null ? "Creative Commons" : track.licenseName);
+        android.app.AlertDialog dialog = new AlertDialog.Builder(activity)
+                .setTitle(activity.getString(R.string.license_dialog_title,
+                        track.licenseName == null ? "CC" : track.licenseName))
+                .setMessage(body)
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
+        if (track.licenseUrl != null && track.licenseUrl.startsWith("https://")) {
+            dialog.setOnShowListener(d -> {
+                // Keep it simple: tapping the message opens the CC deed (standard intent).
+                android.widget.TextView messageView = dialog.findViewById(android.R.id.message);
+                if (messageView != null) {
+                    messageView.setOnClickListener(v -> {
+                        android.content.Intent i = new android.content.Intent(
+                                android.content.Intent.ACTION_VIEW, android.net.Uri.parse(track.licenseUrl));
+                        try {
+                            activity.startActivity(i);
+                        } catch (Exception ignored) {
+                            // No browser available — the dialog itself already shows the license name.
+                        }
+                    });
+                }
+            });
+        }
     }
 
     public static void showAddToPlaylistDialog(@NonNull AppCompatActivity activity,

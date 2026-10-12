@@ -16,7 +16,11 @@ public class SourceException extends Exception {
         /** The requested media does not exist. */
         NOT_FOUND,
         /** The provider responded with malformed data. */
-        PARSE
+        PARSE,
+        /** WEBLAB-22A: a required credential (e.g. Jamendo client id) is missing or invalid. */
+        CONFIGURATION_REQUIRED,
+        /** WEBLAB-22A: the provider asked us to slow down (quota/rate limit). */
+        RATE_LIMITED
     }
 
     public final Kind kind;

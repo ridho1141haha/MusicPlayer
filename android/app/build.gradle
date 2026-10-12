@@ -2,6 +2,26 @@ plugins {
     id 'com.android.application'
 }
 
+// ---------------------------------------------------------------------------
+// WEBLAB-22A — Jamendo client id injection (never committed, never hardcoded).
+//
+// The credential is read from android/local.properties (gitignored) under the
+// key `jamendoClientId` and baked into BuildConfig as a build-time default.
+// Users can still supply/override it at RUNTIME from the in-app Settings
+// screen (SettingsRepository.jamendoClientId()), which takes precedence.
+//
+// Red lines honored:
+//  - no client id is ever hardcoded in committed source (empty string fallback);
+//  - no client SECRET exists or is embedded (Jamendo read APIs need only the id);
+//  - the id is not logged (JamendoClient sanitizes it from every message).
+// ---------------------------------------------------------------------------
+def jamendoLocalProps = new Properties()
+def jamendoLocalPropsFile = rootProject.file('local.properties')
+if (jamendoLocalPropsFile.exists()) {
+    jamendoLocalPropsFile.withInputStream { jamendoLocalProps.load(it) }
+}
+def jamendoClientId = jamendoLocalProps.getProperty('jamendoClientId') ?: ''
+
 android {
     namespace 'com.ridho.music'
     compileSdk 35
@@ -13,6 +33,11 @@ android {
         versionCode 3
         versionName "1.2.0"
         vectorDrawables.useSupportLibrary = true
+        buildConfigField "String", "JAMENDO_CLIENT_ID", "\"${jamendoClientId}\""
+    }
+
+    buildFeatures {
+        buildConfig true
     }
 
     buildTypes {

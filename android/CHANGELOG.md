@@ -1,5 +1,47 @@
 # Changelog
 
+## Unreleased — WEBLAB-22A (2026-10-12)
+
+### Added
+- **Jamendo source (official v3.0 API)** — free, legal Creative Commons catalog of
+  independent music, integrated behind the existing `MusicSource` contract:
+  `source/jamendo/{JamendoClient, JamendoSearchParser, JamendoSource}`.
+  Search results show real title/artist/album/artwork/duration and are immediately
+  playable (search responses carry the official stable `audio` stream URL;
+  `audioformat=mp32`). CC attribution metadata (`licenseName`/`licenseUrl`) is
+  captured from the documented `license_ccurl` field and shown in the track menu
+  ("License (Creative Commons) · CC …") with a CC-deed dialog.
+- **Typed errors** `CONFIGURATION_REQUIRED` / `RATE_LIMITED` added to
+  `SourceException.Kind` (additive). Jamendo maps missing/invalid client ids and
+  its HTTP-200-with-failed-envelope behavior (code 5) to these, never to generic
+  failures.
+- **Settings → Music sources → Jamendo**: enable/disable switch, "Jamendo client ID"
+  row with an on-device runtime id dialog (Save/Clear; masked "••••1234" summary),
+  attribution note, and a real-search diagnostics probe ("Connected · search OK (N
+  results)" / "Not configured" / typed failure).
+- **Credential mechanism**: client id resolved at REQUEST time — runtime setting
+  first, then `BuildConfig.JAMENDO_CLIENT_ID` (injected from gitignored
+  `android/local.properties` key `jamendoClientId`). No id in committed source, no
+  client secret anywhere, no OAuth, id masked in messages and fixtures.
+- 18 new JVM tests (50 total): parser vs real sanitized API captures, documented
+  quirks (singles/https-only/no-id), envelope error mapping, request-time
+  credential switching, stream-resolution contract (fresh-lookup-first with
+  cached-URL fallback), client-id masking hygiene.
+
+### Fixed (root causes)
+- `scripts/setup-android-sdk.sh`: `python3 -m zipfile` drops the executable bit, so
+  `sdkmanager` died with "Permission denied" after a sandbox reset — now chmods
+  `cmdline-tools/latest/bin/*` explicitly.
+
+### Verification (2026-10-12, sandbox — no hardware; device tests NOT RUN)
+- `testDebugUnitTest` **50/50** · `lintDebug` **0 errors** · `assembleDebug` OK
+  (APK 10,279,693 B) · run-qa pipeline ALL RECORDED SUITES GREEN (web 158/158,
+  golden 8/8).
+- Live API evidence (client id masked): real search HTTP 200 `status:success`
+  (5 tracks for "acoustic love"); stream URL HEAD 200 `audio/mpeg` 3,565,369 B;
+  range GET 206 with ID3 magic bytes; id-lookup re-resolution verified live
+  (eventually-consistent behavior documented and handled).
+
 ## 1.1.0 — 2026-10-11
 
 ### Added

@@ -9,4 +9,9 @@
     <item
         android:id="@+id/action_remove_from_playlist"
         android:title="@string/menu_remove_from_playlist" />
+    <!-- WEBLAB-22A: CC attribution (visible only for tracks carrying license metadata) -->
+    <item
+        android:id="@+id/action_view_license"
+        android:title="@string/menu_view_license"
+        android:visible="false" />
 </menu>

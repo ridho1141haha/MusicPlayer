@@ -17,6 +17,8 @@ public class Track {
 
     public static final String SOURCE_LOCAL = "local";
     public static final String SOURCE_YTM = "ytm";
+    /** WEBLAB-22A — Jamendo (official v3.0 API, Creative Commons catalog). */
+    public static final String SOURCE_JAMENDO = "jamendo";
 
     public final String id;
     public final String sourceId;
@@ -32,11 +34,26 @@ public class Track {
     @Nullable public final String streamUri;
     /** Embedded lyrics text; may be plain text or LRC-formatted (nullable). */
     @Nullable public final String lyrics;
+    /**
+     * WEBLAB-22A — Human-readable license name for attribution (e.g. "CC BY-NC-ND 3.0"),
+     * currently set only for Jamendo tracks. Nullable.
+     */
+    @Nullable public final String licenseName;
+    /** WEBLAB-22A — HTTPS license deed URL (attribution metadata). Nullable. */
+    @Nullable public final String licenseUrl;
     public final long addedAtMs;
 
     public Track(String id, String sourceId, String title, String artist, @Nullable String album,
                  long durationMs, @Nullable String artworkPath, @Nullable String artworkUrl,
                  @Nullable String streamUri, @Nullable String lyrics, long addedAtMs) {
+        this(id, sourceId, title, artist, album, durationMs, artworkPath, artworkUrl,
+                streamUri, lyrics, null, null, addedAtMs);
+    }
+
+    public Track(String id, String sourceId, String title, String artist, @Nullable String album,
+                 long durationMs, @Nullable String artworkPath, @Nullable String artworkUrl,
+                 @Nullable String streamUri, @Nullable String lyrics,
+                 @Nullable String licenseName, @Nullable String licenseUrl, long addedAtMs) {
         this.id = id;
         this.sourceId = sourceId;
         this.title = title == null || title.isEmpty() ? "Unknown title" : title;
@@ -47,6 +64,8 @@ public class Track {
         this.artworkUrl = artworkUrl;
         this.streamUri = streamUri;
         this.lyrics = lyrics;
+        this.licenseName = licenseName;
+        this.licenseUrl = licenseUrl;
         this.addedAtMs = addedAtMs;
     }
 
@@ -61,17 +80,17 @@ public class Track {
     /** Returns a copy with a resolved stream URI (or null removal). */
     public Track withStreamUri(@Nullable String uri) {
         return new Track(id, sourceId, title, artist, album, durationMs, artworkPath,
-                artworkUrl, uri, lyrics, addedAtMs);
+                artworkUrl, uri, lyrics, licenseName, licenseUrl, addedAtMs);
     }
 
     public Track withLyrics(@Nullable String lyricsText) {
         return new Track(id, sourceId, title, artist, album, durationMs, artworkPath,
-                artworkUrl, streamUri, lyricsText, addedAtMs);
+                artworkUrl, streamUri, lyricsText, licenseName, licenseUrl, addedAtMs);
     }
 
     public Track withArtwork(@Nullable String path, @Nullable String url) {
         return new Track(id, sourceId, title, artist, album, durationMs, path, url,
-                streamUri, lyrics, addedAtMs);
+                streamUri, lyrics, licenseName, licenseUrl, addedAtMs);
     }
 
     public JSONObject toJson() throws JSONException {
@@ -86,6 +105,8 @@ public class Track {
         if (artworkUrl != null) o.put("artworkUrl", artworkUrl);
         if (streamUri != null) o.put("streamUri", streamUri);
         if (lyrics != null) o.put("lyrics", lyrics);
+        if (licenseName != null) o.put("licenseName", licenseName);
+        if (licenseUrl != null) o.put("licenseUrl", licenseUrl);
         o.put("addedAtMs", addedAtMs);
         return o;
     }
@@ -110,6 +131,8 @@ public class Track {
                 o.isNull("artworkUrl") ? null : o.optString("artworkUrl", null),
                 o.isNull("streamUri") ? null : o.optString("streamUri", null),
                 o.isNull("lyrics") ? null : o.optString("lyrics", null),
+                o.isNull("licenseName") ? null : o.optString("licenseName", null),
+                o.isNull("licenseUrl") ? null : o.optString("licenseUrl", null),
                 o.optLong("addedAtMs", 0L));
     }
 
@@ -138,6 +161,7 @@ public class Track {
     @Override
     public String toString() {
         // Intentionally excludes stream URIs and artwork URLs (privacy: avoid leaking URLs to logs).
-        return "Track{" + sourceId + ", title=" + title + ", artist=" + artist + "}";
+        return "Track{" + sourceId + ", title=" + title + ", artist=" + artist
+                + (licenseName == null ? "" : ", license=" + licenseName) + "}";
     }
 }
