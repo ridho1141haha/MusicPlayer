@@ -1,0 +1,799 @@
+     1→'use client';
+     2→
+     3→import { useCallback, useEffect, useMemo, useState } from 'react';
+     4→import {
+     5→  AlertTriangle,
+     6→  Ban,
+     7→  CheckCircle2,
+     8→  ChevronDown,
+     9→  Clock,
+    10→  Database,
+    11→  FilePlus2,
+    12→  History,
+    13→  Info,
+    14→  Loader2,
+    15→  Play,
+    16→  Radio,
+    17→  RefreshCw,
+    18→  Search,
+    19→  Trash2,
+    20→  WifiOff,
+    21→  XCircle,
+    22→} from 'lucide-react';
+    23→
+    24→import { StatusBadge } from '@/components/lab/status-badge';
+    25→import { Badge } from '@/components/ui/badge';
+    26→import { Button } from '@/components/ui/button';
+    27→import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+    28→import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+    29→import {
+    30→  Dialog,
+    31→  DialogContent,
+    32→  DialogDescription,
+    33→  DialogFooter,
+    34→  DialogHeader,
+    35→  DialogTitle,
+    36→} from '@/components/ui/dialog';
+    37→import { Input } from '@/components/ui/input';
+    38→import { Label } from '@/components/ui/label';
+    39→import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+    40→import { ScrollArea } from '@/components/ui/scroll-area';
+    41→import { Skeleton } from '@/components/ui/skeleton';
+    42→import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
+    43→import { useToast } from '@/hooks/use-toast';
+    44→import { formatDuration } from '@/lib/lab/format';
+    45→import { isValidFixtureName, suggestFixtureName } from '@/lib/lab/fixture-name';
+    46→import { parseWithTrace } from '@/lib/lab/yt-search-parser';
+    47→import type { FixtureMeta, LabTrack, SearchSection, TraceEntry } from '@/lib/lab/types';
+    48→import { useLabStore } from '@/lib/lab/store';
+    49→
+    50→type SourceMode = 'live' | 'fixture';
+    51→
+    52→type LiveSuccess = {
+    53→  ok: true;
+    54→  httpStatus: number;
+    55→  durationMs: number;
+    56→  query: string;
+    57→  byteLength: number;
+    58→  sections: SearchSection[];
+    59→  trace: TraceEntry[];
+    60→  rendererStats: Array<{ type: string; count: number }>;
+    61→  continuationToken: string | null;
+    62→  note: string | null;
+    63→  /** Present on live runs — the untouched response root, for capture-as-fixture. */
+    64→  raw?: unknown;
+    65→};
+    66→
+    67→type LiveFailure = {
+    68→  ok: false;
+    69→  errorKind: 'bad-request' | 'network' | 'timeout' | 'http' | 'parse';
+    70→  message: string;
+    71→  httpStatus?: number;
+    72→  durationMs?: number;
+    73→};
+    74→
+    75→type LiveState =
+    76→  | { phase: 'idle' }
+    77→  | { phase: 'loading' }
+    78→  | { phase: 'success'; data: LiveSuccess }
+    79→  | { phase: 'failure'; failure: LiveFailure };
+    80→
+    81→type FixtureState =
+    82→  | { phase: 'idle' }
+    83→  | { phase: 'loading' }
+    84→  | { phase: 'success'; data: LiveSuccess; fixtureName: string }
+    85→  | { phase: 'failure'; message: string };
+    86→
+    87→const ERROR_ICON: Record<LiveFailure['errorKind'], typeof AlertTriangle> = {
+    88→  'bad-request': AlertTriangle,
+    89→  network: WifiOff,
+    90→  timeout: Clock,
+    91→  http: Ban,
+    92→  parse: XCircle,
+    93→};
+    94→
+    95→function SectionRendererStats({ stats }: { stats: Array<{ type: string; count: number }> }) {
+    96→  const top = stats.slice(0, 6);
+    97→  return (
+    98→    <div className="flex flex-wrap gap-1.5">
+    99→      {top.map((s) => (
+   100→        <Badge key={s.type} variant="outline" className="border-border bg-background/40 font-mono text-[10px]">
+   101→          {s.type} ×{s.count}
+   102→        </Badge>
+   103→      ))}
+   104→      {stats.length > top.length && (
+   105→        <Badge variant="outline" className="border-border bg-background/40 text-[10px]">
+   106→          +{stats.length - top.length} more
+   107→        </Badge>
+   108→      )}
+   109→    </div>
+   110→  );
+   111→}
+   112→
+   113→function TracePanel({ trace }: { trace: TraceEntry[] }) {
+   114→  const [filter, setFilter] = useState<'all' | 'accepted' | 'rejected'>('all');
+   115→  const visible = trace.filter((entry) => (filter === 'all' ? true : entry.kind === filter));
+   116→  const counts = useMemo(
+   117→    () => ({
+   118→      accepted: trace.filter((t) => t.kind === 'accepted').length,
+   119→      rejected: trace.filter((t) => t.kind === 'rejected').length,
+   120→      info: trace.filter((t) => t.kind === 'info').length,
+   121→    }),
+   122→    [trace],
+   123→  );
+   124→
+   125→  return (
+   126→    <Collapsible>
+   127→      <div className="flex flex-wrap items-center justify-between gap-2">
+   128→        <CollapsibleTrigger asChild>
+   129→          <Button variant="outline" size="sm" className="gap-2">
+   130→            <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" />
+   131→            Parser trace ({counts.accepted} accepted · {counts.rejected} rejected · {counts.info} info)
+   132→          </Button>
+   133→        </CollapsibleTrigger>
+   134→        <Tabs value={filter} onValueChange={(v) => setFilter(v as typeof filter)}>
+   135→          <TabsList className="h-8">
+   136→            <TabsTrigger value="all" className="h-6 text-xs">all</TabsTrigger>
+   137→            <TabsTrigger value="accepted" className="h-6 text-xs">accepted</TabsTrigger>
+   138→            <TabsTrigger value="rejected" className="h-6 text-xs">rejected</TabsTrigger>
+   139→          </TabsList>
+   140→        </Tabs>
+   141→      </div>
+   142→      <CollapsibleContent>
+   143→        <ScrollArea className="rm-scroll mt-2 max-h-72 rounded-md border border-border bg-background/40 p-2">
+   144→          <ul className="space-y-1">
+   145→            {visible.map((entry, index) => (
+   146→              <li key={`${entry.path}-${index}`} className="flex items-start gap-2 rounded px-2 py-1.5 text-xs hover:bg-secondary/40">
+   147→                {entry.kind === 'accepted' ? (
+   148→                  <CheckCircle2 className="mt-0.5 h-3.5 w-3.5 shrink-0 text-emerald-400" aria-hidden="true" />
+   149→                ) : entry.kind === 'rejected' ? (
+   150→                  <XCircle className="mt-0.5 h-3.5 w-3.5 shrink-0 text-rose-400" aria-hidden="true" />
+   151→                ) : (
+   152→                  <Info className="mt-0.5 h-3.5 w-3.5 shrink-0 text-teal-300" aria-hidden="true" />
+   153→                )}
+   154→                <span className="min-w-0">
+   155→                  <span className="font-mono text-[11px] text-muted-foreground">{entry.path}</span>
+   156→                  <span className="ml-2 text-foreground/90">{entry.reason}</span>
+   157→                  {entry.detail !== undefined && <span className="ml-1 text-muted-foreground">({entry.detail})</span>}
+   158→                </span>
+   159→              </li>
+   160→            ))}
+   161→            {visible.length === 0 && <li className="px-2 py-3 text-xs text-muted-foreground">No entries for this filter.</li>}
+   162→          </ul>
+   163→        </ScrollArea>
+   164→      </CollapsibleContent>
+   165→    </Collapsible>
+   166→  );
+   167→}
+   168→
+   169→function ResultList({ sections }: { sections: SearchSection[] }) {
+   170→  return (
+   171→    <div className="space-y-4">
+   172→      {sections.map((section) => (
+   173→        <div key={section.title}>
+   174→          <h4 className="mb-2 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-muted-foreground">
+   175→            {section.title}
+   176→            <Badge variant="outline" className="border-border text-[10px]">
+   177→              {section.tracks.length}
+   178→            </Badge>
+   179→          </h4>
+   180→          <ScrollArea className="rm-scroll max-h-96">
+   181→            <ul className="space-y-1 pr-2">
+   182→              {section.tracks.map((track) => (
+   183→                <TrackRow key={`${section.title}-${track.id}`} track={track} />
+   184→              ))}
+   185→            </ul>
+   186→          </ScrollArea>
+   187→        </div>
+   188→      ))}
+   189→    </div>
+   190→  );
+   191→}
+   192→
+   193→function TrackRow({ track }: { track: LabTrack }) {
+   194→  const idSuffix = track.id.includes(':') ? track.id.slice(track.id.indexOf(':') + 1) : track.id;
+   195→  return (
+   196→    <li className="flex items-center gap-3 rounded-md border border-border bg-background/40 p-2 transition-colors hover:bg-secondary/40">
+   197→      {track.artworkUrl !== null ? (
+   198→        <img
+   199→          src={track.artworkUrl}
+   200→          alt={`Artwork for ${track.title}`}
+   201→          loading="lazy"
+   202→          referrerPolicy="no-referrer"
+   203→          className="h-10 w-10 shrink-0 rounded object-cover"
+   204→        />
+   205→      ) : (
+   206→        <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded bg-secondary" aria-hidden="true">
+   207→          <Search className="h-4 w-4 text-muted-foreground" />
+   208→        </div>
+   209→      )}
+   210→      <div className="min-w-0 flex-1">
+   211→        <p className="truncate text-sm font-medium">{track.title}</p>
+   212→        <p className="truncate text-xs text-muted-foreground">
+   213→          {track.artist}
+   214→          {track.album !== null ? ` · ${track.album}` : ''}
+   215→        </p>
+   216→      </div>
+   217→      <div className="flex shrink-0 flex-col items-end gap-1">
+   218→        <Badge
+   219→          variant="outline"
+   220→          className="border-border bg-background/60 font-mono text-[10px] text-muted-foreground"
+   221→          title={`Full id: ${track.id}`}
+   222→        >
+   223→          {idSuffix}
+   224→        </Badge>
+   225→        <span className="text-[11px] text-muted-foreground">{formatDuration(track.durationMs)}</span>
+   226→      </div>
+   227→    </li>
+   228→  );
+   229→}
+   230→
+   231→function MetaBar({
+   232→  httpStatus,
+   233→  durationMs,
+   234→  byteLength,
+   235→  stats,
+   236→  continuationToken,
+   237→}: {
+   238→  httpStatus: number;
+   239→  durationMs: number;
+   240→  byteLength: number | null;
+   241→  stats: Array<{ type: string; count: number }>;
+   242→  continuationToken: string | null;
+   243→}) {
+   244→  return (
+   245→    <div className="space-y-2 rounded-md border border-border bg-background/40 p-3">
+   246→      <div className="flex flex-wrap items-center gap-2 text-xs">
+   247→        <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300">
+   248→          HTTP {httpStatus}
+   249→        </Badge>
+   250→        <Badge variant="outline" className="border-border">{durationMs} ms</Badge>
+   251→        {byteLength !== null && (
+   252→          <Badge variant="outline" className="border-border">{(byteLength / 1024).toFixed(0)} KB</Badge>
+   253→        )}
+   254→        {continuationToken !== null && (
+   255→          <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-300">
+   256→            continuation present
+   257→          </Badge>
+   258→        )}
+   259→        <span className="text-muted-foreground">renderer stats:</span>
+   260→      </div>
+   261→      <SectionRendererStats stats={stats} />
+   262→    </div>
+   263→  );
+   264→}
+   265→
+   266→export function SearchPlaygroundTab() {
+   267→  const mode = useLabStore((s) => s.playgroundMode);
+   268→  const setMode = useLabStore((s) => s.setPlaygroundMode);
+   269→  // A fixture "opened" from the Fixtures tab lands in the store; local picks win after that.
+   270→  const storeFixture = useLabStore((s) => s.playgroundFixture);
+   271→  const searchHistory = useLabStore((s) => s.searchHistory);
+   272→  const clearSearchHistory = useLabStore((s) => s.clearSearchHistory);
+   273→  const { toast } = useToast();
+   274→
+   275→  const [query, setQuery] = useState('Lathi');
+   276→  const [live, setLive] = useState<LiveState>({ phase: 'idle' });
+   277→  const [localFixtureName, setLocalFixtureName] = useState<string | null>(null);
+   278→  const [fixtureList, setFixtureList] = useState<FixtureMeta[]>([]);
+   279→  const [fixture, setFixture] = useState<FixtureState>({ phase: 'idle' });
+   280→  const [fixtureContent, setFixtureContent] = useState<unknown>(null);
+   281→
+   282→  // Capture-as-fixture dialog state (live mode, WEB-LAB-9).
+   283→  const [captureOpen, setCaptureOpen] = useState(false);
+   284→  const [captureName, setCaptureName] = useState('');
+   285→  const [captureNote, setCaptureNote] = useState('');
+   286→  const [captureSaving, setCaptureSaving] = useState(false);
+   287→  const [savedFixtureName, setSavedFixtureName] = useState<string | null>(null);
+   288→
+   289→  const fixtureName = localFixtureName ?? storeFixture;
+   290→
+   291→  const loadFixtureList = useCallback(async () => {
+   292→    try {
+   293→      const res = await fetch('/api/lab/fixtures', { cache: 'no-store' });
+   294→      if (!res.ok) return;
+   295→      const data = (await res.json()) as { builtIn: FixtureMeta[]; user: FixtureMeta[] };
+   296→      setFixtureList([...data.builtIn, ...data.user]);
+   297→    } catch {
+   298→      // honest: list simply stays empty; fixture mode will error if used
+   299→    }
+   300→  }, []);
+   301→
+   302→  // Load fixture list once.
+   303→  useEffect(() => {
+   304→    void loadFixtureList();
+   305→  }, [loadFixtureList]);
+   306→
+   307→  const runLive = async (queryOverride?: string) => {
+   308→    const queryText = (queryOverride ?? query).trim();
+   309→    if (queryOverride !== undefined) setQuery(queryOverride);
+   310→    setLive({ phase: 'loading' });
+   311→    try {
+   312→      const res = await fetch('/api/lab/search', {
+   313→        method: 'POST',
+   314→        headers: { 'Content-Type': 'application/json' },
+   315→        // includeRaw: the untouched response root rides along so the capture
+   316→        // button can save it as a fixture without a second request.
+   317→        body: JSON.stringify({ query: queryText, includeRaw: true }),
+   318→      });
+   319→      const data = (await res.json()) as LiveSuccess | LiveFailure;
+   320→      // Session-local history (WEBLAB-10): real outcome only, recorded either way.
+   321→      useLabStore.getState().addSearchHistory({
+   322→        query: queryText,
+   323→        at: Date.now(),
+   324→        ok: data.ok,
+   325→        httpStatus: data.ok ? data.httpStatus : (data.httpStatus ?? null),
+   326→        durationMs: data.ok ? data.durationMs : (data.durationMs ?? null),
+   327→        trackCount: data.ok ? data.sections.reduce((sum, s) => sum + s.tracks.length, 0) : null,
+   328→        errorKind: data.ok ? null : data.errorKind,
+   329→      });
+   330→      if (data.ok) setLive({ phase: 'success', data });
+   331→      else setLive({ phase: 'failure', failure: data });
+   332→    } catch (error) {
+   333→      setLive({
+   334→        phase: 'failure',
+   335→        failure: {
+   336→          ok: false,
+   337→          errorKind: 'network',
+   338→          message: `Could not reach the lab API: ${error instanceof Error ? error.message : 'unknown'}`,
+   339→        },
+   340→      });
+   341→    }
+   342→  };
+   343→
+   344→  const openCaptureDialog = () => {
+   345→    if (live.phase !== 'success') return;
+   346→    setCaptureName(suggestFixtureName(live.data.query, new Date()));
+   347→    setCaptureNote(`Live capture of query "${live.data.query}" via the Search Playground.`);
+   348→    setCaptureOpen(true);
+   349→  };
+   350→
+   351→  const saveCapture = async () => {
+   352→    if (live.phase !== 'success') return;
+   353→    const raw = live.data.raw;
+   354→    if (raw === undefined || raw === null || typeof raw !== 'object' || Array.isArray(raw)) {
+   355→      toast({ title: 'Nothing to save', description: 'This run has no raw response attached.', variant: 'destructive' });
+   356→      return;
+   357→    }
+   358→    if (!isValidFixtureName(captureName.trim())) {
+   359→      toast({
+   360→        title: 'Invalid fixture name',
+   361→        description: 'Use letters, digits, dot, dash, underscore — must end with .json',
+   362→        variant: 'destructive',
+   363→      });
+   364→      return;
+   365→    }
+   366→    setCaptureSaving(true);
+   367→    try {
+   368→      const res = await fetch('/api/lab/fixtures', {
+   369→        method: 'POST',
+   370→        headers: { 'Content-Type': 'application/json' },
+   371→        body: JSON.stringify({
+   372→          name: captureName.trim(),
+   373→          description: captureNote.trim() || `Live capture of query "${live.data.query}".`,
+   374→          query: live.data.query,
+   375→          capturedAt: new Date().toISOString(),
+   376→          content: raw,
+   377→        }),
+   378→      });
+   379→      const data = (await res.json()) as { error?: string; fixture?: FixtureMeta };
+   380→      if (!res.ok) {
+   381→        toast({ title: 'Capture failed', description: data.error ?? `HTTP ${res.status}`, variant: 'destructive' });
+   382→        return;
+   383→      }
+   384→      setSavedFixtureName(captureName.trim());
+   385→      setCaptureOpen(false);
+   386→      await loadFixtureList();
+   387→      toast({
+   388→        title: 'Fixture saved ✓',
+   389→        description: `${captureName.trim()} — now available in Fixtures & Parser and the diff tool.`,
+   390→      });
+   391→    } catch (error) {
+   392→      toast({
+   393→        title: 'Capture failed',
+   394→        description: error instanceof Error ? error.message : 'Unknown network error',
+   395→        variant: 'destructive',
+   396→      });
+   397→    } finally {
+   398→      setCaptureSaving(false);
+   399→    }
+   400→  };
+   401→
+   402→  const runFixture = async () => {
+   403→    if (fixtureName === null) {
+   404→      setFixture({ phase: 'failure', message: 'Pick a fixture first.' });
+   405→      return;
+   406→    }
+   407→    setFixture({ phase: 'loading' });
+   408→    try {
+   409→      const res = await fetch(`/api/lab/fixtures?name=${encodeURIComponent(fixtureName)}`, { cache: 'no-store' });
+   410→      if (!res.ok) {
+   411→        setFixture({ phase: 'failure', message: `Fixture endpoint: HTTP ${res.status}` });
+   412→        return;
+   413→      }
+   414→      const data = (await res.json()) as { content: unknown };
+   415→      setFixtureContent(data.content);
+   416→      const started = performance.now();
+   417→      const result = parseWithTrace(data.content);
+   418→      const durationMs = Math.round(performance.now() - started);
+   419→      const stats = Object.entries(
+   420→        result.rendererStats.reduce<Record<string, number>>((acc, s) => ({ ...acc, [s.type]: s.count }), {}),
+   421→      ).map(([type, count]) => ({ type, count }));
+   422→      setFixture({
+   423→        phase: 'success',
+   424→        fixtureName,
+   425→        durationMs,
+   426→        data: {
+   427→          ok: true,
+   428→          httpStatus: 0, // offline: no HTTP involved
+   429→          durationMs,
+   430→          query: `(fixture) ${fixtureName}`,
+   431→          byteLength: JSON.stringify(data.content).length,
+   432→          sections: result.sections ?? [],
+   433→          trace: result.trace,
+   434→          rendererStats: stats,
+   435→          continuationToken: result.continuationToken,
+   436→          note: null,
+   437→        },
+   438→      });
+   439→    } catch (error) {
+   440→      setFixture({
+   441→        phase: 'failure',
+   442→        message: error instanceof Error ? error.message : 'Unknown fixture error',
+   443→      });
+   444→    }
+   445→  };
+   446→
+   447→  const activeState: LiveState | FixtureState = mode === 'live' ? live : fixture;
+   448→  const successData = activeState.phase === 'success' ? activeState.data : null;
+   449→
+   450→  return (
+   451→    <div className="space-y-4">
+   452→      <Card>
+   453→        <CardHeader className="pb-3">
+   454→          <CardTitle className="flex items-center gap-2 text-base">
+   455→            <Search className="h-4 w-4 text-primary" aria-hidden="true" />
+   456→            Search Playground
+   457→          </CardTitle>
+   458→          <CardDescription>
+   459→            Live mode sends the exact unauthenticated InnerTube request the Android app sends, then parses with the
+   460→            same parser port. Fixture mode is fully offline and deterministic.
+   461→          </CardDescription>
+   462→        </CardHeader>
+   463→        <CardContent className="space-y-3">
+   464→          <div className="flex flex-col gap-2 sm:flex-row">
+   465→            <Tabs value={mode} onValueChange={(v) => setMode(v as SourceMode)} className="shrink-0">
+   466→              <TabsList className="h-10">
+   467→                <TabsTrigger value="live" className="gap-1.5 px-3">
+   468→                  <Radio className="h-3.5 w-3.5" aria-hidden="true" /> Live API
+   469→                </TabsTrigger>
+   470→                <TabsTrigger value="fixture" className="gap-1.5 px-3">
+   471→                  <Database className="h-3.5 w-3.5" aria-hidden="true" /> Fixture
+   472→                </TabsTrigger>
+   473→              </TabsList>
+   474→            </Tabs>
+   475→            {mode === 'live' ? (
+   476→              <div className="flex flex-1 gap-2">
+   477→                <Input
+   478→                  value={query}
+   479→                  onChange={(event) => setQuery(event.target.value)}
+   480→                  onKeyDown={(event) => {
+   481→                    if (event.key === 'Enter' && query.trim().length > 0 && live.phase !== 'loading') void runLive();
+   482→                  }}
+   483→                  placeholder='Try "Lathi", "test", or a gibberish string'
+   484→                  aria-label="Search query"
+   485→                  className="min-h-[40px]"
+   486→                />
+   487→                <Button onClick={() => void runLive()} disabled={query.trim().length === 0 || live.phase === 'loading'} className="gap-2 min-h-[40px]">
+   488→                  {live.phase === 'loading' ? (
+   489→                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+   490→                  ) : (
+   491→                    <Play className="h-4 w-4" aria-hidden="true" />
+   492→                  )}
+   493→                  Run
+   494→                </Button>
+   495→              </div>
+   496→            ) : (
+   497→              <div className="flex flex-1 gap-2">
+   498→                <Select value={fixtureName ?? ''} onValueChange={(v) => setLocalFixtureName(v)}>
+   499→                  <SelectTrigger className="min-h-[40px] flex-1" aria-label="Pick a fixture">
+   500→                    <SelectValue placeholder="Pick a fixture…" />
+   501→                  </SelectTrigger>
+   502→                  <SelectContent>
+   503→                    {fixtureList.map((fixtureMeta) => (
+   504→                      <SelectItem key={fixtureMeta.name} value={fixtureMeta.name}>
+   505→                        <span className="flex items-center gap-2">
+   506→                          <Badge
+   507→                            variant="outline"
+   508→                            className={`text-[9px] ${
+   509→                              fixtureMeta.origin === 'real-capture'
+   510→                                ? 'border-emerald-500/40 text-emerald-300'
+   511→                                : fixtureMeta.origin === 'synthetic'
+   512→                                  ? 'border-amber-500/40 text-amber-300'
+   513→                                  : 'border-teal-500/40 text-teal-300'
+   514→                            }`}
+   515→                          >
+   516→                            {fixtureMeta.origin}
+   517→                          </Badge>
+   518→                          <span className="font-mono text-xs">{fixtureMeta.name}</span>
+   519→                        </span>
+   520→                      </SelectItem>
+   521→                    ))}
+   522→                  </SelectContent>
+   523→                </Select>
+   524→                <Button onClick={() => void runFixture()} disabled={fixture.phase === 'loading'} className="gap-2 min-h-[40px]">
+   525→                  {fixture.phase === 'loading' ? (
+   526→                    <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" />
+   527→                  ) : (
+   528→                    <Play className="h-4 w-4" aria-hidden="true" />
+   529→                  )}
+   530→                  Parse
+   531→                </Button>
+   532→              </div>
+   533→            )}
+   534→          </div>
+   535→
+   536→          {mode === 'live' && (
+   537→            <p className="text-xs text-muted-foreground">
+   538→              No credentials, cookies, or bypass of any YouTube protection are involved. Failures are surfaced as-is.
+   539→            </p>
+   540→          )}
+   541→        </CardContent>
+   542→      </Card>
+   543→
+   544→      {/* Session-local search history (WEBLAB-10) — real outcomes only, click to re-run. */}
+   545→      {mode === 'live' && searchHistory.length > 0 && (
+   546→        <Card>
+   547→          <CardContent className="p-3">
+   548→            <div className="mb-2 flex items-center justify-between gap-2">
+   549→              <p className="flex items-center gap-1.5 text-xs font-medium text-muted-foreground">
+   550→                <History className="h-3.5 w-3.5" aria-hidden="true" />
+   551→                Recent live searches ({searchHistory.length}/8) — this browser session only
+   552→              </p>
+   553→              <Button
+   554→                variant="ghost"
+   555→                size="sm"
+   556→                className="h-7 gap-1 px-2 text-xs text-muted-foreground hover:text-foreground"
+   557→                onClick={clearSearchHistory}
+   558→                aria-label="Clear search history"
+   559→              >
+   560→                <Trash2 className="h-3 w-3" aria-hidden="true" />
+   561→                Clear
+   562→              </Button>
+   563→            </div>
+   564→            <div className="flex flex-wrap gap-1.5">
+   565→              {searchHistory.map((entry) => {
+   566→                const label =
+   567→                  entry.ok === false
+   568→                    ? `HTTP-${entry.httpStatus ?? 'err'} · ${entry.errorKind ?? 'failed'}`
+   569→                    : `${entry.httpStatus ?? 200} · ${entry.trackCount ?? 0} items · ${entry.durationMs ?? '?'} ms`;
+   570→                return (
+   571→                  <button
+   572→                    key={`${entry.query}-${entry.at}`}
+   573→                    type="button"
+   574→                    onClick={() => void runLive(entry.query)}
+   575→                    title={`Re-run "${entry.query}"`}
+   576→                    aria-label={`Re-run search "${entry.query}" (${label})`}
+   577→                    className={`group flex max-w-full items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs transition-colors min-h-[28px] ${
+   578→                      entry.ok
+   579→                        ? 'border-border bg-background/50 hover:border-primary/40 hover:bg-primary/5'
+   580→                        : 'border-rose-500/40 bg-rose-500/10 text-rose-300 hover:bg-rose-500/20'
+   581→                    }`}
+   582→                  >
+   583→                    {entry.ok ? (
+   584→                      <span className="h-1.5 w-1.5 shrink-0 rounded-full bg-emerald-400" aria-hidden="true" />
+   585→                    ) : (
+   586→                      <XCircle className="h-3 w-3 shrink-0" aria-hidden="true" />
+   587→                    )}
+   588→                    <span className="max-w-[160px] truncate font-medium">{entry.query}</span>
+   589→                    <span className="shrink-0 font-mono text-[10px] text-muted-foreground">{label}</span>
+   590→                  </button>
+   591→                );
+   592→              })}
+   593→            </div>
+   594→          </CardContent>
+   595→        </Card>
+   596→      )}
+   597→
+   598→      {/* Live failure — typed and honest */}
+   599→      {mode === 'live' && live.phase === 'failure' && (
+   600→        <Card className="border-rose-500/30">
+   601→          <CardContent className="flex flex-col gap-2 p-4">
+   602→            <p className="flex items-center gap-2 text-sm font-semibold text-rose-300">
+   603→              {(() => {
+   604→                const Icon = ERROR_ICON[live.failure.errorKind] ?? AlertTriangle;
+   605→                return <Icon className="h-4 w-4" aria-hidden="true" />;
+   606→              })()}
+   607→              {live.failure.errorKind === 'timeout'
+   608→                ? 'Timeout'
+   609→                : live.failure.errorKind === 'network'
+   610→                  ? 'Network failure'
+   611→                  : live.failure.errorKind === 'http'
+   612→                    ? `HTTP error${live.failure.httpStatus !== undefined ? ` ${live.failure.httpStatus}` : ''}`
+   613→                    : live.failure.errorKind === 'parse'
+   614→                      ? 'Parse error'
+   615→                      : 'Bad request'}
+   616→            </p>
+   617→            <p className="text-sm text-foreground/90">{live.failure.message}</p>
+   618→            <Button variant="outline" size="sm" className="w-fit gap-2" onClick={() => void runLive()}>
+   619→              <RefreshCw className="h-3.5 w-3.5" aria-hidden="true" /> Retry
+   620→            </Button>
+   621→          </CardContent>
+   622→        </Card>
+   623→      )}
+   624→
+   625→      {/* Fixture failure */}
+   626→      {mode === 'fixture' && fixture.phase === 'failure' && (
+   627→        <Card className="border-rose-500/30">
+   628→          <CardContent className="p-4">
+   629→            <p className="text-sm text-rose-300">{fixture.message}</p>
+   630→          </CardContent>
+   631→        </Card>
+   632→      )}
+   633→
+   634→      {/* Loading skeleton */}
+   635→      {activeState.phase === 'loading' && (
+   636→        <Card>
+   637→          <CardContent className="space-y-3 p-4" aria-busy="true">
+   638→            <Skeleton className="h-5 w-40" />
+   639→            {[0, 1, 2].map((i) => (
+   640→              <Skeleton key={i} className="h-14 rounded-md" />
+   641→            ))}
+   642→          </CardContent>
+   643→        </Card>
+   644→      )}
+   645→
+   646→      {/* Success */}
+   647→      {successData !== null && activeState.phase === 'success' && (
+   648→        <div className="space-y-4">
+   649→          {activeState.phase === 'success' && 'httpStatus' in activeState.data && activeState.data.httpStatus === 0 && (
+   650→            <div className="flex items-center gap-2 text-xs text-muted-foreground">
+   651→              <Database className="h-3.5 w-3.5" aria-hidden="true" />
+   652→              Offline fixture mode — no HTTP request was made.
+   653→            </div>
+   654→          )}
+   655→          <MetaBar
+   656→            httpStatus={successData.httpStatus}
+   657→            durationMs={successData.durationMs}
+   658→            byteLength={successData.byteLength}
+   659→            stats={successData.rendererStats}
+   660→            continuationToken={successData.continuationToken}
+   661→          />
+   662→          {mode === 'live' && (
+   663→            <div className="flex flex-wrap items-center gap-2">
+   664→              <Button
+   665→                variant="outline"
+   666→                size="sm"
+   667→                className="gap-2"
+   668→                onClick={openCaptureDialog}
+   669→                disabled={successData.raw === undefined}
+   670→              >
+   671→                <FilePlus2 className="h-3.5 w-3.5" aria-hidden="true" />
+   672→                Capture as fixture
+   673→              </Button>
+   674→              {savedFixtureName !== null && (
+   675→                <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300">
+   676→                  <CheckCircle2 className="mr-1 h-3 w-3" aria-hidden="true" />
+   677→                  saved {savedFixtureName}
+   678→                </Badge>
+   679→              )}
+   680→              <span className="text-xs text-muted-foreground">
+   681→                Saves the untouched response JSON as a user fixture (1 MB max) for offline diffing.
+   682→              </span>
+   683→            </div>
+   684→          )}
+   685→          {successData.note !== null && (
+   686→            <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-sm text-amber-200">
+   687→              <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+   688→              {successData.note}
+   689→            </div>
+   690→          )}
+   691→          {successData.sections.length === 0 ? (
+   692→            <Card>
+   693→              <CardContent className="flex flex-col items-center gap-2 p-8 text-center">
+   694→                <StatusBadge status="untested" />
+   695→                <p className="text-sm font-medium">0 results parsed</p>
+   696→                <p className="max-w-md text-xs text-muted-foreground">
+   697→                  The request/response completed, but the parser produced no sections. For live responses this is the
+   698→                  AUDIT-1 Finding A signature (layout drift); for fixtures check the trace below.
+   699→                </p>
+   700→              </CardContent>
+   701→            </Card>
+   702→          ) : (
+   703→            <Card>
+   704→              <CardHeader className="pb-2">
+   705→                <CardTitle className="text-sm">
+   706→                  {successData.sections.reduce((sum, s) => sum + s.tracks.length, 0)} items in{' '}
+   707→                  {successData.sections.length} section(s)
+   708→                </CardTitle>
+   709→              </CardHeader>
+   710→              <CardContent>
+   711→                <ResultList sections={successData.sections} />
+   712→              </CardContent>
+   713→            </Card>
+   714→          )}
+   715→          <TracePanel trace={successData.trace} />
+   716→          {fixtureContent !== null && mode === 'fixture' && (
+   717→            <Collapsible>
+   718→              <CollapsibleTrigger asChild>
+   719→                <Button variant="outline" size="sm" className="gap-2">
+   720→                  <ChevronDown className="h-3.5 w-3.5" aria-hidden="true" /> Raw fixture JSON
+   721→                </Button>
+   722→              </CollapsibleTrigger>
+   723→              <CollapsibleContent>
+   724→                <ScrollArea className="rm-scroll mt-2 max-h-96 rounded-md border border-border bg-background/60 p-3">
+   725→                  <pre className="font-mono text-[11px] leading-relaxed">
+   726→                    {JSON.stringify(fixtureContent, null, 2)}
+   727→                  </pre>
+   728→                </ScrollArea>
+   729→              </CollapsibleContent>
+   730→            </Collapsible>
+   731→          )}
+   732→        </div>
+   733→      )}
+   734→
+   735→      {/* Capture-as-fixture dialog (live mode, WEB-LAB-9) */}
+   736→      <Dialog
+   737→        open={captureOpen}
+   738→        onOpenChange={(open) => {
+   739→          if (!captureSaving) setCaptureOpen(open);
+   740→        }}
+   741→      >
+   742→        <DialogContent className="sm:max-w-md">
+   743→          <DialogHeader>
+   744→            <DialogTitle className="flex items-center gap-2">
+   745→              <FilePlus2 className="h-4 w-4 text-primary" aria-hidden="true" />
+   746→              Capture live response as fixture
+   747→            </DialogTitle>
+   748→            <DialogDescription>
+   749→              The raw JSON from this exact InnerTube response is saved to{' '}
+   750→              <span className="font-mono text-[11px]">data/fixtures-user/</span> with full provenance (query +
+   751→              timestamp). Nothing is sent anywhere else.
+   752→            </DialogDescription>
+   753→          </DialogHeader>
+   754→          <div className="space-y-3">
+   755→            <div className="space-y-1.5">
+   756→              <Label htmlFor="capture-name">Fixture name</Label>
+   757→              <Input
+   758→                id="capture-name"
+   759→                value={captureName}
+   760→                onChange={(event) => setCaptureName(event.target.value)}
+   761→                className="font-mono text-xs"
+   762→                placeholder="search_live_2026-10-12_query.json"
+   763→                autoComplete="off"
+   764→              />
+   765→              {captureName.trim().length > 0 && !isValidFixtureName(captureName.trim()) && (
+   766→                <p className="text-xs text-rose-300">
+   767→                  Must match <span className="font-mono">[A-Za-z0-9][A-Za-z0-9._-]*.json</span>
+   768→                </p>
+   769→              )}
+   770→            </div>
+   771→            <div className="space-y-1.5">
+   772→              <Label htmlFor="capture-note">Note (provenance)</Label>
+   773→              <Input
+   774→                id="capture-note"
+   775→                value={captureNote}
+   776→                onChange={(event) => setCaptureNote(event.target.value)}
+   777→                placeholder="Where/how this was captured"
+   778→                autoComplete="off"
+   779→              />
+   780→            </div>
+   781→            <p className="text-xs text-muted-foreground">
+   782→              Query: <span className="font-mono">{live.phase === 'success' ? live.data.query : '—'}</span>
+   783→            </p>
+   784→          </div>
+   785→          <DialogFooter className="gap-2">
+   786→            <Button variant="outline" onClick={() => setCaptureOpen(false)} disabled={captureSaving}>
+   787→              Cancel
+   788→            </Button>
+   789→            <Button onClick={() => void saveCapture()} disabled={captureSaving || !isValidFixtureName(captureName.trim())}>
+   790→              {captureSaving ? <Loader2 className="h-4 w-4 animate-spin" aria-hidden="true" /> : <FilePlus2 className="h-4 w-4" aria-hidden="true" />}
+   791→              Save fixture
+   792→            </Button>
+   793→          </DialogFooter>
+   794→        </DialogContent>
+   795→      </Dialog>
+   796→    </div>
+   797→  );
+   798→}
+   799→
