@@ -1,0 +1,3 @@
+## 2026-10-12 - Prototype Tab Search Input Debouncing
+**Learning:** In the prototype tab, filtering the track catalog based on text input was running synchronously on every keystroke. For larger catalogs, iterating through hundreds or thousands of tracks on every character press drops frames and blocks the main thread, making typing feel sluggish.
+**Action:** Implemented a 300ms debounce on the search query state before it's passed to the catalog filtering `useMemo`. This batches keystrokes, dramatically reducing the number of times the O(N) filter operation runs and ensuring the text input remains highly responsive.
