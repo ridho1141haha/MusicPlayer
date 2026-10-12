@@ -24,17 +24,17 @@ TMP=/tmp/rm-qa
 mkdir -p "$TMP"
 cd "$ROOT"
 
-export ANDROID_HOME=/home/z/android-sdk
+export ANDROID_HOME=${HOME}/android-sdk
 # Prefer a FULL JDK (has jlink — required by AGP's JdkImageTransform); the sandbox
 # system java-21 is a JRE-only variant (no jlink) and fails compileDebugJavaWithJavac.
 # WEBLAB-16: after the 2026-10-12 sandbox reset the system JVM lost jlink, so the
-# toolchain bootstrap now provisions Temurin 21 at /home/z/jdk-21 (see setup script).
-if [ -x /home/z/jdk-21/bin/javac ]; then
-  export JAVA_HOME=/home/z/jdk-21
+# toolchain bootstrap now provisions Temurin 21 at ${HOME}/jdk-21 (see setup script).
+if [ -x ${HOME}/jdk-21/bin/javac ]; then
+  export JAVA_HOME=${HOME}/jdk-21
 else
   export JAVA_HOME=/usr/lib/jvm/java-21-openjdk-amd64
 fi
-GRADLE=/home/z/gradle-8.9/bin/gradle
+GRADLE=${HOME}/gradle-8.9/bin/gradle
 
 fail=0
 
@@ -68,7 +68,7 @@ run_suite "WEB_LINT" bun run lint
 # 2. web unit tests (JSON reporter for the collector)
 echo "▶ web unit tests (vitest)"
 vstart=$(date +%s%3N)
-if bunx vitest run --reporter=json --outputFile="$TMP/vitest.json" > "$TMP/vitest-console.log" 2>&1; then
+if bun x vitest run --reporter=json --outputFile="$TMP/vitest.json" > "$TMP/vitest-console.log" 2>&1; then
   vend=$(date +%s%3N); echo "  ✓ ok ($((vend - vstart)) ms)"
   export RM_VITEST_MS=$((vend - vstart))
   export RM_VITEST=1

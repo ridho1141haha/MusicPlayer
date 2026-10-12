@@ -12,7 +12,7 @@ import { evaluateExpectation } from '../src/lib/lab/expectations';
 import { liveSearch } from '../src/lib/lab/live-search';
 import { parse } from '../src/lib/lab/yt-search-parser';
 
-const ROOT = '/home/z/my-project';
+const ROOT = process.cwd();
 const FIX = join(ROOT, 'fixtures', 'ytm');
 
 type Json = Record<string, unknown>;
