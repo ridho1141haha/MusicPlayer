@@ -19,6 +19,8 @@ public class Track {
     public static final String SOURCE_YTM = "ytm";
     /** WEBLAB-22A — Jamendo (official v3.0 API, Creative Commons catalog). */
     public static final String SOURCE_JAMENDO = "jamendo";
+    /** AUDIUS-ANDROID-1 — Audius (official public API v1, open ad-free catalog). */
+    public static final String SOURCE_AUDIUS = "audius";
 
     public final String id;
     public final String sourceId;

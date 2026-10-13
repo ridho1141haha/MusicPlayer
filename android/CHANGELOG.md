@@ -1,5 +1,69 @@
 # Changelog
 
+## 1.3.0 (versionCode 7) — 2026-10-13 · AUDIUS-ANDROID-1
+
+> versionCode follows the burn ledger (4 unaccounted, 5 = v1.2.2, 6 = v1.2.3);
+> 7 = v1.3.0, the first APK release of the Audius integration. versionName
+> follows semver: MINOR — one new music source, no breaking changes.
+
+### Added
+- **Audius source (official public API v1)** — an open, ad-free catalog of
+  creator-uploaded music, integrated behind the existing `MusicSource` contract:
+  `source/audius/{AudiusClient, AudiusSearchParser, AudiusSource}`.
+  - Search via `GET /v1/tracks/search` against official discovery hosts with
+    in-memory host caching (10 min), registry → fallback-host resilience and
+    bounded per-host failover; the registry (api.audius.co) is consulted at
+    most once per TTL window.
+  - **No credentials exist**: identification is the documented `app_name`
+    attribution parameter (`RidhoMusic`) only — nothing is stored, hidden or
+    logged.
+  - Honest playability gating at parse time: deleted / not-streamable /
+    not-available / paywalled entries (`access.stream` not boolean true, or a
+    non-null `stream_conditions`) are never offered; an explicit JSON null is
+    handled via `isNull()` (org.json maps it to `JSONObject.NULL`).
+  - Track ids are namespaced `audius:<base58>` so they can never collide with
+    other sources in the shared queue/database; metadata maps title, artist
+    (`user.name` → `user.handle` fallback), duration (s → ms) and https-only
+    artwork (480 → 1000 → 150 px preference).
+  - Streams: `resolveStreamUri` returns the documented per-track stream
+    endpoint (`/v1/tracks/{id}/stream?app_name=…`) — a stable media URL whose
+    302 → 307 → signed-CDN chain Media3/ExoPlayer follows natively (verified
+    live 2026-10-13: HTTP 206 range request, `audio/mpeg`, ID3v2.4 MP3).
+- **Settings → Music sources → Audius**: enable/disable switch, attribution
+  note, real-search diagnostics probe ("Connected · search OK (N results)" /
+  "Not configured" is impossible by design — there are no credentials / typed
+  failure), and a Privacy dialog line documenting the credential-free flow.
+- **Unit tests**: `AudiusSourceTest` — 14 JVM tests over the REAL request
+  building/discovery/failover/parsing paths with an OkHttp interceptor fake and
+  a real API capture fixture (`search_real_2026-10-13_nadin-amizah.json`) plus
+  a synthetic playability matrix (deleted / not-streamable / paywalled /
+  gated-object / unavailable / missing-id).
+
+### Changed
+- `ServiceLocator.allSources()` now registers Audius for queue resolution;
+  `browsableSources()` honors the new `SettingsRepository.audiusEnabled()`
+  toggle (default: on). Jamendo and the local library are unchanged.
+- Version bump: versionCode 6 → 7, versionName 1.2.3 → 1.3.0.
+
+### Not changed (by design)
+- YouTube Music remains search/metadata with its best-effort stream path — this
+  release does NOT add any audio-extraction capability.
+- `PlaybackService`, `PlaybackRepository`, the Room schema and all UI screens
+  are untouched; the source plugs in through the existing `MusicSource`
+  contract.
+
+### Verification (2026-10-13)
+- Unit tests: **69/69 PASS** (14 new + 55 regression; full
+  `:app:testDebugUnitTest` suite).
+- Lint: `:app:lintDebug` PASS (`abortOnError true`).
+- Build: `:app:assembleDebug` → `ridho-music-v1.3.0-debug.apk` (versionCode 7
+  confirmed via `aapt dump badging`). SHA-256 in `data/build-info-v1.3.0.json`.
+- Live catalog measurement (before coding): 17 real searches across Indonesian /
+  Western / anime / viral categories; 5/5 sampled streams resolved through the
+  official endpoint (206 + audio/mpeg). Details in the AUDIUS-ANDROID-1
+  worklog entry.
+- Device tests (A05s): **NOT RUN** — no hardware in this sandbox.
+
 ## 1.2.3 (versionCode 6) — 2026-10-13 · WEBLAB-22A + WEBLAB-22B
 
 > Versioning note: this is the first APK release of the Jamendo work (built

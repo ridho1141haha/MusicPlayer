@@ -1,0 +1,140 @@
+{
+ "data": [
+  {
+   "id": "OZR0Jg",
+   "title": "Nadin Amizah - Ah",
+   "duration": 120,
+   "user": {
+    "name": "A",
+    "handle": "a"
+   },
+   "artwork": {
+    "150x150": "https://cdn.example/150.jpg",
+    "480x480": "https://cdn.example/480.jpg"
+   },
+   "play_count": 1,
+   "is_streamable": true,
+   "is_delete": false,
+   "is_available": true,
+   "access": {
+    "stream": true
+   }
+  },
+  {
+   "id": "DEL111",
+   "title": "deleted track",
+   "duration": 120,
+   "user": {
+    "name": "A",
+    "handle": "a"
+   },
+   "artwork": {
+    "150x150": "https://cdn.example/150.jpg",
+    "480x480": "https://cdn.example/480.jpg"
+   },
+   "play_count": 1,
+   "is_streamable": true,
+   "is_delete": true,
+   "is_available": true,
+   "access": {
+    "stream": true
+   }
+  },
+  {
+   "id": "NST222",
+   "title": "not streamable",
+   "duration": 120,
+   "user": {
+    "name": "A",
+    "handle": "a"
+   },
+   "artwork": {
+    "150x150": "https://cdn.example/150.jpg",
+    "480x480": "https://cdn.example/480.jpg"
+   },
+   "play_count": 1,
+   "is_streamable": false,
+   "is_delete": false,
+   "is_available": true,
+   "access": {
+    "stream": true
+   }
+  },
+  {
+   "id": "PAY333",
+   "title": "paywalled",
+   "duration": 120,
+   "user": {
+    "name": "A",
+    "handle": "a"
+   },
+   "artwork": {
+    "150x150": "https://cdn.example/150.jpg",
+    "480x480": "https://cdn.example/480.jpg"
+   },
+   "play_count": 1,
+   "is_streamable": true,
+   "is_delete": false,
+   "is_available": true,
+   "access": {
+    "stream": true
+   },
+   "stream_conditions": {
+    "usdc_purchase": {
+     "price": 100
+    }
+   }
+  },
+  {
+   "id": "GAT444",
+   "title": "gated object",
+   "duration": 120,
+   "user": {
+    "name": "A",
+    "handle": "a"
+   },
+   "artwork": {
+    "150x150": "https://cdn.example/150.jpg",
+    "480x480": "https://cdn.example/480.jpg"
+   },
+   "play_count": 1,
+   "is_streamable": true,
+   "is_delete": false,
+   "is_available": true,
+   "access": {
+    "stream": {
+     "usdc_purchase": {}
+    }
+   }
+  },
+  {
+   "id": "UNA555",
+   "title": "unavailable",
+   "duration": 120,
+   "user": {
+    "name": "A",
+    "handle": "a"
+   },
+   "artwork": {
+    "150x150": "https://cdn.example/150.jpg",
+    "480x480": "https://cdn.example/480.jpg"
+   },
+   "play_count": 1,
+   "is_streamable": true,
+   "is_delete": false,
+   "is_available": false,
+   "access": {
+    "stream": true
+   }
+  },
+  {
+   "id": "",
+   "title": "missing id",
+   "duration": 10,
+   "is_streamable": true,
+   "access": {
+    "stream": true
+   }
+  }
+ ]
+}

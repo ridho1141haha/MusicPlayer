@@ -7,6 +7,8 @@ import com.ridho.music.domain.source.MusicSource;
 import com.ridho.music.playback.PlaybackRepository;
 import com.ridho.music.settings.SettingsRepository;
 import com.ridho.music.source.LocalMusicSource;
+import com.ridho.music.source.audius.AudiusClient;
+import com.ridho.music.source.audius.AudiusSource;
 import com.ridho.music.source.jamendo.JamendoClient;
 import com.ridho.music.source.jamendo.JamendoSource;
 import com.ridho.music.source.yt.YouTubeMusicSource;
@@ -29,6 +31,7 @@ public final class ServiceLocator {
     private volatile LocalMusicSource localSource;
     private volatile YouTubeMusicSource ytSource;
     private volatile JamendoSource jamendoSource;
+    private volatile AudiusSource audiusSource;
     private volatile PlaybackRepository playback;
 
     public ServiceLocator(Context appContext) {
@@ -96,9 +99,25 @@ public final class ServiceLocator {
         return jamendoSource;
     }
 
+    /**
+     * AUDIUS-ANDROID-1 — Official Audius source. The public API v1 needs no
+     * credentials (documented app_name attribution only), so there is no
+     * provider lambda here — just a lazily created client+source pair.
+     */
+    public AudiusSource audiusSource() {
+        if (audiusSource == null) {
+            synchronized (this) {
+                if (audiusSource == null) {
+                    audiusSource = new AudiusSource(new AudiusClient());
+                }
+            }
+        }
+        return audiusSource;
+    }
+
     /** All registered sources, including ones disabled for browsing (queue resolution still needs them). */
     public List<MusicSource> allSources() {
-        return new ArrayList<>(Arrays.asList(localSource(), ytSource(), jamendoSource()));
+        return new ArrayList<>(Arrays.asList(localSource(), ytSource(), jamendoSource(), audiusSource()));
     }
 
     /** Sources the user may browse/search, honoring their settings. */
@@ -107,6 +126,7 @@ public final class ServiceLocator {
         out.add(localSource());
         if (settings().youtubeMusicEnabled()) out.add(ytSource());
         if (settings().jamendoEnabled()) out.add(jamendoSource());
+        if (settings().audiusEnabled()) out.add(audiusSource());
         return out;
     }
 

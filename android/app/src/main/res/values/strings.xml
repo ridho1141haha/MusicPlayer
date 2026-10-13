@@ -121,6 +121,13 @@
     <string name="settings_jamendo_client_id_saved">Jamendo client ID saved</string>
     <string name="settings_jamendo_client_id_cleared">Jamendo client ID cleared</string>
     <string name="settings_jamendo_note">Jamendo tracks are Creative Commons licensed by independent artists. Get a free client ID at developer.jamendo.com. Ridho Music never downloads audio and never embeds a client secret.</string>
+    <!-- AUDIUS-ANDROID-1: Audius (official public API, no credentials) -->
+    <string name="settings_audius_enabled">Audius (open music platform)</string>
+    <string name="settings_audius_enabled_sum">Search and stream the official Audius catalog — an open, ad-free platform of creator-uploaded music.</string>
+    <string name="settings_audius_note">Audius streams come straight from the official public Audius API. No account or key is needed — requests identify the app only. Unplayable or paywalled tracks are hidden from results.</string>
+    <string name="diag_audius_api">Audius status</string>
+    <string name="diag_audius_ok_results">Connected · search OK (%1$d results)</string>
+    <string name="diag_audius_failed">Failed: %1$s</string>
     <string name="diag_jamendo_api">Jamendo status</string>
     <string name="diag_jamendo_not_configured">Not configured — add a client ID above</string>
     <string name="diag_jamendo_ok_results">Connected · search OK (%1$d results)</string>

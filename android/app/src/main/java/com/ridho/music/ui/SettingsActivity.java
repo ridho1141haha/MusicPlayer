@@ -18,6 +18,7 @@ import com.ridho.music.domain.model.SearchSection;
 import com.ridho.music.domain.source.SourceException;
 import com.ridho.music.settings.SettingsRepository;
 import com.ridho.music.source.LocalMusicSource;
+import com.ridho.music.source.audius.AudiusSource;
 import com.ridho.music.source.jamendo.JamendoSource;
 import com.ridho.music.source.yt.InnertubeClient;
 import com.ridho.music.source.yt.YouTubeMusicSource;
@@ -38,10 +39,12 @@ public class SettingsActivity extends AppCompatActivity {
     private SettingsRepository settings;
     private SwitchMaterial ytmSwitch;
     private SwitchMaterial jamendoSwitch;
+    private SwitchMaterial audiusSwitch;
     private SwitchMaterial skipSilenceSwitch;
     private SwitchMaterial restoreQueueSwitch;
     private TextView diagYtmStatus;
     private TextView diagJamendoStatus;
+    private TextView diagAudiusStatus;
     private TextView jamendoClientIdStatus;
     private TextView diagLocalStatus;
 
@@ -56,10 +59,12 @@ public class SettingsActivity extends AppCompatActivity {
 
         ytmSwitch = findViewById(R.id.switch_ytm);
         jamendoSwitch = findViewById(R.id.switch_jamendo);
+        audiusSwitch = findViewById(R.id.switch_audius);
         skipSilenceSwitch = findViewById(R.id.switch_skip_silence);
         restoreQueueSwitch = findViewById(R.id.switch_restore_queue);
         diagYtmStatus = findViewById(R.id.diag_ytm_status);
         diagJamendoStatus = findViewById(R.id.diag_jamendo_status);
+        diagAudiusStatus = findViewById(R.id.diag_audius_status);
         jamendoClientIdStatus = findViewById(R.id.jamendo_client_id_status);
         diagLocalStatus = findViewById(R.id.diag_local_status);
         TextView versionText = findViewById(R.id.settings_version);
@@ -78,6 +83,12 @@ public class SettingsActivity extends AppCompatActivity {
         jamendoSwitch.setChecked(settings.jamendoEnabled());
         jamendoSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
             settings.setJamendoEnabled(isChecked);
+            runDiagnostics();
+        });
+
+        audiusSwitch.setChecked(settings.audiusEnabled());
+        audiusSwitch.setOnCheckedChangeListener((buttonView, isChecked) -> {
+            settings.setAudiusEnabled(isChecked);
             runDiagnostics();
         });
 
@@ -179,6 +190,12 @@ public class SettingsActivity extends AppCompatActivity {
 
         runJamendoDiagnostics();
 
+        if (!settings.audiusEnabled()) {
+            diagAudiusStatus.setText(R.string.diag_none);
+        } else {
+            runAudiusDiagnostics();
+        }
+
         if (!settings.youtubeMusicEnabled()) {
             diagYtmStatus.setText(R.string.diag_none);
             return;
@@ -244,6 +261,31 @@ public class SettingsActivity extends AppCompatActivity {
         });
     }
 
+    /** AUDIUS-ANDROID-1: real-search probe of the official Audius API (no credentials involved). */
+    private void runAudiusDiagnostics() {
+        AudiusSource source = App.locator().audiusSource();
+        io.execute(() -> {
+            String status;
+            try {
+                List<SearchSection> sections = source.search("test", 1);
+                int results = 0;
+                for (SearchSection section : sections) {
+                    results += section.tracks.size();
+                }
+                status = results > 0
+                        ? getString(R.string.diag_audius_ok_results, results)
+                        : getString(R.string.diag_ytm_no_data);
+            } catch (SourceException e) {
+                status = getString(R.string.diag_audius_failed, e.getMessage());
+            }
+            final String statusText = status;
+            runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
+                diagAudiusStatus.setText(statusText);
+            });
+        });
+    }
+
     // ---------------------------------------------------------------- dialogs / actions
 
     private void clearArtworkCache() {
@@ -285,6 +327,10 @@ public class SettingsActivity extends AppCompatActivity {
         String text = "Ridho Music contains no advertising, analytics or tracking SDKs.\n\n"
                 + "• Local files: scanned on-device via the Storage Access Framework; "
                 + "nothing is uploaded.\n"
+                + "• Audius (optional): search/stream requests go directly over HTTPS "
+                + "to the official public Audius API. No account is used and no "
+                + "credentials exist — requests carry the documented app-name "
+                + "attribution only.\n"
                 + "• YouTube Music (optional, experimental): search/stream requests go "
                 + "directly over HTTPS to music.youtube.com. No account is used, no "
                 + "credentials are stored, no third party sees your queries.\n"

@@ -1,0 +1,16 @@
+{
+  "version": "1.3.0",
+  "versionCode": 7,
+  "builtAt": "2026-10-13T04:16:09Z",
+  "task": "AUDIUS-ANDROID-1",
+  "apk": "ridho-music-v1.3.0-debug.apk",
+  "sha256": "f10ffb4cc1facb1c30646888a42cedf7a0feae51cb31dd60a776a926e537a727",
+  "buildType": "debug",
+  "sourceCommit": "ebf3314d804a9c70ba83c65cf6456928694f4a71",
+  "sourceTreeDirty": true,
+  "toolchain": "Gradle 8.9 + AGP 8.7.3 + JDK 21 + platform-35 + build-tools 35.0.0",
+  "unitTests": "69/69 PASS (14 new AudiusSourceTest + 55 regression)",
+  "lint": "lintDebug PASS (abortOnError=true)",
+  "deviceTests": "NOT RUN — no hardware in sandbox",
+  "credentials": "none embedded; Audius needs no credentials (app_name attribution only)"
+}

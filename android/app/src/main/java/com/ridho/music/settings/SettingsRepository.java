@@ -75,6 +75,17 @@ public class SettingsRepository {
         prefs.edit().putBoolean("jamendo_enabled", enabled).apply();
     }
 
+    // ---------------------------------------------------------------- Audius (AUDIUS-ANDROID-1)
+
+    /** Whether the Audius source participates in search (default: on). */
+    public boolean audiusEnabled() {
+        return prefs.getBoolean("audius_enabled", true);
+    }
+
+    public void setAudiusEnabled(boolean enabled) {
+        prefs.edit().putBoolean("audius_enabled", enabled).apply();
+    }
+
     public boolean skipSilence() {
         return prefs.getBoolean("skip_silence", false);
     }
