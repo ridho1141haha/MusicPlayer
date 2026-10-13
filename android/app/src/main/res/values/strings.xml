@@ -107,7 +107,22 @@
     <string name="settings_restore_queue_sum">Resume the last queue (paused) after app restart</string>
     <string name="settings_sources_header">Music sources</string>
     <string name="settings_ytm_enabled">YouTube Music (experimental)</string>
-    <string name="settings_ytm_enabled_sum">Search YouTube Music via its unofficial web API. Playback of remote streams may be unavailable — see README for details.</string>
+    <string name="settings_ytm_enabled_sum">Search YouTube Music via its web API. Playback requires signing in with your own account below.</string>
+    <!-- FOCUS-YTM-2: sign-in row -->
+    <string name="settings_ytm_signin">YouTube Music account</string>
+    <string name="settings_ytm_signin_signed_out">Not signed in — tap to sign in (playback needs it)</string>
+    <string name="settings_ytm_signin_signed_in">Signed in — playback enabled. Tap to manage.</string>
+    <string name="ytm_signin_title">Sign in — YouTube Music</string>
+    <string name="ytm_signin_webview_hint">This is Google\'s own login page. Your password is never seen by Ridho Music — only the resulting session is stored, encrypted on this device.</string>
+    <string name="ytm_signin_consent_title">Use your YouTube Music account?</string>
+    <string name="ytm_signin_consent_body">Ridho Music will open the official music.youtube.com login. After you sign in, your own session enables background playback in this app.\n\nPlease know:\n• This is a personal-use, unofficial client — Google\'s terms may not allow it; small risk to your account is yours to accept.\n• Nothing is downloaded; only streaming, like the web player.\n• The session is stored encrypted, only on this device, excluded from backups, and “Sign out” removes it completely.\n• No deciphering, no bot-evasion: if YouTube refuses a track, the app tells you instead of bypassing.</string>
+    <string name="ytm_signin_continue">Continue</string>
+    <string name="ytm_signin_success">Signed in — YouTube Music playback enabled</string>
+    <string name="ytm_signout_confirm">Sign out of YouTube Music? The stored session is erased from this device.</string>
+    <string name="ytm_signout_done">Signed out</string>
+    <string name="ytm_signin_manage_title">YouTube Music session</string>
+    <string name="ytm_signin_renew">Sign in again</string>
+    <string name="ytm_signout">Sign out</string>
     <string name="settings_jamendo_enabled">Jamendo (free, legal music)</string>
     <string name="settings_jamendo_enabled_sum">Search and stream the official Jamendo catalog of independent Creative Commons music.</string>
     <string name="settings_jamendo_client_id">Jamendo client ID</string>
@@ -161,6 +176,8 @@
     <!-- FOCUS-YTM-1: honest YouTube gating messages -->
     <string name="err_playback_ytm_gated">YouTube refuses to stream this track to third-party apps without sign-in, and Ridho Music does not bypass YouTube\'s protections. Use “Open in YouTube Music” to listen there.</string>
     <string name="err_playback_ytm_catalog">Albums and artists are catalog links, not playable files. Open them in the official YouTube Music app instead.</string>
+    <string name="err_playback_ytm_signin">Playback needs your YouTube Music account. Sign in under Settings → Music sources → YouTube Music account.</string>
+    <string name="err_config_required">This source needs to be configured first — see Settings.</string>
     <string name="err_open_ytm_missing">No app or browser can open this link.</string>
     <string name="np_error_title">Can\'t play this track</string>
     <string name="np_error_dismiss">Dismiss</string>

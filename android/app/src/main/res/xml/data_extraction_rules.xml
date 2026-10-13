@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  FOCUS-YTM-2: device-to-device migration / cloud restore must never carry the
+  user's YouTube Music session (same rule as backup_rules.xml, API 31+ schema).
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="sharedpref" path="ridho_ytm_auth.xml" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="sharedpref" path="ridho_ytm_auth.xml" />
+    </device-transfer>
+</data-extraction-rules>

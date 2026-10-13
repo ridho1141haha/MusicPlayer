@@ -101,7 +101,7 @@ com.ridho.music
 - The `Track` model travels as JSON inside `MediaMetadata#extras`, Room snapshot
   columns, and the queue table — one serialization path, unit-tested.
 
-## 4. YouTube Music integration — status: EXPERIMENTAL, search only
+## 4. YouTube Music integration — status: EXPERIMENTAL · search always · playback via YOUR sign-in (v1.4.0)
 
 This is the honest part. YouTube Music offers **no public API** granting third-party
 apps unrestricted playback of arbitrary songs. Before building anything we reviewed
@@ -111,34 +111,51 @@ maintained open-source projects and their options:
 |---|---|
 | Official YouTube Data API v3 | No full-track streaming for third-party clients; no YT Music catalog search. Not viable for this app's purpose. |
 | **NewPipe Extractor** (GPLv3) | Technically maintained and capable, but **GPL-3.0 is viral**: linking it in a single APK makes the whole app GPLv3, conflicting with this project's MIT goal. Not bundled. A clean-room reimplementation was out of scope and is fragile by nature (signature deciphering changes). |
-| **Unauthenticated InnerTube web API** (what this app does) | Public endpoints the YT Music web player itself calls without credentials. **Search works** (songs/videos/albums/artists shelves). **Stream playback is best-effort**: the `player` endpoint increasingly gates direct URLs behind attestation / po-token mechanisms. When the platform refuses, the app surfaces a typed `UNAVAILABLE` error — it never bypasses sign-in, attestation, DRM or paid features. |
+| **Unauthenticated InnerTube web API** | Search works (songs/videos/albums/artists shelves). **Playback is dead for clients without a session** — measured on 2026-10-13 (`tool-results/ytm-diag/`): ANDROID_MUSIC → `LOGIN_REQUIRED` "Please sign in", WEB → `LOGIN_REQUIRED` "Sign in to confirm you're not a bot", TVHTML5 embed → "no longer supported", IOS → HTTP 400. |
+| **Authenticated web session (v1.4.0, what this app does now)** | The user logs into music.youtube.com in a **plain WebView** (Google's own pages; the app never sees the password). The captured session cookie is validated, stored **AES-256/GCM in the AndroidKeyStore**, excluded from backups, and replayed with the same `Cookie` + `SAPISIDHASH` headers the official web player sends. This is **authentication, not circumvention**: no signature deciphering, no po-token forging, no bot evasion, no downloads — the player endpoint returns plain `url` fields and Media3 streams them. |
 
 **What is implemented** (isolated behind `MusicSource` in `source/yt/`):
 
-1. `InnertubeClient` — HTTPS-only OkHttp client, no cookies/tokens, TLS validation
-   never disabled, timeouts, typed `SourceException`s.
+1. `InnertubeClient` — HTTPS-only OkHttp client, TLS validation never disabled,
+   timeouts, typed `SourceException`s; `post(endpoint, body, cookieHeader)` adds the
+   authenticated web-session headers (Cookie + SAPISIDHASH + X-Origin), cookies
+   travel only to music.youtube.com and are never logged.
 2. `YtMusicSearchParser` — defensive parser over the WEB_REMIX search response
-   (unit-tested against a captured-shape fixture).
-3. `YouTubeMusicSource.resolveStreamUri()` — best-effort direct-URL extraction from the
-   `player` endpoint (ANDROID_MUSIC client). Picks `itag 140` (128 kbps AAC) or the
-   best un-ciphered audio format. **Refuses** to decipher `signatureCipher` payloads.
+   (unit-tested against a captured-shape fixture). Search needs no sign-in.
+3. `settings/YtmCredentialStore` — AndroidKeyStore AES/GCM storage of the session,
+   dedicated prefs file, fail-closed, backup/transfer-excluded.
+4. `ui/YtmSignInActivity` — official login surface; Settings → Music sources →
+   **YouTube Music account** manages sign-in/sign-out (status shows a boolean
+   only, never cookie content).
+5. `YouTubeMusicSource.resolveStreamUri()` — signed-out → typed
+   `CONFIGURATION_REQUIRED` pointing at Settings; signed-in → `player` request
+   with the session, picks `itag 140` (128 kbps AAC) or the best un-ciphered audio
+   format. **Refuses** to decipher `signatureCipher` payloads; some tracks may
+   still be refused by the platform (age/region/attestation) — surfaced honestly
+   as typed errors with an "Open in YouTube Music" deep link.
 
-**Compliance rules baked into the code:** no credentials requested or stored, no
-private keys/cookies hardcoded, no TLS bypass, no silent auth/DRM/geo workaround,
-`LOGIN_REQUIRED` responses surface as user-visible errors, and the source can be
-switched off entirely in Settings.
+**Compliance rules baked into the code:** the user's own login is the only
+credential path; no cookies of anyone else; no plaintext session on disk; no TLS
+bypass; no silent auth/DRM/geo workaround; refusals surface as user-visible
+errors; the source can be switched off entirely in Settings; sign-out wipes both
+the stored session and the WebView cookies.
 
-**Reliability expectation:** search is fairly resilient; **remote playback may fail at
-any time** (attestation, regional or age restrictions). When it fails you get a clear
-error message and playback keeps working for local files. This limitation is also
-shown in-app (search footer + Settings note).
+**Reliability expectation:** search is fairly resilient; playback depends on
+Google accepting your session for a given track — most catalog tracks work,
+some refuse (age/region/attestation) and the app tells you instead of
+bypassing. **ToS note:** using your account in an unofficial client is against
+Google's terms for the free tier — it is your account and your call; nothing is
+downloaded and nothing is shared. Playback failures are surfaced via the
+Snackbar (main screen) and the error banner (Now Playing), with an
+"Open in YouTube Music" action as the compliant escape hatch.
 
-### If you need guaranteed YT Music playback
+### Why not "just make it play" without sign-in?
 
-Option A: vendor NewPipe Extractor via JitPack and accept GPLv3 for the combined work.
-Option B: implement signature deciphering yourself and keep MIT — expect ongoing
-maintenance churn. Either way, the integration point is a single class
-(`YouTubeMusicSource`) implementing `MusicSource`; nothing else in the app changes.
+Every unauthenticated client is gated server-side (see the measured table
+above). The remaining "working" routes are signature deciphering (bypassing a
+technical protection measure — refused) or po-token forging (attestation
+bypass — refused). v1.4.0 chose the only honest path left: the user's own
+authenticated session, exactly like the official web player.
 
 ## 4b. Jamendo integration — status: OPERATIONAL (official API, WEBLAB-22A)
 
@@ -192,15 +209,24 @@ Ridho Music streams progressively and **never downloads** audio files.
 ## 5. Privacy
 
 - No ads, analytics, crash-reporting or tracking SDKs.
-- The app has **no accounts**; it never asks for Google credentials.
+- **Accounts (v1.4.0):** the app still never sees your password — sign-in happens
+  in Google's own WebView pages. What is stored is YOUR resulting YouTube Music
+  session cookie, **AES-256/GCM encrypted with an AndroidKeyStore key**, in a
+  dedicated prefs file that is **excluded from cloud backups and device
+  transfers**; it travels only to `music.youtube.com` over HTTPS, only when a
+  playback request needs it, and is never logged or shown (Settings exposes a
+  signed-in boolean only). Sign-out erases it from the device.
 - Local files are scanned on-device (SAF); nothing is uploaded.
-- YouTube Music requests (optional, off-able) go directly to `music.youtube.com` over
-  HTTPS; no third party sees them; no tokens are stored.
+- YouTube Music search requests (optional, off-able) go directly to
+  `music.youtube.com` over HTTPS; no third party sees them.
 - Jamendo requests (optional, off-able) go directly to `api.jamendo.com` over HTTPS
   using only the app's `client_id` (public application identifier, never logged); no
   account, no OAuth, no secret. Search/stream traffic bypasses any intermediary.
+- Audius requests (optional, off-able) go directly to official Audius discovery
+  hosts over HTTPS using only the documented `app_name` attribution parameter.
 - Stored data: favorites/playlists/history/queue (app-private Room DB), artwork cache
-  in `filesDir/artwork`, preferences. Uninstall removes everything.
+  in `filesDir/artwork`, preferences, and the encrypted YT Music session (if you
+  signed in). Uninstall removes everything.
 - Logs intentionally avoid URLs and user data (`Track#toString` excludes URLs; error
   logs print error-code names only).
 
@@ -211,17 +237,23 @@ results observed, not assumed):
 
 - `gradle :app:assembleDebug` → **BUILD SUCCESSFUL**, `app-debug.apk` produced.
 - `gradle :app:assembleRelease` → **BUILD SUCCESSFUL** (R8 minified, 2.9 MB).
-- `gradle :app:testDebugUnitTest` → **55/55 tests passed**, zero failures
-  (latest recorded run 2026-10-12; see `data/qa-results.json` for the live
+- `gradle :app:testDebugUnitTest` → **86/86 tests passed**, zero failures
+  (latest recorded run 2026-10-13; see `data/qa-results.json` for the live
   recorded totals):
+  - `SapisidHashTest` (4) — FOCUS-YTM-2: known-answer SHA-1 SAPISIDHASH header,
+    cookie parsing, `looksAuthenticated` gate.
+  - `StreamErrorBusTest` (5) — FOCUS-YTM-1: error bus contract.
+  - `YtmLinksTest` (4) — FOCUS-YTM-1: deep-link id extraction + watch URL.
+  - `YouTubeMusicSourceTest` (11) — stream selection rules (itag 140 preference,
+    highest-bitrate fallback, ciphered/`LOGIN_REQUIRED`/missing-data → typed
+    errors) + v1.4.0 session rules (signed-out → CONFIGURATION_REQUIRED,
+    malformed session fails closed, catalog ids stay UNSUPPORTED).
   - `HistoryPolicyTest` (5) — history records REAL playback only (queue
     restore / repeat-one / resume dedupe).
   - `JamendoSourceTest` (18) — parser vs sanitized real captures, envelope
     error mapping, credential switching, stream-resolution contract.
   - `TrackTest` (4) — JSON round-trip serialization.
   - `LrcParserTest` (7) — LRC formats, multi-tags, sorting, active-line lookup.
-  - `YouTubeMusicSourceTest` (7) — stream selection rules (itag 140 preference,
-    highest-bitrate fallback, ciphered/`LOGIN_REQUIRED`/missing-data → typed errors).
   - `YtMusicSearchParserTest` (4) — response parsing incl. malformed-input safety.
 - `gradle :app:lintDebug` → **0 errors** with `abortOnError true` (7 API-level errors
   found and fixed during development: guarded `NotificationChannel` behind SDK ≥ 26,
@@ -240,8 +272,9 @@ Manual acceptance checklist for a device is in `CHANGELOG.md`.
 
 ## 7. Known limitations
 
-- YouTube Music playback is best-effort (see §4); search metadata is unofficial and
-  may change without notice.
+- YouTube Music playback requires signing in with your own account (see §4);
+  some tracks may still be refused by YouTube even then — the app surfaces it
+  instead of bypassing. Search metadata is unofficial and may change without notice.
 - Album/artist search results open a follow-up search (they are catalog links, not
   tracks) — full browse-endpoint integration is future work.
 - Lyrics require embedded LRC or `.lrc` sidecar files; there is no online lyrics
@@ -255,7 +288,8 @@ Manual acceptance checklist for a device is in `CHANGELOG.md`.
 | Symptom | Fix |
 |---|---|
 | "The selected folder is no longer readable" | Re-pick the folder in Home (Android can revoke SAF grants after provider updates). |
-| YT Music track fails to play | Expected behavior for gated streams — see §4. Local files are unaffected. Toggle the source off in Settings if you don't want it. |
+| YT Music track fails to play signed-out | Sign in: Settings → Music sources → YouTube Music account (see §4). The error message also says this. |
+| YT Music track fails even after sign-in | YouTube refused that track (age/region/attestation). Use “Open in YouTube Music” from the error banner. Local files are unaffected. |
 | Jamendo search says "Jamendo is not configured" | Add your free client ID in Settings → Music sources → Jamendo client ID (developer.jamendo.com). |
 | Jamendo search says the client ID was rejected | The id may be revoked or mistyped — re-enter it in Settings. "Clear" removes the runtime override. |
 | A Jamendo track fails to stream | Rare: check connectivity; the id-lookup can lag — retry usually fixes it. Local files are unaffected. |

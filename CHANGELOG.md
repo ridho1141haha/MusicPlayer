@@ -11,6 +11,7 @@ this file or in build metadata.
 
 | Version | versionCode | Date | Summary | Device-tested? |
 |---|---|---|---|---|
+| [1.4.0](android/CHANGELOG.md) | 8 | 2026-10-13 | **YouTube Music sign-in playback** (user-approved: official WebView login, encrypted on-device session, SAPISIDHASH web-auth — no bypass, no extraction) + honest playback-failure UX (StreamErrorBus, Snackbar/banner, "Open in YouTube Music" deep links) + unit suite 86/86. APK `ridho-music-v1.4.0-debug.apk`. | NOT RUN (no hardware; sign-in needs user's account) |
 | [1.3.0](android/CHANGELOG.md) | 7 | 2026-10-13 | Audius source (official public API v1, no credentials) — search + native Media3 streaming behind the existing `MusicSource` contract; Settings toggle + diagnostics; unit suite 69/69. APK `ridho-music-v1.3.0-debug.apk`. | NOT RUN (no hardware) |
 | [1.2.3](android/CHANGELOG.md) | 6 | 2026-10-13 | Jamendo official-API source (first APK release of the WEBLAB-22A work); history-real-playback fix; build traceability. APK `ridho-music-v1.2.3-debug.apk`. | NOT RUN (no hardware) |
 | 1.2.2 | 5 | 2026-10-12 | Pre-reset build; verified installed on the Samsung Galaxy A05s (WEBLAB-20A-VERIFY). Source lost in a sandbox reset — **superseded by 1.2.3**. | YES (A05s, Android 15) |

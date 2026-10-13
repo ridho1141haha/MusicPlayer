@@ -24,6 +24,7 @@ import com.ridho.music.R;
 import com.ridho.music.domain.model.Track;
 import com.ridho.music.lyrics.EmbeddedLyricsProvider;
 import com.ridho.music.lyrics.LrcParser;
+import com.ridho.music.playback.PlaybackErrorInfo;
 import com.ridho.music.playback.PlaybackRepository;
 import com.ridho.music.player.MediaItemConverter;
 import com.ridho.music.ui.adapter.LyricsAdapter;
@@ -56,6 +57,11 @@ public class NowPlayingActivity extends AppCompatActivity implements PlaybackRep
     private RecyclerView lyricsList;
     private TextView lyricsPlain;
     private TextView lyricsEmpty;
+
+    // FOCUS-YTM-1: honest playback-error banner
+    private View errorBanner;
+    private TextView errorMessage;
+    private TextView errorOpenYtm;
 
     private final LyricsAdapter lyricsAdapter = new LyricsAdapter();
     private final EmbeddedLyricsProvider lyricsProvider = new EmbeddedLyricsProvider();
@@ -111,6 +117,18 @@ public class NowPlayingActivity extends AppCompatActivity implements PlaybackRep
         lyricsList = findViewById(R.id.np_lyrics_list);
         lyricsPlain = findViewById(R.id.np_lyrics_plain);
         lyricsEmpty = findViewById(R.id.np_lyrics_empty);
+
+        errorBanner = findViewById(R.id.np_error_banner);
+        errorMessage = findViewById(R.id.np_error_message);
+        errorOpenYtm = findViewById(R.id.np_error_open_ytm);
+        TextView errorDismiss = findViewById(R.id.np_error_dismiss);
+        errorDismiss.setOnClickListener(v -> playback.dismissPlaybackError());
+        errorOpenYtm.setOnClickListener(v -> {
+            PlaybackErrorInfo error = playback.lastPlaybackError();
+            if (error != null && !YtmLinks.openTrack(this, error.trackId)) {
+                Toast.makeText(this, R.string.err_open_ytm_missing, Toast.LENGTH_SHORT).show();
+            }
+        });
 
         lyricsList.setLayoutManager(new LinearLayoutManager(this));
         lyricsList.setAdapter(lyricsAdapter);
@@ -173,6 +191,7 @@ public class NowPlayingActivity extends AppCompatActivity implements PlaybackRep
         findViewById(R.id.np_controls_block).setVisibility(hasTrack ? View.VISIBLE : View.GONE);
         if (!hasTrack) {
             positionHandler.removeCallbacks(positionTick);
+            errorBanner.setVisibility(View.GONE);
             return;
         }
 
@@ -216,12 +235,27 @@ public class NowPlayingActivity extends AppCompatActivity implements PlaybackRep
         // Lyrics
         loadLyrics(track);
 
+        refreshErrorBanner(playback.lastPlaybackError());
+
         long duration = playback.durationMs();
         timeTotal.setText(FormatUtils.formatDuration(duration));
         seekBar.setValueTo(Math.max(duration, 1L));
 
         positionHandler.removeCallbacks(positionTick);
         positionHandler.post(positionTick);
+    }
+
+    /** FOCUS-YTM-1: keeps the banner in sync with the repository's error snapshot. */
+    private void refreshErrorBanner(PlaybackErrorInfo error) {
+        if (error == null) {
+            errorBanner.setVisibility(View.GONE);
+            return;
+        }
+        errorMessage.setText(PlaybackErrorText.message(this, error));
+        boolean ytm = Track.SOURCE_YTM.equals(error.sourceId)
+                && YtmLinks.videoIdFromTrackId(error.trackId) != null;
+        errorOpenYtm.setVisibility(ytm ? View.VISIBLE : View.GONE);
+        errorBanner.setVisibility(View.VISIBLE);
     }
 
     private void toggleFavorite() {

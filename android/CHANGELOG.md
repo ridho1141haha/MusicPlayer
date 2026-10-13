@@ -1,5 +1,101 @@
 # Changelog
 
+## 1.4.0 (versionCode 8) — 2026-10-13 · FOCUS-YTM-1 + FOCUS-YTM-2
+
+> User-approved design change: YouTube Music playback via the user's OWN
+> signed-in session (login accepted by the user), plus honest playback-failure
+> UX. versionCode 8 per burn ledger (7 = v1.3.0); versionName MINOR (new
+> capability, no breaking change).
+
+### Added
+- **YouTube Music sign-in (official WebView, FOCUS-YTM-2)** — playback now uses
+  the user's own music.youtube.com session:
+  - `ui/YtmSignInActivity`: loads the official login in a plain WebView
+    (JavaScript + third-party cookies enabled for the OAuth flow); the user
+    types their password into Google's own pages — the app never sees it.
+  - Session capture: platform `CookieManager` polled (1 s, stops on
+    success/pause) until `SAPISID` + `__Secure-1PSID` are present; the raw
+    cookie header is validated (`SapisidHash.looksAuthenticated`) and stored.
+  - `settings/YtmCredentialStore`: AES-256/GCM encryption with the key in the
+    hardware-backed AndroidKeyStore; dedicated prefs file
+    (`ridho_ytm_auth.xml`); **excluded from cloud backup and device transfer**
+    (`res/xml/backup_rules.xml`, `data_extraction_rules.xml`); fail-closed
+    (never stores plaintext if the keystore is unavailable); decrypt-failure
+    (keystore wipe) is treated as signed-out.
+  - `source/yt/SapisidHash`: pure, unit-tested builder of the
+    `Authorization: SAPISIDHASH` header (known-answer test against an
+    independently computed SHA-1) + cookie parsing/`looksAuthenticated`.
+  - `InnertubeClient.post(endpoint, body, cookieHeader)`: authenticated request
+    variant sending `Cookie` + `SAPISIDHASH` + `X-Origin` + `X-Goog-AuthUser`
+    — exactly the headers the official web player sends; cookies only travel
+    to music.youtube.com over HTTPS and are never logged.
+  - `ServiceLocator.ytmCredentials()`; the source's cookie resolves at REQUEST
+    time, so sign-in/sign-out takes effect immediately.
+  - Settings → Music sources → **YouTube Music account** row: signed-in
+    boolean status (never any cookie content), sign-in (consent dialog →
+    WebView), re-sign-in, and sign-out (wipes stored session + WebView
+    cookies).
+  - Consent dialog states honestly: personal-use unofficial client, ToS risk
+    on the user's account, streaming-only (nothing downloaded), encrypted
+    local-only storage, no bypass (refusals surface as typed errors).
+- **Honest playback-failure UX (FOCUS-YTM-1)** — failures are no longer silent:
+  - `playback/StreamErrorBus` + `playback/PlaybackErrorInfo`: the service
+    publishes the typed resolution failure (track, source, kind, diagnostic —
+    never URLs) that previously died inside the `onAddMediaItems` future and
+    the one-shot recovery catch block.
+  - `PlaybackRepository.lastPlaybackError()` / `dismissPlaybackError()`: two
+    previously invisible paths now surface — (1) refused resolution for a
+    play()/addToQueue() call (matched via a pending-track watcher; the void
+    controller API cannot carry the failure) and (2) `onPlayerError` with the
+    bus diagnostic when it belongs to the current track. Errors clear when
+    playback becomes READY again.
+  - MainActivity: deduped Snackbar with the honest message + **"Open in
+    YouTube Music"** action for YTM tracks.
+  - NowPlayingActivity: inline error banner (title/message/actions) above the
+    transport controls; actions: Open in YouTube Music / Dismiss.
+  - `ui/PlaybackErrorText`: single home for kind→message mapping, incl. new
+    strings `err_playback_ytm_signin` (needs sign-in) and
+    `err_config_required`.
+- **Deep links (`ui/YtmLinks`)**: `https://music.youtube.com/watch?v=<id>`
+  with a YT-Music-app-first intent and browser fallback; id extraction is
+  validated (charset/length) and unit-tested. Wired into the shared track
+  context menu (`menu_track.xml` → "Open in YouTube Music", YTM tracks only).
+
+### Changed
+- `YouTubeMusicSource.resolveStreamUri`: signed-out → typed
+  `CONFIGURATION_REQUIRED` ("Sign in to YouTube Music in Settings…"); the old
+  unauthenticated ANDROID_MUSIC best-effort attempt is gone — measured evidence
+  (probe 2026-10-13, `tool-results/ytm-diag/`) shows EVERY unauthenticated
+  public InnerTube client is gated server-side (ANDROID_MUSIC/WEB →
+  LOGIN_REQUIRED, TVHTML5 embed → "no longer supported", IOS → HTTP 400).
+  Signed-in requests go through the web-session path; the extractor still
+  never touches `signatureCipher`.
+- Settings: YTM summary now says playback requires sign-in; the YouTube
+  experimental note now states the measured gating reality and points to the
+  Open-in-YouTube-Music escape hatch.
+- Version bump: versionCode 7 → 8, versionName 1.3.0 → 1.4.0.
+
+### Not changed (by design)
+- No signature deciphering, no po-token forging, no bot-evasion, no cookies of
+  anyone but the user who signs in on the device, no audio extraction or
+  downloads — streaming only, like the official web player.
+- Jamendo, Audius and the local library are untouched (user focus request:
+  YouTube only). `PlaybackService` engine logic unchanged except publishing
+  typed failures to the new bus.
+
+### Verification (2026-10-13)
+- Unit tests: **86/86 PASS** (17 new: SapisidHashTest 4, StreamErrorBusTest 5,
+  YtmLinksTest 4, YouTubeMusicSourceTest +4 session rules; 69 regression).
+- Lint: `:app:lintDebug` PASS (0 errors after replacing `java.util.Base64`
+  with `android.util.Base64` for minSdk 24).
+- Build: `:app:assembleDebug` → `ridho-music-v1.4.0-debug.apk`, versionCode 8 /
+  versionName 1.4.0-debug confirmed via `aapt dump badging`. SHA-256 in
+  `data/build-info-v1.4.0.json`.
+- Device (A05s): **NOT RUN** — no hardware in sandbox.
+- Sign-in flow + authenticated playback: **NOT RUN** — requires a real Google
+  account on a real device; sandbox holds no credentials. The user runs the
+  manual QA checklist.
+
 ## 1.3.0 (versionCode 7) — 2026-10-13 · AUDIUS-ANDROID-1
 
 > versionCode follows the burn ledger (4 unaccounted, 5 = v1.2.2, 6 = v1.2.3);

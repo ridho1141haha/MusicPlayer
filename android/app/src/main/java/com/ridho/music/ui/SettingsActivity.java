@@ -96,6 +96,11 @@ public class SettingsActivity extends AppCompatActivity {
         jamendoClientIdRow.setOnClickListener(v -> showJamendoClientIdDialog());
         refreshJamendoClientIdStatus();
 
+        // FOCUS-YTM-2: YouTube Music account session row.
+        View ytmSigninRow = findViewById(R.id.row_ytm_signin);
+        ytmSigninRow.setOnClickListener(v -> showYtmSessionDialog());
+        refreshYtmSigninStatus();
+
         skipSilenceSwitch.setChecked(settings.skipSilence());
         skipSilenceSwitch.setOnCheckedChangeListener((buttonView, isChecked) ->
                 settings.setSkipSilence(isChecked));
@@ -115,6 +120,7 @@ public class SettingsActivity extends AppCompatActivity {
     protected void onResume() {
         super.onResume();
         refreshJamendoClientIdStatus();
+        refreshYtmSigninStatus();
         runDiagnostics();
     }
 
@@ -135,6 +141,48 @@ public class SettingsActivity extends AppCompatActivity {
         } else {
             jamendoClientIdStatus.setText(R.string.settings_jamendo_client_id_missing);
         }
+    }
+
+    /** FOCUS-YTM-2: signed-in summary — a boolean only, never any cookie content. */
+    private void refreshYtmSigninStatus() {
+        TextView status = findViewById(R.id.ytm_signin_status);
+        status.setText(App.locator().ytmCredentials().signedIn()
+                ? R.string.settings_ytm_signin_signed_in
+                : R.string.settings_ytm_signin_signed_out);
+    }
+
+    /** FOCUS-YTM-2: manage the session — sign in (WebView) or sign out (wipe). */
+    private void showYtmSessionDialog() {
+        boolean signedIn = App.locator().ytmCredentials().signedIn();
+        if (!signedIn) {
+            startActivity(new android.content.Intent(this, YtmSignInActivity.class));
+            return;
+        }
+        new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.ytm_signin_manage_title)
+                .setPositiveButton(R.string.ytm_signin_renew, (d, w) ->
+                        startActivity(new android.content.Intent(this, YtmSignInActivity.class)))
+                .setNegativeButton(R.string.ytm_signout, (d, w) -> signOutYtm())
+                .setNeutralButton(R.string.playlist_cancel, null)
+                .show();
+    }
+
+    private void signOutYtm() {
+        App.locator().ytmCredentials().clear();
+        // Best-effort: also drop the WebView-side cookies for Google surfaces.
+        android.webkit.CookieManager cm = android.webkit.CookieManager.getInstance();
+        for (String domain : new String[]{"https://music.youtube.com/", "https://accounts.google.com/"}) {
+            String cookie = cm.getCookie(domain);
+            if (cookie == null) continue;
+            for (String part : cookie.split(";")) {
+                String name = part.trim().split("=", 2)[0];
+                if (!name.isEmpty()) cm.setCookie(domain, name + "=; Max-Age=0; Path=/");
+            }
+        }
+        cm.flush();
+        android.widget.Toast.makeText(this, R.string.ytm_signout_done,
+                android.widget.Toast.LENGTH_SHORT).show();
+        refreshYtmSigninStatus();
     }
 
     /** Input dialog for the runtime Jamendo client id (stored on-device only). */

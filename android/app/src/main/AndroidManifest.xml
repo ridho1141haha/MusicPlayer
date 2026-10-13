@@ -12,6 +12,8 @@
     <application
         android:name=".App"
         android:allowBackup="true"
+        android:fullBackupContent="@xml/backup_rules"
+        android:dataExtractionRules="@xml/data_extraction_rules"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"
@@ -43,6 +45,14 @@
             android:name=".ui.SettingsActivity"
             android:exported="false"
             android:parentActivityName=".ui.MainActivity" />
+
+        <!-- FOCUS-YTM-2: official WebView sign-in (configChanges avoids a reload
+             mid-OAuth on rotation) -->
+        <activity
+            android:name=".ui.YtmSignInActivity"
+            android:exported="false"
+            android:configChanges="orientation|screenSize|keyboardHidden"
+            android:parentActivityName=".ui.SettingsActivity" />
 
         <!-- Background playback service. Media3 MediaSessionService:
              handles the media notification, lock-screen/Bluetooth controls,

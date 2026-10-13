@@ -1,6 +1,7 @@
 package com.ridho.music.source.yt;
 
 import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
 
 import com.ridho.music.domain.source.SourceException;
 
@@ -63,16 +64,48 @@ public class InnertubeClient {
     @NonNull
     public JSONObject post(String endpoint, JSONObject body, boolean androidClient)
             throws SourceException {
+        return execute(endpoint, body,
+                androidClient ? ANDROID_CLIENT_CONTEXT_JSON : CLIENT_CONTEXT_JSON, null);
+    }
+
+    /**
+     * FOCUS-YTM-2 — POSTs with the user's own signed-in web session: the standard
+     * WEB_REMIX context plus {@code Cookie} / {@code SAPISIDHASH} headers, exactly
+     * like the official music.youtube.com web player. No bypass — the user logged
+     * in themselves; this is their authenticated session speaking.
+     *
+     * <p>Privacy: the cookie header is sent only to music.youtube.com over HTTPS
+     * and is never logged or persisted by this client.</p>
+     */
+    @NonNull
+    public JSONObject post(String endpoint, JSONObject body, String cookieHeader)
+            throws SourceException {
+        String sapisid = SapisidHash.extractSapisid(cookieHeader);
+        String authorization = sapisid == null ? null
+                : SapisidHash.authorizationHeader(sapisid, System.currentTimeMillis(),
+                        "/youtubei/v1/" + endpoint);
+        return execute(endpoint, body, CLIENT_CONTEXT_JSON, cookieHeader, authorization);
+    }
+
+    @NonNull
+    private JSONObject execute(String endpoint, JSONObject body, String contextJson,
+                               @Nullable String cookieHeader) throws SourceException {
+        return execute(endpoint, body, contextJson, cookieHeader, null);
+    }
+
+    @NonNull
+    private JSONObject execute(String endpoint, JSONObject body, String contextJson,
+                               @Nullable String cookieHeader, @Nullable String authorization)
+            throws SourceException {
         try {
-            JSONObject context = new JSONObject(
-                    androidClient ? ANDROID_CLIENT_CONTEXT_JSON : CLIENT_CONTEXT_JSON);
+            JSONObject context = new JSONObject(contextJson);
             body.putOpt("context", context);
         } catch (JSONException e) {
             throw new SourceException(SourceException.Kind.PARSE,
                     "Failed to build request body.", e);
         }
 
-        Request request = new Request.Builder()
+        Request.Builder builder = new Request.Builder()
                 .url(BASE_URL + endpoint + "?prettyPrint=false")
                 .header("Content-Type", "application/json")
                 .header("Origin", "https://music.youtube.com")
@@ -80,8 +113,19 @@ public class InnertubeClient {
                 .header("User-Agent",
                         "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) "
                                 + "Chrome/128.0.0.0 Safari/537.36")
-                .post(RequestBody.create(body.toString(), JSON))
-                .build();
+                .post(RequestBody.create(body.toString(), JSON));
+
+        // FOCUS-YTM-2: authenticated session headers (never logged).
+        if (cookieHeader != null && !cookieHeader.isEmpty()) {
+            builder.header("Cookie", cookieHeader);
+            builder.header("X-Origin", "https://music.youtube.com");
+            builder.header("X-Goog-AuthUser", "0");
+            if (authorization != null) {
+                builder.header("Authorization", authorization);
+            }
+        }
+
+        Request request = builder.build();
 
         try (Response response = client.newCall(request).execute()) {
             ResponseBody responseBody = response.body();

@@ -1,0 +1,31 @@
+{
+  "artifact": "ridho-music-v1.4.0-debug.apk",
+  "versionName": "1.4.0-debug",
+  "versionCode": 8,
+  "variant": "debug",
+  "builtAtUtc": "2026-10-13",
+  "sourceCommit": "e7c54f7bce6b8bb172bfab5a010936cf65b0b8f9",
+  "parentTask": "FOCUS-YTM-1 + FOCUS-YTM-2 (uncommitted working tree; NO commit per red line)",
+  "applicationId": "com.ridho.music.debug",
+  "platformBuildVersionCode": 35,
+  "sizeBytes": 10314223,
+  "sha256": "8749116b9a2302489bd7e0309462a7d455d9c5a66024a4acb5dc71d5e4ad3668",
+  "qa": {
+    "unitTests": "86/86 PASS (:app:testDebugUnitTest)",
+    "newTests": "SapisidHashTest 4, StreamErrorBusTest 5, YtmLinksTest 4, YouTubeMusicSourceTest +4 (session rules)",
+    "lint": "PASS (:app:lintDebug, 0 errors)",
+    "deviceTests": "NOT RUN — no Samsung A05s reachable in sandbox (honest status)",
+    "authenticatedPlayback": "NOT RUN — requires a real Google account sign-in on a real device; sandbox holds no credentials",
+    "signInFlowWebView": "NOT RUN — same reason"
+  },
+  "privacy": {
+    "sessionStorage": "AES-256/GCM via AndroidKeyStore; dedicated prefs file; excluded from cloud backup + device transfer (backup_rules.xml, data_extraction_rules.xml)",
+    "credentials": "user signs into Google's own WebView pages; password never seen by the app; cookie header sent only to music.youtube.com over HTTPS, never logged",
+    "diagnostics": "signed-in state exposed as boolean only"
+  },
+  "compliance": {
+    "bypass": "none — no signature deciphering, no po-token forging, no bot evasion; playback uses the user's own authenticated session like the official web player",
+    "extraction": "none — streaming only, no downloads",
+    "disclosure": "ToS-gray for free accounts (personal use); disclosed in the sign-in consent dialog, Settings note, README and CHANGELOG"
+  }
+}

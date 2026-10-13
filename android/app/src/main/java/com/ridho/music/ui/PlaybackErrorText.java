@@ -28,6 +28,9 @@ public final class PlaybackErrorText {
             if (SourceException.Kind.UNSUPPORTED.name().equals(info.kind)) {
                 return context.getString(R.string.err_playback_ytm_catalog);
             }
+            if (SourceException.Kind.CONFIGURATION_REQUIRED.name().equals(info.kind)) {
+                return context.getString(R.string.err_playback_ytm_signin);
+            }
         }
 
         if (SourceException.Kind.NETWORK.name().equals(info.kind)) {
@@ -41,6 +44,9 @@ public final class PlaybackErrorText {
         }
         if (SourceException.Kind.NOT_FOUND.name().equals(info.kind)) {
             return context.getString(R.string.err_not_found);
+        }
+        if (SourceException.Kind.CONFIGURATION_REQUIRED.name().equals(info.kind)) {
+            return context.getString(R.string.err_config_required);
         }
         return context.getString(R.string.err_playback);
     }

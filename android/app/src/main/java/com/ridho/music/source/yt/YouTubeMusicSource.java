@@ -14,22 +14,40 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * <strong>Experimental, unofficial</strong> YouTube Music provider.
+ * YouTube Music provider.
  *
- * <p><b>What works:</b> catalog search (songs, videos, albums, artists) through the
- * same unauthenticated JSON API the YouTube Music web player uses.</p>
+ * <p><b>Search:</b> catalog search (songs, videos, albums, artists) through the
+ * same unauthenticated JSON API the YouTube Music web player uses — mature and
+ * stable.</p>
  *
- * <p><b>What may not work:</b> remote stream playback. Extracting a playable audio
- * URL from YouTube requires either the InnerTube <code>player</code> endpoint to
- * return direct URLs (increasingly gated behind attestation/po-token mechanisms)
- * or third-party signature deciphering (NewPipe Extractor, GPLv3). This class
- * implements a best-effort direct-URL attempt and fails with a typed
- * {@link SourceException.Kind#UNAVAILABLE} error when the platform refuses —
- * it never bypasses authentication, attestation, DRM or paid features.</p>
+ * <p><b>Stream playback (FOCUS-YTM-2, user-approved design change):</b> playback
+ * uses the user's OWN signed-in session. The user logs into music.youtube.com in
+ * an official WebView (password never seen by this app); the captured session is
+ * stored encrypted (AndroidKeyStore) and replayed with the {@code Cookie} +
+ * {@code SAPISIDHASH} headers the official web player itself sends. This is
+ * authentication, not circumvention: no signature deciphering, no po-token
+ * forging, no credential automation, no extraction/download — only what the
+ * user's own account is served, streamed (never downloaded) via Media3.</p>
  *
- * <p>See README.md for the full integration analysis and legal notes.</p>
+ * <p><b>Measured reality (probe 2026-10-13, tool-results/ytm-diag/):</b> every
+ * UNAUTHENTICATED public InnerTube client is gated server-side —
+ * ANDROID_MUSIC/WEB → LOGIN_REQUIRED, TVHTML5 embed → "no longer supported".
+ * Signed-out remote playback therefore fails with a typed
+ * CONFIGURATION_REQUIRED error pointing at Settings sign-in. With a session,
+ * the {@code player} endpoint returns plain {@code url} fields — the extractor
+ * below still never touches {@code signatureCipher}.</p>
+ *
+ * <p><b>Honest limits:</b> some videos may still refuse playback even when
+ * signed in (age/region/attestation) — surfaced as typed UNAVAILABLE, never
+ * worked around. Personal use; third-party ToS risk is disclosed in the
+ * sign-in dialog and README.</p>
  */
 public class YouTubeMusicSource implements MusicSource {
+
+    /** Supplies the stored session cookie header (null when signed out). */
+    public interface CookieProvider {
+        @Nullable String cookieHeader();
+    }
 
     // Filter params documented in public InnerTube references; may stop working anytime.
     static final String PARAM_SONGS = "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D";
@@ -38,10 +56,17 @@ public class YouTubeMusicSource implements MusicSource {
     private static final String PREFERRED_ITAG = "140"; // 128 kbps AAC (m4a)
 
     private final InnertubeClient client;
+    @Nullable private final CookieProvider credentials;
     private volatile String lastDiagnostic;
 
+    /** Signed-out variant (kept for tests); remote playback will require sign-in. */
     public YouTubeMusicSource(InnertubeClient client) {
+        this(client, null);
+    }
+
+    public YouTubeMusicSource(InnertubeClient client, @Nullable CookieProvider credentials) {
         this.client = client;
+        this.credentials = credentials;
     }
 
     // ---------------------------------------------------------------- MusicSource
@@ -98,12 +123,19 @@ public class YouTubeMusicSource implements MusicSource {
             throw new SourceException(SourceException.Kind.UNSUPPORTED,
                     "Album and artist entries are catalog links, not playable tracks.");
         }
+        String cookie = credentials == null ? null : credentials.cookieHeader();
+        if (cookie == null || !SapisidHash.looksAuthenticated(cookie)) {
+            lastDiagnostic = "Not signed in";
+            throw new SourceException(SourceException.Kind.CONFIGURATION_REQUIRED,
+                    "Sign in to YouTube Music in Settings → Music sources to enable playback.");
+        }
         try {
             JSONObject body = new JSONObject()
                     .put("videoId", videoId)
                     .put("contentCheckOk", true)
                     .put("racyCheckOk", true);
-            JSONObject response = client.post("player", body, true);
+            // Authenticated web-session request — same as the official web player.
+            JSONObject response = client.post("player", body, cookie);
             return extractStreamUrl(response);
         } catch (SourceException e) {
             lastDiagnostic = e.getMessage();

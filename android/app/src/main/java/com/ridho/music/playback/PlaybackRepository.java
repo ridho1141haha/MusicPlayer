@@ -43,6 +43,9 @@ public class PlaybackRepository {
 
     private static final String TAG = "PlaybackRepository";
 
+    /** FOCUS-YTM-1: how long a play()/addToQueue() call watches for a bus failure. */
+    private static final long RESOLUTION_GRACE_MS = 15_000L;
+
     /** Simple change notification; listeners re-read the snapshot getters. */
     public interface Listener {
         void onPlaybackChanged();
@@ -62,6 +65,17 @@ public class PlaybackRepository {
     /** Last playback failure snapshot (FOCUS-YTM-1); null while playback is healthy. */
     @Nullable
     private volatile PlaybackErrorInfo lastError;
+
+    /**
+     * FOCUS-YTM-1: track awaiting stream resolution after play()/addToQueue().
+     * MediaController's set/add APIs are void, so a refused resolution (typed
+     * SourceException inside the session's onAddMediaItems) never surfaces as a
+     * controller future — instead the service posts to {@link StreamErrorBus} and
+     * the listener below matches it against this pending track.
+     */
+    @Nullable
+    private volatile Track pendingResolutionTrack;
+    private volatile long pendingResolutionAtMs;
 
     public PlaybackRepository(Context appContext) {
         this.appContext = appContext.getApplicationContext();
@@ -120,6 +134,7 @@ public class PlaybackRepository {
             if (player.getPlaybackState() == Player.STATE_READY && lastError != null) {
                 lastError = null;
             }
+            checkPendingResolution(player);
             notifyListeners();
         }
 
@@ -130,6 +145,34 @@ public class PlaybackRepository {
         }
     };
 
+    /**
+     * Matches a posted {@link StreamErrorBus} entry against the track we asked to
+     * play/queue. Bus-first ordering matters: a refused resolution never changes
+     * the timeline, so the failure must be checked before treating "items exist"
+     * as success. Stale entries cannot mis-attribute — only a pending-track id
+     * match is accepted, and the pending marker expires after a grace period.
+     */
+    private void checkPendingResolution(Player player) {
+        Track pending = pendingResolutionTrack;
+        if (pending == null) return;
+        long now = System.currentTimeMillis();
+        PlaybackErrorInfo bus = StreamErrorBus.latest();
+        if (bus != null && bus.belongsTo(pending.id)) {
+            pendingResolutionTrack = null;
+            lastError = new PlaybackErrorInfo(pending.id, pending.sourceId,
+                    pending.title, pending.artist, bus.kind, bus.sourceDiagnostic,
+                    null, now);
+            return;
+        }
+        if (player.getMediaItemCount() > 0 || player.isPlaying()) {
+            pendingResolutionTrack = null; // resolved and queued fine
+            return;
+        }
+        if (now - pendingResolutionAtMs > RESOLUTION_GRACE_MS) {
+            pendingResolutionTrack = null; // give up watching (no failure recorded)
+        }
+    }
+
     // ---------------------------------------------------------------- queue control
 
     /** Starts playback of {@code tracks} at {@code index}. Safe to call before connect. */
@@ -137,20 +180,15 @@ public class PlaybackRepository {
         Runnable action = () -> {
             MediaController c = controller;
             if (c == null) return;
-            ListenableFuture<List<MediaItem>> future =
-                    c.setMediaItems(MediaItemConverter.toMediaItems(tracks), index, 0L);
-            // FOCUS-YTM-1: this future used to be ignored — a refused stream
-            // resolution (e.g. YouTube LOGIN_REQUIRED) failed completely silently.
-            future.addListener(() -> {
-                try {
-                    future.get();
-                } catch (Exception e) {
-                    Track starter = tracks.isEmpty() ? null
-                            : tracks.get(Math.max(0, Math.min(index, tracks.size() - 1)));
-                    lastError = buildError(starter, null);
-                    notifyListeners();
-                }
-            }, Runnable::run);
+            // FOCUS-YTM-1: this call is void — a refused stream resolution (e.g.
+            // YouTube answering LOGIN_REQUIRED) used to vanish silently. The
+            // service now posts the typed reason to StreamErrorBus and the player
+            // listener surfaces it while this track is still pending.
+            Track starter = tracks.isEmpty() ? null
+                    : tracks.get(Math.max(0, Math.min(index, tracks.size() - 1)));
+            pendingResolutionTrack = starter;
+            pendingResolutionAtMs = System.currentTimeMillis();
+            c.setMediaItems(MediaItemConverter.toMediaItems(tracks), index, 0L);
             c.prepare();
             c.play();
         };
@@ -166,16 +204,9 @@ public class PlaybackRepository {
     public void addToQueue(Track track) {
         MediaController c = controller;
         if (c == null) return;
-        ListenableFuture<MediaItem> future =
-                c.addMediaItem(c.getMediaItemCount(), MediaItemConverter.toMediaItem(track));
-        future.addListener(() -> {
-            try {
-                future.get();
-            } catch (Exception e) {
-                lastError = buildError(track, null);
-                notifyListeners();
-            }
-        }, Runnable::run);
+        pendingResolutionTrack = track;
+        pendingResolutionAtMs = System.currentTimeMillis();
+        c.addMediaItem(c.getMediaItemCount(), MediaItemConverter.toMediaItem(track));
     }
 
     public void clearQueue() {

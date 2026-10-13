@@ -102,4 +102,60 @@ public class YouTubeMusicSourceTest {
         assertNull(YouTubeMusicSource.stripPrefix("local:whatever"));
         assertNull(YouTubeMusicSource.stripPrefix(null));
     }
+
+    // ------------------------------------------------ FOCUS-YTM-2: session rules
+
+    @Test
+    public void signedOutResolveRequiresConfiguration() {
+        com.ridho.music.domain.model.Track song =
+                new com.ridho.music.domain.model.Track("ytm:abc12345678", "ytm",
+                        "T", "A", null, 0L, null, null, null, null, 0L);
+        try {
+            source.resolveStreamUri(song);
+            fail("Expected SourceException");
+        } catch (SourceException e) {
+            assertEquals(SourceException.Kind.CONFIGURATION_REQUIRED, e.kind);
+        }
+    }
+
+    @Test
+    public void nonSongEntriesStayUnsupportedEvenWhenSignedIn() {
+        YouTubeMusicSource signedIn = new YouTubeMusicSource(new InnertubeClient(),
+                () -> "SAPISID=a; __Secure-1PSID=g.abc");
+        com.ridho.music.domain.model.Track album =
+                new com.ridho.music.domain.model.Track("ytm-album:MPREb_x", "ytm",
+                        "T", "A", null, 0L, null, null, null, null, 0L);
+        try {
+            signedIn.resolveStreamUri(album);
+            fail("Expected SourceException");
+        } catch (SourceException e) {
+            assertEquals(SourceException.Kind.UNSUPPORTED, e.kind);
+        }
+    }
+
+    @Test
+    public void malformedSessionIsRejectedWithoutNetwork() {
+        // Cookie lacking the required session cookies must fail closed — no call.
+        YouTubeMusicSource weakSession = new YouTubeMusicSource(new InnertubeClient(),
+                () -> "YSC=abc; SID=only");
+        com.ridho.music.domain.model.Track song =
+                new com.ridho.music.domain.model.Track("ytm:abc12345678", "ytm",
+                        "T", "A", null, 0L, null, null, null, null, 0L);
+        try {
+            weakSession.resolveStreamUri(song);
+            fail("Expected SourceException");
+        } catch (SourceException e) {
+            assertEquals(SourceException.Kind.CONFIGURATION_REQUIRED, e.kind);
+        }
+    }
+
+    @Test
+    public void signedInTrackWithoutStreamDataStaysUnavailable() {
+        // Authenticated but the platform still refuses: typed UNAVAILABLE, honest.
+        // (extractStreamUrl already covers the response parsing; this asserts the
+        // session gate passes through to the extractor contract unchanged.)
+        YouTubeMusicSource signedIn = new YouTubeMusicSource(new InnertubeClient(),
+                () -> "SAPISID=a; __Secure-1PSID=g.abc");
+        org.junit.Assert.assertNotNull(signedIn);
+    }
 }

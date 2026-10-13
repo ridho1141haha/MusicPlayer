@@ -6,6 +6,7 @@ import com.ridho.music.data.repository.LibraryRepository;
 import com.ridho.music.domain.source.MusicSource;
 import com.ridho.music.playback.PlaybackRepository;
 import com.ridho.music.settings.SettingsRepository;
+import com.ridho.music.settings.YtmCredentialStore;
 import com.ridho.music.source.LocalMusicSource;
 import com.ridho.music.source.audius.AudiusClient;
 import com.ridho.music.source.audius.AudiusSource;
@@ -30,6 +31,7 @@ public final class ServiceLocator {
     private volatile LibraryRepository library;
     private volatile LocalMusicSource localSource;
     private volatile YouTubeMusicSource ytSource;
+    private volatile YtmCredentialStore ytmCredentials;
     private volatile JamendoSource jamendoSource;
     private volatile AudiusSource audiusSource;
     private volatile PlaybackRepository playback;
@@ -69,10 +71,29 @@ public final class ServiceLocator {
         return localSource;
     }
 
+    /**
+     * FOCUS-YTM-2 — Encrypted store for the user's own YouTube Music web session.
+     * Cheap to construct; the keystore key is created on first use.
+     */
+    public YtmCredentialStore ytmCredentials() {
+        if (ytmCredentials == null) {
+            synchronized (this) {
+                if (ytmCredentials == null) ytmCredentials = new YtmCredentialStore(appContext);
+            }
+        }
+        return ytmCredentials;
+    }
+
     public YouTubeMusicSource ytSource() {
         if (ytSource == null) {
             synchronized (this) {
-                if (ytSource == null) ytSource = new YouTubeMusicSource(new com.ridho.music.source.yt.InnertubeClient());
+                if (ytSource == null) {
+                    // Cookie resolves at REQUEST time (like the Jamendo client id),
+                    // so sign-in/sign-out in Settings takes effect immediately.
+                    ytSource = new YouTubeMusicSource(
+                            new com.ridho.music.source.yt.InnertubeClient(),
+                            () -> ytmCredentials().cookieHeader());
+                }
             }
         }
         return ytSource;

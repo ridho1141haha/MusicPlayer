@@ -16,6 +16,8 @@
     <color name="secondary_text_teal">#7FD8CE</color>
 
     <color name="error">#E57373</color>
+    <!-- FOCUS-YTM-1: dark error-container tone for the Now Playing error banner -->
+    <color name="error_container">#2E1F22</color>
     <color name="player_scrubber_track">#2A323A</color>
 
     <!-- Launcher background -->
