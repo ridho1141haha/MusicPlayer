@@ -31,6 +31,13 @@ import androidx.media3.session.SessionToken;
  * <p>The UI never touches ExoPlayer or MediaSession internals — this class is the
  * single seam between screens and the playback engine, which keeps the engine
  * independent from whichever music source is selected.</p>
+ *
+ * <p>FOCUS-YTM-1: playback failures are now observable. Two previously silent
+ * paths are covered: (1) a failed {@code setMediaItems}/{@code addMediaItem}
+ * future (stream resolution refused by the source — e.g. YouTube answering
+ * {@code LOGIN_REQUIRED}) and (2) {@code onPlayerError} on an already-resolved
+ * item. Both surface through {@link #lastPlaybackError()} as a typed,
+ * dedupe-friendly snapshot instead of vanishing without feedback.</p>
  */
 public class PlaybackRepository {
 
@@ -51,6 +58,10 @@ public class PlaybackRepository {
     private ListenableFuture<MediaController> connectFuture;
     @Nullable
     private volatile Runnable pendingPlay;
+
+    /** Last playback failure snapshot (FOCUS-YTM-1); null while playback is healthy. */
+    @Nullable
+    private volatile PlaybackErrorInfo lastError;
 
     public PlaybackRepository(Context appContext) {
         this.appContext = appContext.getApplicationContext();
@@ -105,11 +116,16 @@ public class PlaybackRepository {
     private final Player.Listener playerListener = new Player.Listener() {
         @Override
         public void onEvents(Player player, Player.Events events) {
+            // Playback became healthy again — clear the stale error so banners vanish.
+            if (player.getPlaybackState() == Player.STATE_READY && lastError != null) {
+                lastError = null;
+            }
             notifyListeners();
         }
 
         @Override
         public void onPlayerError(PlaybackException error) {
+            lastError = buildError(currentTrack(), error.getErrorCodeName());
             notifyListeners();
         }
     };
@@ -121,7 +137,20 @@ public class PlaybackRepository {
         Runnable action = () -> {
             MediaController c = controller;
             if (c == null) return;
-            c.setMediaItems(MediaItemConverter.toMediaItems(tracks), index, 0L);
+            ListenableFuture<List<MediaItem>> future =
+                    c.setMediaItems(MediaItemConverter.toMediaItems(tracks), index, 0L);
+            // FOCUS-YTM-1: this future used to be ignored — a refused stream
+            // resolution (e.g. YouTube LOGIN_REQUIRED) failed completely silently.
+            future.addListener(() -> {
+                try {
+                    future.get();
+                } catch (Exception e) {
+                    Track starter = tracks.isEmpty() ? null
+                            : tracks.get(Math.max(0, Math.min(index, tracks.size() - 1)));
+                    lastError = buildError(starter, null);
+                    notifyListeners();
+                }
+            }, Runnable::run);
             c.prepare();
             c.play();
         };
@@ -137,7 +166,16 @@ public class PlaybackRepository {
     public void addToQueue(Track track) {
         MediaController c = controller;
         if (c == null) return;
-        c.addMediaItem(c.getMediaItemCount(), MediaItemConverter.toMediaItem(track));
+        ListenableFuture<MediaItem> future =
+                c.addMediaItem(c.getMediaItemCount(), MediaItemConverter.toMediaItem(track));
+        future.addListener(() -> {
+            try {
+                future.get();
+            } catch (Exception e) {
+                lastError = buildError(track, null);
+                notifyListeners();
+            }
+        }, Runnable::run);
     }
 
     public void clearQueue() {
@@ -262,6 +300,49 @@ public class PlaybackRepository {
     }
 
     // ---------------------------------------------------------------- snapshot getters
+
+    /**
+     * Last playback failure (FOCUS-YTM-1), or null while healthy/after recovery.
+     * Carries the typed source diagnostic when the failure was a refused stream
+     * resolution — the UI uses it for honest, actionable messaging.
+     */
+    @Nullable
+    public PlaybackErrorInfo lastPlaybackError() {
+        return lastError;
+    }
+
+    /** User acknowledged the failure (banner/snackbar dismiss). */
+    public void dismissPlaybackError() {
+        lastError = null;
+        notifyListeners();
+    }
+
+    /**
+     * Builds the error snapshot for the UI. Prefers the typed diagnostic from
+     * {@link StreamErrorBus} — but only when it belongs to the track that actually
+     * failed, so a stale entry can never be attributed to the wrong track.
+     */
+    private PlaybackErrorInfo buildError(@Nullable Track track, @Nullable String errorCodeName) {
+        long now = System.currentTimeMillis();
+        if (track == null) {
+            PlaybackErrorInfo bus = StreamErrorBus.latest();
+            if (bus != null) {
+                // Resolution failed before the item was even set — the bus is the
+                // only place that knows which track and why.
+                return new PlaybackErrorInfo(bus.trackId, bus.sourceId, null, null,
+                        bus.kind, bus.sourceDiagnostic, errorCodeName, now);
+            }
+            return new PlaybackErrorInfo(PlaybackErrorInfo.KIND_UNKNOWN,
+                    PlaybackErrorInfo.KIND_UNKNOWN, null, null,
+                    PlaybackErrorInfo.KIND_UNKNOWN, null, errorCodeName, now);
+        }
+        PlaybackErrorInfo bus = StreamErrorBus.latest();
+        boolean busMatches = bus != null && bus.belongsTo(track.id);
+        return new PlaybackErrorInfo(track.id, track.sourceId, track.title, track.artist,
+                busMatches ? bus.kind : PlaybackErrorInfo.KIND_PLAYER,
+                busMatches ? bus.sourceDiagnostic : null,
+                errorCodeName, now);
+    }
 
     public boolean isConnected() {
         return controller != null;

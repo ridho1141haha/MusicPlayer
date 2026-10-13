@@ -14,4 +14,9 @@
         android:id="@+id/action_view_license"
         android:title="@string/menu_view_license"
         android:visible="false" />
+    <!-- FOCUS-YTM-1: compliant escape hatch (visible only for YouTube Music tracks) -->
+    <item
+        android:id="@+id/action_open_in_ytm"
+        android:title="@string/menu_open_in_ytm"
+        android:visible="false" />
 </menu>

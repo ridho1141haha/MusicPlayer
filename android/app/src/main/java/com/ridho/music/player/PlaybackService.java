@@ -34,6 +34,7 @@ import com.ridho.music.data.repository.LibraryRepository;
 import com.ridho.music.domain.model.Track;
 import com.ridho.music.domain.source.MusicSource;
 import com.ridho.music.domain.source.SourceException;
+import com.ridho.music.playback.StreamErrorBus;
 import com.ridho.music.settings.SettingsRepository;
 import com.ridho.music.ui.NowPlayingActivity;
 
@@ -203,7 +204,18 @@ public class PlaybackService extends MediaSessionService {
                 try {
                     List<MediaItem> resolved = new ArrayList<>(mediaItems.size());
                     for (MediaItem item : mediaItems) {
-                        resolved.add(resolveMediaItem(item));
+                        try {
+                            resolved.add(resolveMediaItem(item));
+                        } catch (SourceException se) {
+                            // FOCUS-YTM-1: the typed reason used to die inside this
+                            // future — the UI showed nothing at all. Publish it so
+                            // the controller can surface an honest, actionable error.
+                            Track t = MediaItemConverter.toTrack(item);
+                            if (t != null) {
+                                StreamErrorBus.post(t.id, t.sourceId, se.kind.name(), se.getMessage());
+                            }
+                            throw se;
+                        }
                     }
                     future.set(ImmutableList.copyOf(resolved));
                 } catch (Exception e) {
@@ -372,8 +384,9 @@ public class PlaybackService extends MediaSessionService {
                     player.play();
                 });
             } catch (SourceException se) {
-                // Recovery failed; the UI will show a typed error via the controller.
+                // FOCUS-YTM-1: recovery failed — publish the typed reason (was log-only).
                 Log.w(TAG, "recovery failed: " + se.kind);
+                StreamErrorBus.post(track.id, track.sourceId, se.kind.name(), se.getMessage());
             }
         });
     }

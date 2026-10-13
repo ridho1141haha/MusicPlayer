@@ -48,6 +48,11 @@ public final class TrackMenuHelper {
                     + " · " + track.licenseName);
         }
 
+        // FOCUS-YTM-1: compliant escape hatch for YouTube Music tracks — opens the
+        // official YouTube Music app / site. Visible only for sourceId == "ytm".
+        android.view.MenuItem openInYtmItem = popup.getMenu().findItem(R.id.action_open_in_ytm);
+        openInYtmItem.setVisible(com.ridho.music.domain.model.Track.SOURCE_YTM.equals(track.sourceId));
+
         popup.setOnMenuItemClickListener(item -> {
             int id = item.getItemId();
             if (id == R.id.action_add_to_queue) {
@@ -64,6 +69,12 @@ public final class TrackMenuHelper {
                 return true;
             } else if (id == R.id.action_view_license) {
                 showLicenseDialog(activity, track);
+                return true;
+            } else if (id == R.id.action_open_in_ytm) {
+                if (!YtmLinks.openTrack(activity, track.id)) {
+                    android.widget.Toast.makeText(activity,
+                            R.string.err_open_ytm_missing, android.widget.Toast.LENGTH_SHORT).show();
+                }
                 return true;
             }
             return false;

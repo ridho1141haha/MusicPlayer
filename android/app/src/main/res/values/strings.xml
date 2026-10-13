@@ -80,6 +80,7 @@
     <string name="menu_add_to_playlist">Add to playlist…</string>
     <string name="menu_remove_from_queue">Remove from queue</string>
     <string name="menu_remove_from_playlist">Remove from playlist</string>
+    <string name="menu_open_in_ytm">Open in YouTube Music</string>
 
     <!-- Now Playing / Queue / Lyrics -->
     <string name="now_playing_title">Now playing</string>
@@ -157,9 +158,15 @@
     <string name="err_unsupported">The selected source does not support this action.</string>
     <string name="err_not_found">Track not found.</string>
     <string name="err_playback">Playback error.</string>
+    <!-- FOCUS-YTM-1: honest YouTube gating messages -->
+    <string name="err_playback_ytm_gated">YouTube refuses to stream this track to third-party apps without sign-in, and Ridho Music does not bypass YouTube\'s protections. Use “Open in YouTube Music” to listen there.</string>
+    <string name="err_playback_ytm_catalog">Albums and artists are catalog links, not playable files. Open them in the official YouTube Music app instead.</string>
+    <string name="err_open_ytm_missing">No app or browser can open this link.</string>
+    <string name="np_error_title">Can\'t play this track</string>
+    <string name="np_error_dismiss">Dismiss</string>
     <string name="err_no_local_folder">No local folder selected yet.</string>
     <string name="err_notification_needed">Notification permission is needed to show playback controls.</string>
-    <string name="yt_experimental_note">Experimental, unofficial YouTube Music integration. It may break without notice and remote stream playback is not guaranteed. See the project README for details and limitations.</string>
+    <string name="yt_experimental_note">Experimental, unofficial YouTube Music integration — search only. As of October 2025 YouTube refuses stream URLs to every unauthenticated third-party client (LOGIN_REQUIRED / bot-check), so remote playback is expected to fail; Ridho Music does not bypass YouTube\'s protections. Use the “Open in YouTube Music” action to listen there.</string>
     <string name="local_pick_hint">Your files are scanned locally on the device. Nothing is uploaded.</string>
 
     <!-- Misc -->

@@ -21,9 +21,11 @@ import androidx.fragment.app.FragmentManager;
 import androidx.fragment.app.FragmentTransaction;
 
 import com.bumptech.glide.Glide;
+import com.google.android.material.snackbar.Snackbar;
 import com.ridho.music.App;
 import com.ridho.music.R;
 import com.ridho.music.domain.model.Track;
+import com.ridho.music.playback.PlaybackErrorInfo;
 import com.ridho.music.playback.PlaybackRepository;
 import com.ridho.music.player.MediaItemConverter;
 import com.ridho.music.ui.fragment.HomeFragment;
@@ -51,6 +53,10 @@ public class MainActivity extends AppCompatActivity implements UiPlaybackHost,
     private HomeFragment homeFragment;
     private SearchFragment searchFragment;
     private LibraryFragment libraryFragment;
+
+    // FOCUS-YTM-1: honest playback-failure feedback (deduped per failure instance).
+    private Snackbar errorSnackbar;
+    private long lastShownErrorAtMs;
 
     private final ActivityResultLauncher<String> notificationPermissionLauncher =
             registerForActivityResult(new ActivityResultContracts.RequestPermission(), granted -> {
@@ -166,6 +172,37 @@ public class MainActivity extends AppCompatActivity implements UiPlaybackHost,
                 .placeholder(R.drawable.bg_artwork_placeholder)
                 .centerCrop()
                 .into(miniArtwork);
+
+        showOrClearPlaybackError();
+    }
+
+    /** FOCUS-YTM-1: surfaces the last playback failure once, with an escape hatch for YTM. */
+    private void showOrClearPlaybackError() {
+        PlaybackErrorInfo error = playback.lastPlaybackError();
+        if (error == null) {
+            if (errorSnackbar != null) {
+                errorSnackbar.dismiss();
+                errorSnackbar = null;
+            }
+            return;
+        }
+        if (error.atMs == lastShownErrorAtMs) return; // already showing this failure
+        lastShownErrorAtMs = error.atMs;
+
+        Snackbar snackbar = Snackbar.make(
+                findViewById(android.R.id.content),
+                PlaybackErrorText.message(this, error),
+                Snackbar.LENGTH_LONG);
+        if (Track.SOURCE_YTM.equals(error.sourceId)
+                && YtmLinks.videoIdFromTrackId(error.trackId) != null) {
+            snackbar.setAction(R.string.menu_open_in_ytm, v -> {
+                if (!YtmLinks.openTrack(this, error.trackId)) {
+                    Toast.makeText(this, R.string.err_open_ytm_missing, Toast.LENGTH_SHORT).show();
+                }
+            });
+        }
+        snackbar.show();
+        errorSnackbar = snackbar;
     }
 
     @Override
