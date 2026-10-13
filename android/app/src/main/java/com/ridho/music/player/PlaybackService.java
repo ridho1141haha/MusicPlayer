@@ -39,7 +39,10 @@ import com.ridho.music.settings.SettingsRepository;
 import com.ridho.music.ui.NowPlayingActivity;
 
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
@@ -86,6 +89,15 @@ public class PlaybackService extends MediaSessionService {
     /** Media id of the track last written to history (dedupe; see maybeRecordHistory). */
     @Nullable
     private String lastHistoryMediaItemId;
+
+    /**
+     * FOCUS-YTM-4: media ids that already consumed their one-shot recovery
+     * attempt — prevents an endless re-resolve/403 hammering loop when YouTube
+     * persistently refuses a stream. Cleared on every media-item transition.
+     */
+    private final Set<String> recoveryAttempted = new HashSet<>();
+    /** FOCUS-YTM-4: pending post-resolution liveness check (one-shot). */
+    private final Runnable postResolutionKick = this::runPostResolutionKick;
 
     // ---------------------------------------------------------------- lifecycle
 
@@ -218,6 +230,11 @@ public class PlaybackService extends MediaSessionService {
                         }
                     }
                     future.set(ImmutableList.copyOf(resolved));
+                    // FOCUS-YTM-4: some resolution outcomes leave the player holding
+                    // items that never go READY (device-observed: no audio, no error,
+                    // duration unset). One bounded liveness check nudges it — guarded
+                    // so it can never fight legitimate states (see runPostResolutionKick).
+                    mainHandler.postDelayed(postResolutionKick, 800L);
                 } catch (Exception e) {
                     future.setException(e);
                 }
@@ -260,6 +277,28 @@ public class PlaybackService extends MediaSessionService {
             }
         }
     };
+
+    /**
+     * FOCUS-YTM-4 — one-shot liveness check ~800 ms after a successful stream
+     * resolution. Fires ONLY when the player looks wedged: playback requested
+     * (playWhenReady), items present, but the state is IDLE or ENDED with an
+     * unset duration — i.e. prepare/play were consumed without audio ever
+     * starting. In that shape it prepares and plays; in every other state
+     * (BUFFERING, READY, paused, empty queue) it does nothing.
+     */
+    private void runPostResolutionKick() {
+        if (player == null) return;
+        int state = player.getPlaybackState();
+        boolean wedged = player.getPlayWhenReady()
+                && player.getMediaItemCount() > 0
+                && (state == Player.STATE_IDLE || state == Player.STATE_ENDED)
+                && player.getDuration() == C.TIME_UNSET;
+        if (!wedged) return;
+        Log.i(TAG, "post-resolution kick: player wedged in "
+                + (state == Player.STATE_IDLE ? "IDLE" : "ENDED"));
+        player.prepare();
+        player.play();
+    }
 
     /** Resolves a single (possibly URI-less) media item against its source. */
     private MediaItem resolveMediaItem(MediaItem item) throws SourceException {
@@ -324,6 +363,13 @@ public class PlaybackService extends MediaSessionService {
 
         @Override
         public void onMediaItemTransition(@Nullable MediaItem mediaItem, int reason) {
+            // FOCUS-YTM-4: keep the current item's recovery marker — our own
+            // replaceMediaItem fires this transition, and re-arming the one-shot
+            // budget here would defeat the anti-loop guard. Markers for every
+            // OTHER item are dropped (genuine advances get a fresh budget).
+            String currentId = mediaItem == null ? null : mediaItem.mediaId;
+            recoveryAttempted.retainAll(currentId == null
+                    ? Collections.emptySet() : Collections.singleton(currentId));
             maybeRecordHistory();
             schedulePersist();
         }
@@ -369,6 +415,12 @@ public class PlaybackService extends MediaSessionService {
         MediaItem current = player.getMediaItemAt(index);
         Track track = MediaItemConverter.toTrack(current);
         if (track == null || current.localConfiguration != null) return;
+        // FOCUS-YTM-4: one attempt per media id — a persistently refused stream
+        // must surface as an error, not loop re-resolving forever.
+        if (!recoveryAttempted.add(track.id)) {
+            Log.i(TAG, "recovery already attempted for this item; skipping");
+            return;
+        }
         MusicSource source = findSource(track.sourceId);
         if (source == null) return;
         io.execute(() -> {

@@ -58,7 +58,6 @@ public class PlaybackRepository {
     private static final long RESOLUTION_GRACE_MS = 15_000L;
     /** FOCUS-YTM-3: watchdog poll cadence while a resolution is pending. */
     private static final long WATCHDOG_POLL_MS = 400L;
-
     /** Simple change notification; listeners re-read the snapshot getters. */
     public interface Listener {
         void onPlaybackChanged();
@@ -89,6 +88,8 @@ public class PlaybackRepository {
     @Nullable
     private volatile Track pendingResolutionTrack;
     private volatile long pendingResolutionAtMs;
+    /** FOCUS-YTM-4: false = play() (success = the track goes READY/playing), true = addToQueue(). */
+    private volatile boolean pendingIsAddToQueue;
 
     /** FOCUS-YTM-3: main-thread poller that guarantees failure feedback lands. */
     private final Handler watchdogHandler = new Handler(Looper.getMainLooper());
@@ -164,9 +165,9 @@ public class PlaybackRepository {
 
     /**
      * Fast path (player events): matches a posted {@link StreamErrorBus} entry
-     * against the pending track. Kept alongside the FOCUS-YTM-3 watchdog — a
-     * refused resolution usually fires no events, so the watchdog is what
-     * actually guarantees feedback.
+     * against the pending track. Kept alongside the watchdog — a refused
+     * resolution usually fires no events, so the watchdog is what actually
+     * guarantees feedback.
      */
     private void checkPendingResolution(Player player) {
         Track pending = pendingResolutionTrack;
@@ -177,21 +178,25 @@ public class PlaybackRepository {
             lastError = matched;
             return;
         }
-        if (player.getMediaItemCount() > 0 || player.isPlaying()) {
-            pendingResolutionTrack = null; // resolved and queued fine
-            return;
-        }
-        if (System.currentTimeMillis() - pendingResolutionAtMs > RESOLUTION_GRACE_MS) {
+        if (isPendingSatisfied(player, pending)) {
             pendingResolutionTrack = null;
-            lastError = timeoutError(pending);
         }
     }
 
     /**
-     * FOCUS-YTM-3 watchdog: while a resolution is pending, poll every
+     * Watchdog: while a resolution is pending, poll every
      * {@link #WATCHDOG_POLL_MS} until (a) the bus carries the typed failure,
-     * (b) the queue accepted the item, or (c) the grace lapses — in every case
-     * the UI hears the outcome. Runs on the main looper like all controller use.
+     * (b) the pending track is genuinely satisfied, or (c) the grace lapses —
+     * in every case the UI hears the outcome. Runs on the main looper like all
+     * controller use.
+     *
+     * <p>FOCUS-YTM-4 (device report: track visible, never plays, duration
+     * "--:--", NO error): "item present in the timeline" is NOT success — the
+     * device got stuck with items but no audio and no error event. Success now
+     * means the pending track actually went READY/playing (play) or exists in
+     * the resolved timeline (add). At the deadline the watchdog distinguishes
+     * STALLED (items present but audio never started) from TIMEOUT (no answer
+     * at all) and records the safe player-state snapshot as the diagnostic.</p>
      */
     private void runWatchdog() {
         Track pending = pendingResolutionTrack;
@@ -204,17 +209,37 @@ public class PlaybackRepository {
             return;
         }
         MediaController c = controller;
-        if (c != null && (c.getMediaItemCount() > 0 || c.isPlaying())) {
-            pendingResolutionTrack = null; // resolved fine
+        if (c != null && isPendingSatisfied(c, pending)) {
+            pendingResolutionTrack = null; // genuinely resolved
             return;
         }
         if (System.currentTimeMillis() - pendingResolutionAtMs > RESOLUTION_GRACE_MS) {
             pendingResolutionTrack = null;
-            lastError = timeoutError(pending);
+            lastError = deadlineError(pending, c);
             notifyListeners();
             return;
         }
         watchdogHandler.postDelayed(watchdogTick, WATCHDOG_POLL_MS);
+    }
+
+    /**
+     * Success criteria, per request type. play(): the pending track is the
+     * current item AND the player reached READY (or is playing it).
+     * addToQueue(): the pending track exists in the resolved timeline.
+     * Mere timeline presence was never success — that is the v1.4.1 hole.
+     */
+    private boolean isPendingSatisfied(Player player, Track pending) {
+        if (pendingIsAddToQueue) {
+            for (int i = 0; i < player.getMediaItemCount(); i++) {
+                Track t = MediaItemConverter.toTrack(player.getMediaItemAt(i));
+                if (t != null && t.id.equals(pending.id)) return true;
+            }
+            return false;
+        }
+        Track current = MediaItemConverter.toTrack(player.getCurrentMediaItem());
+        return current != null && current.id.equals(pending.id)
+                && (player.isPlaying()
+                    || player.getPlaybackState() == Player.STATE_READY);
     }
 
     private void startWatchdog() {
@@ -232,10 +257,29 @@ public class PlaybackRepository {
                 null, System.currentTimeMillis());
     }
 
-    private PlaybackErrorInfo timeoutError(Track pending) {
+    /**
+     * Deadline hit without success. Items present → STALLED (audio never
+     * started); no items → TIMEOUT (resolution never answered). The diagnostic
+     * carries only safe player-state facts (state names, counts, ms) — never URLs.
+     */
+    private PlaybackErrorInfo deadlineError(Track pending, @Nullable MediaController c) {
+        boolean hasItems = c != null && c.getMediaItemCount() > 0;
+        String kind = hasItems ? PlaybackErrorInfo.KIND_STALLED : PlaybackErrorInfo.KIND_TIMEOUT;
+        String diag;
+        if (c == null) {
+            diag = "player not connected";
+        } else {
+            int state = c.getPlaybackState();
+            String stateName = state == Player.STATE_IDLE ? "IDLE"
+                    : state == Player.STATE_BUFFERING ? "BUFFERING"
+                    : state == Player.STATE_READY ? "READY" : "ENDED";
+            diag = "state=" + stateName
+                    + ", queue=" + c.getMediaItemCount()
+                    + ", bufferedMs=" + Math.max(0L, c.getBufferedPosition())
+                    + ", durationMs=" + c.getDuration();
+        }
         return new PlaybackErrorInfo(pending.id, pending.sourceId,
-                pending.title, pending.artist, PlaybackErrorInfo.KIND_TIMEOUT,
-                null, null, System.currentTimeMillis());
+                pending.title, pending.artist, kind, diag, null, System.currentTimeMillis());
     }
 
     // ---------------------------------------------------------------- queue control
@@ -252,8 +296,10 @@ public class PlaybackRepository {
             Track starter = tracks.isEmpty() ? null
                     : tracks.get(Math.max(0, Math.min(index, tracks.size() - 1)));
             StreamErrorBus.clear(); // fresh attempt — never adopt a stale diagnostic
+            pendingIsAddToQueue = false;
             pendingResolutionTrack = starter;
             pendingResolutionAtMs = System.currentTimeMillis();
+            lastError = null; // fresh attempt — clear the old failure up front
             c.setMediaItems(MediaItemConverter.toMediaItems(tracks), index, 0L);
             c.prepare();
             c.play();
@@ -272,6 +318,7 @@ public class PlaybackRepository {
         MediaController c = controller;
         if (c == null) return;
         StreamErrorBus.clear(); // fresh attempt — never adopt a stale diagnostic
+        pendingIsAddToQueue = true;
         pendingResolutionTrack = track;
         pendingResolutionAtMs = System.currentTimeMillis();
         c.addMediaItem(c.getMediaItemCount(), MediaItemConverter.toMediaItem(track));

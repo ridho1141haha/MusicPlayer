@@ -651,3 +651,23 @@ Stage Summary:
 - v1.4.1 (code 9) shipped: playback failures can no longer vanish — watchdog guarantees a typed, actionable message (signed-out → sign-in guidance; gated → "Open in YouTube Music"; unresponsive → timeout) via Snackbar AND Now Playing banner regardless of queue state.
 - Honest boundary unchanged: playback itself depends on YouTube's response to the user's signed-in session (per-account refusals stay possible and will now be VISIBLE, not silent); no bypass of any protection was added or used.
 - Next: user installs v1.4.1 on the A05s, signs in (Settings → Music sources → YouTube Music account), retests; if any refusal appears, its message now identifies the cause.
+
+---
+Task ID: FOCUS-YTM-4
+Agent: Z.ai Code (main session)
+Task: User device report round 2 (screenshot): sign-in OK, search OK, track VISIBLE in Now Playing — never plays, duration "--:--", NO error banner. Find the remaining silent path + the stuck shape, ship v1.4.2.
+
+Work Log:
+- EVIDENCE READ: screenshot shows track+artwork (timeline has items), duration "--:--" (= TIME_UNSET → never READY, FormatUtils verified), play button idle, NO banner. So the player holds items but never started and never errored — and v1.4.1's watchdog treated "items in timeline" as SUCCESS and stopped watching. That was the remaining silent hole.
+- MEDIA3 1.5.1 SOURCE VERIFICATION (Google Maven sources jar, /tmp/media3): per-controller command queue (ConnectedControllersManager.flushCommandQueue) serializes setMediaItems(resolution future)→prepare→play; handleSessionTaskWhenReady waits for resolution; MediaControllerImplBase updates playerInfo only from session events. Framework ordering NOT at fault; controller timeline has items ⇒ session player received them ⇒ resolution succeeded. Conclusion: failure shape = items present, audio never started, no error event.
+- FIX v1.4.2 (versionCode 10, FOCUS-YTM-4):
+  - PlaybackRepository watchdog v2: success = pending track is CURRENT && READY/playing for play(); item present in resolved timeline for addToQueue() (new pendingIsAddToQueue flag — add must not demand playback). Deadline (15s) → KIND_STALLED (items, no audio; diagnostic = state/queue/bufferedMs/duration, privacy-safe) or KIND_TIMEOUT (no answer). play() clears lastError up front.
+  - PlaybackService post-resolution kick: 800ms after successful onAddMediaItems, if wedged (playWhenReady && items>0 && IDLE/ENDED && duration unset) → prepare()+play() once. Guarded against BUFFERING/READY/paused/empty.
+  - PlaybackService recovery anti-loop: one-shot recovery once per media id (recoveryAttempted set; retainAll(currentId) on transition because our own replaceMediaItem fires a transition — clear() would re-arm the loop).
+  - PlaybackErrorInfo KIND_STALLED; PlaybackErrorText STALLED → err_playback_stalled (honest: "stream accepted but never delivered audio… Open in YouTube Music").
+- QA (real runs): :app:testDebugUnitTest → 86/86 PASS (JUnit XML 86/0/0); :app:lintDebug PASS; :app:assembleDebug → ridho-music-v1.4.2-debug.apk, aapt-confirmed code 10 / 1.4.2-debug; packaged android/dist/ + public/ (v1.4.1 removed from public/); data/build-info-v1.4.2.json (sha256 19c9207f…). Dashboard /api/version → {"name":"1.4.2","code":9→10 verified via curl}.
+- DOCS: android/CHANGELOG 1.4.2 section (incl. Media3-source analysis evidence); root CHANGELOG row; build-info. NO manual commit (cron snapshots only).
+
+Stage Summary:
+- v1.4.2 (code 10): the LAST silent path is closed — a stuck stream now always produces a typed message within 15s, and the message TEXT discriminates the root cause (signin / gated / no-answer / accepted-but-no-audio). The wedged-player shape additionally gets a functional one-shot kick that may fix playback outright.
+- Next: user installs v1.4.2, retries, reports which message appears; that text pins the cause (most likely STALLED = YouTube serving the session but withholding audio — e.g. SABR/po-token-era gating that this app will NOT bypass; escape hatch "Open in YouTube Music" works).

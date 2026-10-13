@@ -1,0 +1,30 @@
+{
+  "artifact": "ridho-music-v1.4.2-debug.apk",
+  "versionName": "1.4.2-debug",
+  "versionCode": 10,
+  "variant": "debug",
+  "builtAtUtc": "2026-10-13",
+  "sourceCommit": "1a24980c8f67e812483794b373e74c1e3cb345a3 (uncommitted working tree on top; NO commit per red line)",
+  "parentTask": "FOCUS-YTM-4 — device report round 2: signed in, search OK, track visible in Now Playing but never plays, duration '--:--', NO error shown",
+  "applicationId": "com.ridho.music.debug",
+  "platformBuildVersionCode": 35,
+  "sizeBytes": 10315816,
+  "sha256": "19c9207f0a617f50987ba1053c9a8b309e15892f4ec192ddbaec1ce5dc89ab92",
+  "qa": {
+    "unitTests": "86/86 PASS (:app:testDebugUnitTest, counted from JUnit XML)",
+    "lint": "PASS (:app:lintDebug, 0 errors)",
+    "deviceTests": "NOT RUN in sandbox; v1.4.2 turns the stuck shape into a visible typed message whose TEXT identifies the root cause (user relays it)"
+  },
+  "evidenceAndAnalysis": {
+    "screenshot": "upload/Screenshot_20261013_181427_Ridho Music.png — track+artwork render (timeline has items), duration '--:--' (= TIME_UNSET, never READY), play button idle, NO error banner",
+    "media3SourcesVerified": "media3-session 1.5.1 sources (Google Maven) — per-controller command queue serializes setMediaItems(resolution)→prepare→play (ConnectedControllersManager.flushCommandQueue waits on each command's future); controller timeline updates only from session events. Media3 ordering is NOT the bug.",
+    "conclusion": "The failure shape is: items reached the timeline but audio never started and no error event ever fired. v1.4.1's watchdog wrongly equated 'items in timeline' with success and stopped watching — the last silent path."
+  },
+  "changes": [
+    "PlaybackRepository watchdog v2: success = pending track is CURRENT and player READY/playing (play) or the item exists in the resolved timeline (addToQueue — semantics split via pendingIsAddToQueue); at the 15s deadline it distinguishes KIND_STALLED (items present, audio never started, safe player-state diagnostic: state/queue/bufferedMs/durationMs) from KIND_TIMEOUT (no answer at all)",
+    "PlaybackRepository: play() clears lastError up front (fresh attempt, honest UI)",
+    "PlaybackService: one-shot post-resolution kick (800 ms): prepares+plays ONLY when playWhenReady && items>0 && state IDLE/ENDED && duration unset — the wedged shape; guarded against every legitimate state",
+    "PlaybackService: recovery-once-per-media-id guard with retainAll-on-transition (our own replaceMediaItem fires a transition, so the marker for the CURRENT id must survive — otherwise the 403 re-resolve loop re-arms)",
+    "PlaybackErrorInfo: KIND_STALLED; PlaybackErrorText: STALLED → err_playback_stalled (new string, honest wording + Open-in-YouTube-Music hint)"
+  ]
+}

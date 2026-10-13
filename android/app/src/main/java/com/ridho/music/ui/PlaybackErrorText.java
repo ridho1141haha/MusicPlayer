@@ -25,6 +25,10 @@ public final class PlaybackErrorText {
         if (PlaybackErrorInfo.KIND_TIMEOUT.equals(info.kind)) {
             return context.getString(R.string.err_playback_no_response);
         }
+        // FOCUS-YTM-4: items arrived but audio never started — the honest stuck case.
+        if (PlaybackErrorInfo.KIND_STALLED.equals(info.kind)) {
+            return context.getString(R.string.err_playback_stalled);
+        }
 
         if (Track.SOURCE_YTM.equals(info.sourceId)) {
             if (SourceException.Kind.UNAVAILABLE.name().equals(info.kind)) {

@@ -40,6 +40,8 @@ public final class PlaybackErrorInfo {
     public static final String KIND_PLAYER = "PLAYER";
     /** FOCUS-YTM-3: resolution never finished within the grace period (no answer at all). */
     public static final String KIND_TIMEOUT = "TIMEOUT";
+    /** FOCUS-YTM-4: items reached the timeline but audio never started (stuck before READY). */
+    public static final String KIND_STALLED = "STALLED";
     public static final String KIND_UNKNOWN = "?";
 
     public PlaybackErrorInfo(String trackId, String sourceId,

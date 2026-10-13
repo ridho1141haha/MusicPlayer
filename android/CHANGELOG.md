@@ -1,5 +1,52 @@
 # Changelog
 
+## 1.4.2 (versionCode 10) — 2026-10-13 · FOCUS-YTM-4
+
+> Device report (screenshot): signed in, search works, the track IS visible in
+> Now Playing — but never plays, duration shows `--:--`, and **no error
+> appears**. This exposed the last silent path and one functional stuck shape.
+
+### Fixed
+- **Watchdog success criteria were wrong** (v1.4.1): "items present in the
+  timeline" was treated as success, so the watchdog stopped watching exactly
+  when the device got stuck (items queued, audio never started, no error
+  event, duration `TIME_UNSET` — precisely the screenshot). Success now means
+  the pending track is the CURRENT item and the player reached READY/playing
+  (`play()`), or the item exists in the resolved timeline (`addToQueue()` —
+  split via a request-type flag, since add-to-queue must not demand playback).
+- **Stuck streams are now typed**: at the 15 s deadline the watchdog
+  distinguishes `STALLED` (items present but audio never started; new string
+  `err_playback_stalled` with an honest "YouTube accepted the request but
+  never delivered audio" message) from `TIMEOUT` (no answer at all), and
+  records a privacy-safe player-state diagnostic (state name, queue size,
+  buffered ms, duration flag — never URLs). The Snackbar + Now Playing banner
+  surface it with the "Open in YouTube Music" escape hatch.
+- **Post-resolution liveness kick** (service): 800 ms after a successful
+  resolution, if the player is wedged (playWhenReady + items + IDLE/ENDED +
+  unset duration — the one shape Media3 ordering can leave behind on real
+  devices), it is prepared and played once. Guarded so it never fights
+  legitimate states (BUFFERING/READY/paused/empty).
+- **Recovery anti-loop**: one-shot stream recovery now runs once per media id;
+  the marker survives the recovery's own `replaceMediaItem` transition (which
+  would otherwise re-arm the budget and hammer YouTube with 403 re-resolves).
+- `play()` clears the previous error up front — a fresh attempt starts honest.
+
+### Analysis evidence
+- Media3 1.5.1 session sources were reviewed (Google Maven sources jar): the
+  per-controller command queue serializes setMediaItems(resolution) → prepare
+  → play, and the controller timeline updates only from session events —
+  the framework ordering is NOT at fault; the visible track + `--:--` +
+  errorless stuck state pointed to the watchdog hole above and the wedged
+  shape the kick now covers.
+
+### QA
+- `:app:testDebugUnitTest` → **86/86 PASS** (JUnit XML); `:app:lintDebug` →
+  PASS; `:app:assembleDebug` → `ridho-music-v1.4.2-debug.apk`, versionCode 10
+  / 1.4.2-debug confirmed via aapt; packaged to `android/dist/` + `public/`;
+  `data/build-info-v1.4.2.json` (SHA-256 19c9207f…).
+- On-device: pending — the message text the user reports now discriminates
+  the root cause (sign-in required / gated / no answer / accepted-but-no-audio).
+
 ## 1.4.1 (versionCode 9) — 2026-10-13 · FOCUS-YTM-3
 
 > Device report: *"Tidak bisa diplay, ga muncul notif apapun"* (can't play, no
