@@ -1,0 +1,27 @@
+{
+  "artifact": "ridho-music-v1.4.1-debug.apk",
+  "versionName": "1.4.1-debug",
+  "versionCode": 9,
+  "variant": "debug",
+  "builtAtUtc": "2026-10-13",
+  "sourceCommit": "1a24980c8f67e812483794b373e74c1e3cb345a3 (uncommitted working tree on top; NO commit per red line)",
+  "parentTask": "FOCUS-YTM-3 — device-reported 'play gagal, tidak ada notif apapun' fix",
+  "applicationId": "com.ridho.music.debug",
+  "platformBuildVersionCode": 35,
+  "sizeBytes": 10315423,
+  "sha256": "ae58d9ed3a269977edb83a9a09e6f695a909d7bcb2dd14d9eac510ff82ec78ed",
+  "qa": {
+    "unitTests": "86/86 PASS (:app:testDebugUnitTest, counted from JUnit XML)",
+    "newTests": "none added (watchdog is Android-looper-bound; existing 86 cover bus/parsers/auth hashing)",
+    "lint": "PASS (:app:lintDebug, 0 errors)",
+    "deviceTests": "NOT RUN in sandbox — user reports the failure from a real A05s; v1.4.1 needs the same manual checklist",
+    "fixVerification": "static trace only: the three silent paths are code-covered by the watchdog + pre-early-return evaluation; on-device re-test pending"
+  },
+  "changes": [
+    "PlaybackRepository: active main-thread watchdog polls StreamErrorBus/queue every 400ms while a resolution is pending — a refused onAddMediaItems fires no player events, so the event-only match never ran; watchdog also synthesizes a TIMEOUT error when the 15s grace lapses with no answer",
+    "PlaybackRepository: play()/addToQueue() clear StreamErrorBus first so a stale diagnostic can never short-circuit a fresh attempt",
+    "MainActivity: showOrClearPlaybackError() now evaluated BEFORE the no-current-track early return (failed first play leaves the queue empty — exactly when the Snackbar vanished); Snackbar is LENGTH_INDEFINITE until resolved/dismissed",
+    "NowPlayingActivity: error banner now also refreshes over the empty state instead of being force-hidden when the queue is empty",
+    "PlaybackErrorInfo: KIND_TIMEOUT; PlaybackErrorText maps TIMEOUT -> err_playback_no_response (new string)"
+  ]
+}

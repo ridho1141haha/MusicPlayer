@@ -34,9 +34,10 @@ android {
         // versionCodes 1-3 = released 1.0.0/1.1.0/1.2.0; 4 = unaccounted (lost in
         // a sandbox reset, treated as burned); 5 = v1.2.2, verified installed on
         // the Samsung A05s (WEBLAB-20A-VERIFY evidence); 6 = v1.2.3; 7 = v1.3.0
-        // (AUDIUS-ANDROID-1). Next code = 8 (FOCUS-YTM-1/2).
-        versionCode 8
-        versionName "1.4.0"
+        // (AUDIUS-ANDROID-1); 8 = v1.4.0 (FOCUS-YTM-1/2). Next code = 9
+        // (FOCUS-YTM-3: guaranteed failure feedback).
+        versionCode 9
+        versionName "1.4.1"
         vectorDrawables.useSupportLibrary = true
         buildConfigField "String", "JAMENDO_CLIENT_ID", "\"${jamendoClientId}\""
     }

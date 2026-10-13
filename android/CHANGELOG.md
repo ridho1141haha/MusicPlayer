@@ -1,5 +1,51 @@
 # Changelog
 
+## 1.4.1 (versionCode 9) — 2026-10-13 · FOCUS-YTM-3
+
+> Device report: *"Tidak bisa diplay, ga muncul notif apapun"* (can't play, no
+> feedback at all). v1.4.0's error UX was wired to the wrong triggers — the fix
+> makes failure feedback unconditional. No new capability; PATCH bump.
+
+### Fixed
+- **Silent failure #1 — resolution refused with no player events**: a refused
+  `onAddMediaItems` (e.g. YouTube answering `LOGIN_REQUIRED`, or signed-out
+  `CONFIGURATION_REQUIRED`) changes neither the timeline nor the playback
+  state, so `checkPendingResolution()` — which only ran inside
+  `Player.Listener.onEvents` — never executed, and the 15 s grace expiry
+  (also event-gated) never fired. `PlaybackRepository` now runs an active
+  **watchdog** on the main looper: while a track is pending resolution it
+  polls `StreamErrorBus`/queue every 400 ms and, worst case, synthesizes a
+  typed `TIMEOUT` error (`PlaybackErrorInfo.KIND_TIMEOUT`, new string
+  `err_playback_no_response`) when nothing answers within 15 s. Feedback now
+  reaches the UI no matter what the session does.
+- **Silent failure #2 — Snackbar behind an early return**:
+  `MainActivity.onPlaybackChanged()` returned before
+  `showOrClearPlaybackError()` whenever `currentTrack()` was null — which is
+  exactly the state after a failed first play (empty queue). The error check
+  now runs before any early return, and the failure Snackbar is
+  `LENGTH_INDEFINITE` (stays until playback recovers or the user dismisses it
+  via the Now Playing banner) instead of a 3.5 s flash.
+- **Silent failure #3 — banner force-hidden with an empty queue**:
+  `NowPlayingActivity.onPlaybackChanged()` explicitly hid `np_error_banner`
+  when no track was current. It now refreshes the banner over the empty
+  state (layout already places it independent of the flipper).
+- **Stale diagnostics**: `play()`/`addToQueue()` now `StreamErrorBus.clear()`
+  before starting, so a previous failure's entry can never be adopted by a
+  fresh attempt of the same track (id-match alone was not enough).
+
+### QA
+- `:app:testDebugUnitTest` → **86/86 PASS** (JUnit XML: 86 tests, 0 failures,
+  0 skipped); `:app:lintDebug` → PASS; `:app:assembleDebug` →
+  `ridho-music-v1.4.1-debug.apk`, versionCode 9 / 1.4.1-debug confirmed via
+  aapt; packaged to `android/dist/` + `public/`;
+  `data/build-info-v1.4.1.json` (SHA-256 ae58d9ed…).
+- No new unit tests: the watchdog is Android-main-looper-bound
+  (`Handler`/`MediaController`), outside the pure-Java test scope; the
+  regression suite covers the bus, parsers and auth hashing.
+- On-device re-test (A05s): pending — install v1.4.1, sign in under
+  Settings → Music sources → YouTube Music account, then retry playback; every
+  refusal now surfaces as a typed message (Snackbar + Now Playing banner).
+
 ## 1.4.0 (versionCode 8) — 2026-10-13 · FOCUS-YTM-1 + FOCUS-YTM-2
 
 > User-approved design change: YouTube Music playback via the user's OWN

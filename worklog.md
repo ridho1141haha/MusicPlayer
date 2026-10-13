@@ -625,3 +625,29 @@ Stage Summary:
 - Silent failures are gone: every refused playback now shows a typed, honest message with an "Open in YouTube Music" escape hatch (Snackbar + Now Playing banner + track menu).
 - APK v1.4.0 (code 8) built/tested/packaged with traceability; suites green; device/auth QA honestly NOT RUN — needs the user's A05s + account.
 - Risks: Google may still refuse some tracks per-account (typed errors, expected); free-account streaming without official ad layer is ToS-gray (disclosed in consent dialog/README); session cookies expire → "Sign in again" flow exists.
+
+---
+Task ID: FOCUS-YTM-3
+Agent: Z.ai Code (main session)
+Task: User device report — "Tidak bisa diplay, ga muncul notif apapun" (tap a YouTube track: no playback AND zero feedback). Find why v1.4.0's error UX still went silent, fix it, ship v1.4.1.
+
+Work Log:
+- RE-AUDIT: HEAD 1a24980 (FOCUS-YTM-1/2 already committed by cron snapshot; v1.4.0 built). Read PlaybackRepository/MainActivity/NowPlayingActivity/PlaybackErrorText/PlaybackErrorInfo/StreamErrorBus/strings/build.gradle + grep of PlaybackService onAddMediaItems paths before touching anything.
+- ROOT CAUSE (3 silent paths, all confirmed by code trace):
+  1. checkPendingResolution() only ran inside Player.Listener.onEvents — but a REFUSED onAddMediaItems (LOGIN_REQUIRED / CONFIGURATION_REQUIRED) changes neither timeline nor playback state, so no event fires after the failure; the StreamErrorBus entry was never matched and the 15s grace expiry (also event-gated) never evaluated → failure invisible forever. This is the exact user symptom (first play refused → empty queue → nothing ever happens).
+  2. MainActivity.onPlaybackChanged() early-returned BEFORE showOrClearPlaybackError() when currentTrack()==null — exactly the state after a failed first play → Snackbar never shown even when lastError was set.
+  3. NowPlayingActivity.onPlaybackChanged() explicitly hid np_error_banner when no track was current (banner layout is flipper-independent; only the code hid it).
+- FIX (v1.4.1 / versionCode 9, FOCUS-YTM-3):
+  - PlaybackRepository: ACTIVE WATCHDOG — main-looper Handler polls every 400ms while pendingResolutionTrack != null; adopts matching StreamErrorBus entry (typed error) / detects queue accepted / synthesizes KIND_TIMEOUT PlaybackErrorInfo after the 15s grace with notifyListeners(). Event path kept as fast path. play()/addToQueue() now StreamErrorBus.clear() first so a stale diagnostic of the SAME track id can never short-circuit a fresh attempt.
+  - MainActivity: error check moved BEFORE the early return; failure Snackbar LENGTH_LONG → LENGTH_INDEFINITE (stays until recovery/dismiss).
+  - NowPlayingActivity: banner refreshed over the empty state instead of force-hidden.
+  - PlaybackErrorInfo: KIND_TIMEOUT="TIMEOUT"; PlaybackErrorText: TIMEOUT → new string err_playback_no_response; strings.xml +1.
+- QA (real runs, toolchain intact: jdk-21/gradle-8.9/sdk-35): :app:testDebugUnitTest → 86/86 PASS (JUnit XML count: 86/0/0); :app:lintDebug PASS; :app:assembleDebug → ridho-music-v1.4.1-debug.apk, aapt-confirmed versionCode 9 / 1.4.1-debug / com.ridho.music.debug. Packaged to android/dist/ + public/ (v1.4.0 removed from public/ to prevent stale installs; history kept in dist/). data/build-info-v1.4.1.json (sha256 ae58d9ed…, commit 1a24980 base, uncommitted tree noted).
+- DASHBOARD CHECK: /api/version → {"name":"1.4.1","code":9}; /ridho-music-v1.4.1-debug.apk → HTTP 200 (data-driven, no web code touched).
+- DOCS: android/CHANGELOG.md full 1.4.1 section; root CHANGELOG row (device column: "Fix triggered BY real device report; on-device re-test pending"); android/README §8 troubleshooting row for the no-feedback symptom.
+- NO new unit tests: watchdog is main-looper/MediaController-bound (outside pure-JVM scope); regression suite green. NO manual commit (cron snapshots only), per red line.
+
+Stage Summary:
+- v1.4.1 (code 9) shipped: playback failures can no longer vanish — watchdog guarantees a typed, actionable message (signed-out → sign-in guidance; gated → "Open in YouTube Music"; unresponsive → timeout) via Snackbar AND Now Playing banner regardless of queue state.
+- Honest boundary unchanged: playback itself depends on YouTube's response to the user's signed-in session (per-account refusals stay possible and will now be VISIBLE, not silent); no bypass of any protection was added or used.
+- Next: user installs v1.4.1 on the A05s, signs in (Settings → Music sources → YouTube Music account), retests; if any refusal appears, its message now identifies the cause.

@@ -287,6 +287,7 @@ Manual acceptance checklist for a device is in `CHANGELOG.md`.
 
 | Symptom | Fix |
 |---|---|
+| Tapping a track does nothing — no playback, no message (pre-1.4.1) | Fixed in 1.4.1: every failure now shows a typed message (Snackbar + Now Playing banner). Update to ≥1.4.1; if a timeout message appears, check connectivity and retry. |
 | "The selected folder is no longer readable" | Re-pick the folder in Home (Android can revoke SAF grants after provider updates). |
 | YT Music track fails to play signed-out | Sign in: Settings → Music sources → YouTube Music account (see §4). The error message also says this. |
 | YT Music track fails even after sign-in | YouTube refused that track (age/region/attestation). Use “Open in YouTube Music” from the error banner. Local files are unaffected. |

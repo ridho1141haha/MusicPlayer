@@ -191,7 +191,9 @@ public class NowPlayingActivity extends AppCompatActivity implements PlaybackRep
         findViewById(R.id.np_controls_block).setVisibility(hasTrack ? View.VISIBLE : View.GONE);
         if (!hasTrack) {
             positionHandler.removeCallbacks(positionTick);
-            errorBanner.setVisibility(View.GONE);
+            // FOCUS-YTM-3: a failed first play leaves the queue empty — the honest
+            // error banner must still show over the empty state instead of hiding.
+            refreshErrorBanner(playback.lastPlaybackError());
             return;
         }
 

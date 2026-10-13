@@ -158,21 +158,24 @@ public class MainActivity extends AppCompatActivity implements UiPlaybackHost,
         Track current = playback.currentTrack();
         if (current == null) {
             miniPlayer.setVisibility(View.GONE);
-            return;
+        } else {
+            miniPlayer.setVisibility(View.VISIBLE);
+            miniTitle.setText(current.title);
+            miniArtist.setText(current.artist);
+            miniPlayPause.setImageResource(playback.isPlaying()
+                    ? R.drawable.ic_pause : R.drawable.ic_play);
+            miniPlayPause.setContentDescription(playback.isPlaying()
+                    ? getString(R.string.cd_pause) : getString(R.string.cd_play));
+            Glide.with(this)
+                    .load(MediaItemConverter.artworkUri(current))
+                    .placeholder(R.drawable.bg_artwork_placeholder)
+                    .centerCrop()
+                    .into(miniArtwork);
         }
-        miniPlayer.setVisibility(View.VISIBLE);
-        miniTitle.setText(current.title);
-        miniArtist.setText(current.artist);
-        miniPlayPause.setImageResource(playback.isPlaying()
-                ? R.drawable.ic_pause : R.drawable.ic_play);
-        miniPlayPause.setContentDescription(playback.isPlaying()
-                ? getString(R.string.cd_pause) : getString(R.string.cd_play));
-        Glide.with(this)
-                .load(MediaItemConverter.artworkUri(current))
-                .placeholder(R.drawable.bg_artwork_placeholder)
-                .centerCrop()
-                .into(miniArtwork);
 
+        // FOCUS-YTM-3: evaluated BEFORE any early return — a failed first play
+        // leaves the queue empty, and that is exactly when the failure feedback
+        // used to vanish. The Snackbar must surface regardless of queue state.
         showOrClearPlaybackError();
     }
 
@@ -192,7 +195,7 @@ public class MainActivity extends AppCompatActivity implements UiPlaybackHost,
         Snackbar snackbar = Snackbar.make(
                 findViewById(android.R.id.content),
                 PlaybackErrorText.message(this, error),
-                Snackbar.LENGTH_LONG);
+                Snackbar.LENGTH_INDEFINITE);
         if (Track.SOURCE_YTM.equals(error.sourceId)
                 && YtmLinks.videoIdFromTrackId(error.trackId) != null) {
             snackbar.setAction(R.string.menu_open_in_ytm, v -> {

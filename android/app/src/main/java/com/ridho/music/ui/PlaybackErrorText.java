@@ -21,6 +21,11 @@ public final class PlaybackErrorText {
     public static String message(Context context, PlaybackErrorInfo info) {
         if (info == null) return context.getString(R.string.err_playback);
 
+        // FOCUS-YTM-3: the watchdog synthesized timeout — applies to any source.
+        if (PlaybackErrorInfo.KIND_TIMEOUT.equals(info.kind)) {
+            return context.getString(R.string.err_playback_no_response);
+        }
+
         if (Track.SOURCE_YTM.equals(info.sourceId)) {
             if (SourceException.Kind.UNAVAILABLE.name().equals(info.kind)) {
                 return context.getString(R.string.err_playback_ytm_gated);

@@ -173,6 +173,7 @@
     <string name="err_unsupported">The selected source does not support this action.</string>
     <string name="err_not_found">Track not found.</string>
     <string name="err_playback">Playback error.</string>
+    <string name="err_playback_no_response">The music source did not respond in time. Check your connection, then try again.</string>
     <!-- FOCUS-YTM-1: honest YouTube gating messages -->
     <string name="err_playback_ytm_gated">YouTube refuses to stream this track to third-party apps without sign-in, and Ridho Music does not bypass YouTube\'s protections. Use “Open in YouTube Music” to listen there.</string>
     <string name="err_playback_ytm_catalog">Albums and artists are catalog links, not playable files. Open them in the official YouTube Music app instead.</string>

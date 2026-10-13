@@ -38,6 +38,8 @@ public final class PlaybackErrorInfo {
     public final long atMs;
 
     public static final String KIND_PLAYER = "PLAYER";
+    /** FOCUS-YTM-3: resolution never finished within the grace period (no answer at all). */
+    public static final String KIND_TIMEOUT = "TIMEOUT";
     public static final String KIND_UNKNOWN = "?";
 
     public PlaybackErrorInfo(String trackId, String sourceId,
