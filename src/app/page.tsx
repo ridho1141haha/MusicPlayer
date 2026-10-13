@@ -8,12 +8,14 @@ import {
   LayoutDashboard,
   Music,
   Package,
+  Radio,
   Search,
   Smartphone,
   Subtitles,
   Table2,
 } from 'lucide-react';
 
+import { AudiusTab } from '@/components/lab/audius-tab';
 import { DashboardTab } from '@/components/lab/dashboard-tab';
 import { FixtureTesterTab } from '@/components/lab/fixture-tester-tab';
 import { LyricsTab } from '@/components/lab/lyrics-tab';
@@ -32,6 +34,7 @@ const TABS: Array<{ id: LabTab; label: string; icon: typeof Search }> = [
   { id: 'fixtures', label: 'Fixtures & Parser', icon: Database },
   { id: 'lyrics', label: 'Lyrics Lab', icon: Subtitles },
   { id: 'prototype', label: 'Prototype', icon: Smartphone },
+  { id: 'audius', label: 'Audius Player', icon: Radio },
   { id: 'parity', label: 'Parity Matrix', icon: Table2 },
   { id: 'project', label: 'Project', icon: Package },
 ];
@@ -81,7 +84,7 @@ export default function WebLabPage() {
     const onKeyDown = (event: KeyboardEvent) => {
       if (event.metaKey || event.ctrlKey || event.altKey) return;
       if (isTypingTarget(event.target)) return;
-      if (event.key >= '1' && event.key <= '7') {
+      if (event.key >= '1' && event.key <= '8') {
         const index = Number(event.key) - 1;
         const tab = TABS[index];
         if (tab === undefined) return;
@@ -187,6 +190,7 @@ export default function WebLabPage() {
           {activeTab === 'fixtures' && <FixtureTesterTab />}
           {activeTab === 'lyrics' && <LyricsTab />}
           {activeTab === 'prototype' && <PrototypeTab />}
+          {activeTab === 'audius' && <AudiusTab />}
           {activeTab === 'parity' && <ParityTab />}
           {activeTab === 'project' && <ProjectTab />}
         </motion.div>
@@ -218,11 +222,13 @@ export default function WebLabPage() {
             Ridho Music Web Lab — mirrors the Java parser contracts (search + LRC) on shared fixtures
             (<span className="font-mono">fixtures/</span> ⇄ <span className="font-mono">app/src/test/resources/</span>).
             Keys <kbd className="rounded border border-border bg-background px-1 font-mono text-[10px]">1</kbd>–
-            <kbd className="rounded border border-border bg-background px-1 font-mono text-[10px]">7</kbd> switch
+            <kbd className="rounded border border-border bg-background px-1 font-mono text-[10px]">8</kbd> switch
             sections.
           </p>
           <p>
-            Prototype playback is <span className="font-medium text-foreground/80">simulated</span> — the Android app
+            Prototype playback is <span className="font-medium text-foreground/80">simulated</span>; the{' '}
+            <span className="font-medium text-foreground/80">Audius Player</span> tab streams{' '}
+            <span className="font-medium text-primary">real tracks</span> via the official Audius API. The Android app
             streams via Media3.
           </p>
         </div>

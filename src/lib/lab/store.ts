@@ -7,7 +7,7 @@ import { shuffledQueue } from './shuffle';
 import { computeNextIndex, computeTick, type RepeatMode } from './tick';
 import type { LabTrack } from './types';
 
-export type LabTab = 'dashboard' | 'playground' | 'fixtures' | 'lyrics' | 'prototype' | 'parity' | 'project';
+export type LabTab = 'dashboard' | 'playground' | 'fixtures' | 'lyrics' | 'prototype' | 'parity' | 'project' | 'audius';
 
 export type CatalogStatus = 'idle' | 'loading' | 'ready' | 'error';
 

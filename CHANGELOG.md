@@ -23,7 +23,67 @@ built the evidence-based delivery dashboard (fixture lab, golden contracts,
 live probes, mobile UX audit); WEBLAB-22A/B added the Jamendo credential
 mechanism, sanitized live-API evidence records, and data-driven build
 traceability (version badge + artifact serving parsed from the actual
-`build.gradle`).
+`build.gradle`); WEBLAB-23 added the **Audius Player** tab — the first REAL
+streaming playback in the web lab (official Audius public API, no credentials).
+
+---
+
+## Unreleased — WEBLAB-23 (web lab only; no APK, no versionCode change) — 2026-10-13
+
+**Scope:** web preview (`src/`) exclusively. The Android APK, its source, and
+its versioning are untouched by design (WEB QA ONLY).
+
+### Added
+- **Audius Player tab** (8th lab tab, shortcut `6`): real online music via the
+  official Audius public API (https://docs.audius.co).
+  - Search tracks, Trending (time window + genre filters), Underground.
+  - Track metadata: title, artist, artwork, duration, genre, play count.
+  - Playback through the documented stream endpoint
+    (`/v1/tracks/{id}/stream?app_name=…`, 302 → CDN) with native range-seeking.
+  - Full transport: play/pause, seek (with buffered-range layer),
+    current-time/duration, volume + mute, next/previous (restart >3 s rule),
+    auto-advance within the list context, buffering overlay, Media Session
+    integration (lock-screen controls).
+  - Honest states: loading skeletons, empty results, empty-query hint,
+    load-more inline error with retry (network failures never silent),
+    playback error banner with retry (verified by blocking the stream route).
+  - Load-more pagination (offset-based, deduped).
+- **API routes** (server-side, no secrets — Audius has none):
+  `GET /api/audius/hosts` (registry discovery, 10-min cache, fallback host),
+  `GET /api/audius/tracks` (search/trending/underground, host failover,
+  8 s timeout, 60 s page cache, normalized payloads, typed error kinds).
+
+### Files
+- `src/lib/lab/audius.ts` (pure types/normalization/stream URL/paging helpers)
+- `src/lib/lab/audius-server.ts` (host discovery + failover fetch + caches)
+- `src/app/api/audius/hosts/route.ts`, `src/app/api/audius/tracks/route.ts`
+- `src/hooks/use-audius-player.ts` (single-persistent-`<audio>` engine with
+  full listener cleanup and resource release on unmount)
+- `src/components/lab/audius-tab.tsx`, `src/app/page.tsx`, `src/lib/lab/store.ts`
+
+### Verification (agent-browser, 2026-10-13 — all executed, none assumed)
+- Search "long drive" → 12 real results; trending/underground/genre filters
+  (Lo-Fi, Classical) → 12 each. 12/12 artwork images loaded (naturalWidth > 0).
+- Playback: real audio advanced (0:00→0:03…), duration from stream metadata;
+  pause froze time; resume advanced; seek-to-end auto-advanced to the next
+  queued track; previous restarted >3 s / switched <3 s; volume Home/End +
+  mute/unmute verified; buffered layer rendered (38.98% while streaming).
+- Errors: blocked stream route → error banner → unroute + Retry → recovered;
+  offline load-more → inline error, list preserved → Retry → 12→24 tracks.
+- Loading: initial skeleton caught live (uncached genre query); load-more
+  spinner caught; buffering overlay caught.
+- Mobile 390 px: zero horizontal scroll; desktop two-column sticky player.
+- Console: 0 errors / 0 warnings across the whole session.
+- Regression: vitest 158/158, ESLint clean, all 8 tabs render, Project tab
+  still data-driven (v1.2.3 / versionCode 6).
+
+### Known limitations (honest)
+- Volume is ignored by iOS Safari (platform limitation of `<audio>.volume`;
+  desktop/Android browsers honor it) — noted in code.
+- Audius full-text search can return 0 results for niche queries — explicit
+  empty state with guidance is shown.
+- The Prototype tab remains simulated by design (fixture QA harness); the
+  footer states which tab streams real audio.
 
 ---
 

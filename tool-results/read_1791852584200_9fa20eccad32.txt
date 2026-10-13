@@ -1,0 +1,1228 @@
+     1→'use client';
+     2→
+     3→import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+     4→import {
+     5→  DndContext,
+     6→  KeyboardSensor,
+     7→  PointerSensor,
+     8→  TouchSensor,
+     9→  closestCenter,
+    10→  useSensor,
+    11→  useSensors,
+    12→  type DragEndEvent,
+    13→} from '@dnd-kit/core';
+    14→import {
+    15→  SortableContext,
+    16→  sortableKeyboardCoordinates,
+    17→  useSortable,
+    18→  verticalListSortingStrategy,
+    19→} from '@dnd-kit/sortable';
+    20→import { CSS } from '@dnd-kit/utilities';
+    21→import { motion } from 'framer-motion';
+    22→import {
+    23→  AlertTriangle,
+    24→  ArrowDownToLine,
+    25→  ArrowUpToLine,
+    26→  BarChart3,
+    27→  ChevronRight,
+    28→  CornerDownRight,
+    29→  Copy,
+    30→  Flame,
+    31→  GripVertical,
+    32→  Heart,
+    33→  Info,
+    34→  ListMusic,
+    35→  ListPlus,
+    36→  Music,
+    37→  Pause,
+    38→  Play,
+    39→  Plus,
+    40→  Repeat,
+    41→  Repeat1,
+    42→  RotateCcw,
+    43→  Search,
+    44→  Shuffle,
+    45→  SkipBack,
+    46→  SkipForward,
+    47→  Trash2,
+    48→  X,
+    49→} from 'lucide-react';
+    50→
+    51→import { Badge } from '@/components/ui/badge';
+    52→import { Button } from '@/components/ui/button';
+    53→import { Card, CardContent, CardHeader } from '@/components/ui/card';
+    54→import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+    55→import {
+    56→  ContextMenu,
+    57→  ContextMenuContent,
+    58→  ContextMenuItem,
+    59→  ContextMenuSeparator,
+    60→  ContextMenuShortcut,
+    61→  ContextMenuTrigger,
+    62→} from '@/components/ui/context-menu';
+    63→import {
+    64→  Dialog,
+    65→  DialogContent,
+    66→  DialogDescription,
+    67→  DialogHeader,
+    68→  DialogTitle,
+    69→} from '@/components/ui/dialog';
+    70→import { Input } from '@/components/ui/input';
+    71→import { ScrollArea } from '@/components/ui/scroll-area';
+    72→import {
+    73→  Sheet,
+    74→  SheetContent,
+    75→  SheetDescription,
+    76→  SheetHeader,
+    77→  SheetTitle,
+    78→} from '@/components/ui/sheet';
+    79→import { Skeleton } from '@/components/ui/skeleton';
+    80→import { Slider } from '@/components/ui/slider';
+    81→import { Switch } from '@/components/ui/switch';
+    82→import { useToast } from '@/hooks/use-toast';
+    83→import { formatDuration } from '@/lib/lab/format';
+    84→import { activeLineIndex, parse as parseLrc, type LrcLyrics } from '@/lib/lab/lrc-parser';
+    85→import { progressPercent, queuePositionLabel, queueRowBadge, repeatModeLabel } from '@/lib/lab/tick';
+    86→import { effectiveDuration, useLabStore } from '@/lib/lab/store';
+    87→import type { LabTrack } from '@/lib/lab/types';
+    88→
+    89→type View = 'search' | 'queue' | 'top' | 'favorites';
+    90→
+    91→const SIMULATION_BANNER =
+    92→  'UI simulation — playback here is a timer, not audio. The Android app streams via Media3; YouTube Music playback is currently blocked (LOGIN_REQUIRED, verified 2026-10-11).';
+    93→
+    94→function Artwork({ track, className = '' }: { track: LabTrack; className?: string }) {
+    95→  if (track.artworkUrl !== null) {
+    96→    return (
+    97→      <img
+    98→        src={track.artworkUrl}
+    99→        alt={`Artwork for ${track.title}`}
+   100→        loading="lazy"
+   101→        referrerPolicy="no-referrer"
+   102→        className={`shrink-0 rounded object-cover ${className}`}
+   103→      />
+   104→    );
+   105→  }
+   106→  return (
+   107→    <div className={`flex shrink-0 items-center justify-center rounded bg-secondary ${className}`} aria-hidden="true">
+   108→      <Music className="h-1/2 w-1/2 text-muted-foreground" />
+   109→    </div>
+   110→  );
+   111→}
+   112→
+   113→function FavoriteButton({ trackId, className = '' }: { trackId: string; className?: string }) {
+   114→  const isFavorite = useLabStore((s) => s.favorites.includes(trackId));
+   115→  const toggleFavorite = useLabStore((s) => s.toggleFavorite);
+   116→  return (
+   117→    <Button
+   118→      variant="ghost"
+   119→      size="icon"
+   120→      className={`h-11 w-11 shrink-0 ${isFavorite ? 'text-rose-400 hover:text-rose-300' : 'text-muted-foreground'} ${className}`}
+   121→      onClick={() => toggleFavorite(trackId)}
+   122→      aria-label={isFavorite ? `Remove ${trackId} from favorites` : `Favorite ${trackId}`}
+   123→      aria-pressed={isFavorite}
+   124→    >
+   125→      <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} aria-hidden="true" />
+   126→    </Button>
+   127→  );
+   128→}
+   129→
+   130→function QueueMenu({ track }: { track: LabTrack }) {
+   131→  const addToQueue = useLabStore((s) => s.addToQueue);
+   132→  const playNextInQueue = useLabStore((s) => s.playNextInQueue);
+   133→  const inQueue = useLabStore((s) => s.queue.includes(track.id));
+   134→  return (
+   135→    <div className="flex shrink-0 items-center">
+   136→      <Button
+   137→        variant="ghost"
+   138→        size="icon"
+   139→        className="h-11 w-11 text-muted-foreground"
+   140→        onClick={() => playNextInQueue(track.id)}
+   141→        aria-label={`Play ${track.title} next in queue`}
+   142→        title="Play next"
+   143→      >
+   144→        <ListPlus className="h-4 w-4" aria-hidden="true" />
+   145→      </Button>
+   146→      <Button
+   147→        variant="ghost"
+   148→        size="icon"
+   149→        className="h-11 w-11 text-muted-foreground"
+   150→        onClick={() => addToQueue(track.id)}
+   151→        disabled={inQueue}
+   152→        aria-label={inQueue ? `${track.title} is already in the queue` : `Add ${track.title} to queue`}
+   153→        title={inQueue ? 'Already queued' : 'Add to queue'}
+   154→      >
+   155→        {inQueue ? <Check aria-hidden="true" /> : <Plus className="h-4 w-4" aria-hidden="true" />}
+   156→      </Button>
+   157→    </div>
+   158→  );
+   159→}
+   160→
+   161→function Check({ 'aria-hidden': ariaHidden }: { 'aria-hidden'?: boolean | 'true' | 'false' }) {
+   162→  return (
+   163→    <svg viewBox="0 0 24 24" className="h-4 w-4" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden={ariaHidden}>
+   164→      <path d="M20 6 9 17l-5-5" />
+   165→    </svg>
+   166→  );
+   167→}
+   168→
+   169→function TrackRow({
+   170→  track,
+   171→  index,
+   172→  onOpenDetail,
+   173→}: {
+   174→  track: LabTrack;
+   175→  index: number;
+   176→  onOpenDetail: (track: LabTrack) => void;
+   177→}) {
+   178→  const isPlaying = useLabStore((s) => s.isPlaying && s.currentTrackId === track.id);
+   179→  const togglePlayId = useLabStore((s) => s.togglePlayId);
+   180→  return (
+   181→    <li>
+   182→      <div
+   183→        className={`flex items-center gap-2 rounded-md border bg-background/40 p-2 transition-colors hover:bg-secondary/40 ${
+   184→          isPlaying ? 'border-primary/60 bg-primary/5 shadow-[inset_2px_0_0_0] shadow-primary' : 'border-border'
+   185→        }`}
+   186→      >
+   187→        <span className="w-5 shrink-0 text-center font-mono text-[11px] text-muted-foreground">{index + 1}</span>
+   188→        <Artwork track={track} className="h-11 w-11" />
+   189→        <button
+   190→          type="button"
+   191→          onClick={() => onOpenDetail(track)}
+   192→          className="min-w-0 flex-1 rounded px-1 text-left"
+   193→          aria-label={`Open details for ${track.title}`}
+   194→        >
+   195→          <span className="flex items-center gap-1.5">
+   196→            <span className="truncate text-sm font-medium">{track.title}</span>
+   197→            {isPlaying && (
+   198→              <span className="rm-eq shrink-0 text-primary" aria-hidden="true">
+   199→                <span /><span /><span /><span />
+   200→              </span>
+   201→            )}
+   202→            {isPlaying && (
+   203→              <Badge variant="outline" className="border-primary/40 bg-primary/10 px-1 text-[9px] text-primary">
+   204→                playing
+   205→              </Badge>
+   206→            )}
+   207→          </span>
+   208→          <span className="block truncate text-xs text-muted-foreground">
+   209→            {track.artist}
+   210→            {track.album !== null ? ` · ${track.album}` : ''}
+   211→          </span>
+   212→        </button>
+   213→        <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:block">
+   214→          {formatDuration(track.durationMs)}
+   215→        </span>
+   216→        <FavoriteButton trackId={track.id} />
+   217→        <QueueMenu track={track} />
+   218→        <Button
+   219→          variant="ghost"
+   220→          size="icon"
+   221→          className="h-11 w-11 shrink-0 text-primary"
+   222→          onClick={() => togglePlayId(track.id)}
+   223→          aria-label={`${isPlaying ? 'Pause' : 'Play'} ${track.title} (simulated)`}
+   224→        >
+   225→          {isPlaying ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
+   226→        </Button>
+   227→      </div>
+   228→    </li>
+   229→  );
+   230→}
+   231→
+   232→function SortableQueueRow({
+   233→  trackId,
+   234→  position,
+   235→  track,
+   236→  onRemove,
+   237→}: {
+   238→  trackId: string;
+   239→  position: number;
+   240→  track: LabTrack | undefined;
+   241→  onRemove: (id: string) => void;
+   242→}) {
+   243→  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: trackId });
+   244→  const isPlaying = useLabStore((s) => s.isPlaying && s.currentTrackId === trackId);
+   245→  const isFavorite = useLabStore((s) => s.favorites.includes(trackId));
+   246→  const { toast } = useToast();
+   247→
+   248→  // WEBLAB-14 — per-row playback-relationship badge from the SAME semantics as
+   249→  // computeNextIndex, so the badge can never disagree with the tick logic.
+   250→  const queueLength = useLabStore((s) => s.queue.length);
+   251→  const currentIndex = useLabStore((s) => (s.currentTrackId === null ? -1 : s.queue.indexOf(s.currentTrackId)));
+   252→  const repeatMode = useLabStore((s) => s.repeatMode);
+   253→  const rowBadge = queueRowBadge(queueLength, position, currentIndex, repeatMode);
+   254→
+   255→  const moveTo = (target: 'top' | 'bottom') => {
+   256→    const queue = useLabStore.getState().queue;
+   257→    const from = queue.indexOf(trackId);
+   258→    if (from < 0) return;
+   259→    const to = target === 'top' ? 0 : queue.length - 1;
+   260→    if (from === to) return;
+   261→    useLabStore.getState().reorderQueue(from, to);
+   262→  };
+   263→
+   264→  const copyInfo = async () => {
+   265→    if (track === undefined) return;
+   266→    const info = `${track.title} — ${track.artist} [${track.id}] (Ridho Music Web Lab, queue position ${position + 1})`;
+   267→    try {
+   268→      await navigator.clipboard.writeText(info);
+   269→      toast({ title: 'Copied to clipboard ✓', description: info });
+   270→    } catch {
+   271→      toast({ title: 'Clipboard blocked by the browser', description: 'Headless/permission-restricted contexts cannot write the clipboard.', variant: 'destructive' });
+   272→    }
+   273→  };
+   274→
+   275→  if (track === undefined) {
+   276→    return (
+   277→      <li
+   278→        ref={setNodeRef}
+   279→        style={{ transform: CSS.Transform.toString(transform), transition }}
+   280→        className="flex items-center gap-2 rounded-md border border-dashed border-border p-2 text-xs text-muted-foreground"
+   281→      >
+   282→        <span className="w-5 text-center font-mono">{position + 1}</span>
+   283→        (track not in catalog: {trackId})
+   284→      </li>
+   285→    );
+   286→  }
+   287→
+   288→  return (
+   289→    <li
+   290→      ref={setNodeRef}
+   291→      style={{ transform: CSS.Transform.toString(transform), transition }}
+   292→      className={`flex items-center gap-1.5 rounded-md border border-border bg-background/40 p-2 ${
+   293→        isDragging ? 'z-10 border-primary/60 shadow-lg' : ''
+   294→      }`}
+   295→    >
+   296→      <button
+   297→        type="button"
+   298→        className="flex h-11 w-8 shrink-0 cursor-grab touch-none items-center justify-center rounded text-muted-foreground hover:text-foreground active:cursor-grabbing"
+   299→        aria-label={`Reorder ${track.title}`}
+   300→        {...attributes}
+   301→        {...listeners}
+   302→      >
+   303→        <GripVertical className="h-4 w-4" aria-hidden="true" />
+   304→      </button>
+   305→      <ContextMenu>
+   306→        <ContextMenuTrigger asChild>
+   307→          <button
+   308→            type="button"
+   309→            className="flex min-w-0 flex-1 items-center gap-1.5 rounded-md text-left focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+   310→            aria-label={`Queue actions for ${track.title} (right-click or long-press for the context menu)`}
+   311→          >
+   312→            <span className="w-4 shrink-0 text-center font-mono text-[11px] text-muted-foreground">{position + 1}</span>
+   313→            <Artwork track={track} className="h-10 w-10" />
+   314→            <span className="min-w-0 flex-1">
+   315→              <span className="flex items-center gap-1.5">
+   316→                <span className="truncate text-sm font-medium">{track.title}</span>
+   317→                {isPlaying && (
+   318→                  <Badge variant="outline" className="border-primary/40 bg-primary/10 px-1 text-[9px] text-primary">
+   319→                    playing
+   320→                  </Badge>
+   321→                )}
+   322→                {rowBadge?.kind === 'up-next' && !isPlaying && (
+   323→                  <Badge variant="outline" className="gap-0.5 border-teal-500/40 bg-teal-500/10 px-1 text-[9px] text-teal-300">
+   324→                    <CornerDownRight className="h-2.5 w-2.5" aria-hidden="true" />
+   325→                    up next
+   326→                  </Badge>
+   327→                )}
+   328→                {rowBadge?.kind === 'ends-queue' && (
+   329→                  <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 px-1 text-[9px] text-amber-300">
+   330→                    ends queue (repeat off)
+   331→                  </Badge>
+   332→                )}
+   333→                {rowBadge?.kind === 'repeats' && (
+   334→                  <Badge variant="outline" className="border-violet-500/40 bg-violet-500/10 px-1 text-[9px] text-violet-300">
+   335→                    {rowBadge.label}
+   336→                  </Badge>
+   337→                )}
+   338→              </span>
+   339→              <span className="block truncate text-xs text-muted-foreground">{track.artist}</span>
+   340→            </span>
+   341→            <span className="hidden shrink-0 text-[11px] text-muted-foreground sm:block">{formatDuration(track.durationMs)}</span>
+   342→          </button>
+   343→        </ContextMenuTrigger>
+   344→        <ContextMenuContent className="w-56">
+   345→          <ContextMenuItem
+   346→            onSelect={() => {
+   347→              useLabStore.getState().togglePlayId(trackId);
+   348→            }}
+   349→          >
+   350→            <Play className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+   351→            {isPlaying ? 'Pause (simulated)' : 'Play (simulated)'}
+   352→            <ContextMenuShortcut>Enter</ContextMenuShortcut>
+   353→          </ContextMenuItem>
+   354→          <ContextMenuItem
+   355→            onSelect={() => {
+   356→              useLabStore.getState().playNextInQueue(trackId);
+   357→            }}
+   358→          >
+   359→            <ListPlus className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+   360→            Play next
+   361→          </ContextMenuItem>
+   362→          <ContextMenuItem onSelect={() => useLabStore.getState().shuffleQueue()} disabled={useLabStore.getState().queue.length < 2}>
+   363→            <Shuffle className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+   364→            Shuffle queue (simulated)
+   365→          </ContextMenuItem>
+   366→          <ContextMenuSeparator />
+   367→          <ContextMenuItem onSelect={() => moveTo('top')} disabled={position === 0}>
+   368→            <ArrowUpToLine className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+   369→            Move to top
+   370→          </ContextMenuItem>
+   371→          <ContextMenuItem
+   372→            onSelect={() => moveTo('bottom')}
+   373→            disabled={position === useLabStore.getState().queue.length - 1}
+   374→          >
+   375→            <ArrowDownToLine className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+   376→            Move to bottom
+   377→          </ContextMenuItem>
+   378→          <ContextMenuSeparator />
+   379→          <ContextMenuItem onSelect={() => useLabStore.getState().toggleFavorite(trackId)}>
+   380→            <Heart className={`mr-2 h-3.5 w-3.5 ${isFavorite ? 'fill-current text-rose-400' : ''}`} aria-hidden="true" />
+   381→            {isFavorite ? 'Remove from favorites' : 'Add to favorites'}
+   382→          </ContextMenuItem>
+   383→          <ContextMenuItem onSelect={() => void copyInfo()}>
+   384→            <Copy className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+   385→            Copy track info
+   386→          </ContextMenuItem>
+   387→          <ContextMenuSeparator />
+   388→          <ContextMenuItem
+   389→            className="text-rose-300 focus:text-rose-200 focus:bg-rose-500/10"
+   390→            onSelect={() => onRemove(trackId)}
+   391→          >
+   392→            <X className="mr-2 h-3.5 w-3.5" aria-hidden="true" />
+   393→            Remove from queue
+   394→          </ContextMenuItem>
+   395→        </ContextMenuContent>
+   396→      </ContextMenu>
+   397→      <Button
+   398→        variant="ghost"
+   399→        size="icon"
+   400→        className="h-11 w-11 shrink-0 text-muted-foreground hover:text-rose-300"
+   401→        onClick={() => onRemove(trackId)}
+   402→        aria-label={`Remove ${track.title} from queue`}
+   403→      >
+   404→        <X className="h-4 w-4" aria-hidden="true" />
+   405→      </Button>
+   406→    </li>
+   407→  );
+   408→}
+   409→
+   410→/** Animated horizontal play-count chart — WEB-LAB-8. Bars reflect the simulated, browser-local play counter. */
+   411→function TopTracksChart({
+   412→  entries,
+   413→}: {
+   414→  entries: Array<{ track: LabTrack; count: number }>;
+   415→}) {
+   416→  const max = entries.reduce((m, e) => Math.max(m, e.count), 1);
+   417→  const shown = entries.slice(0, 8);
+   418→  return (
+   419→    <div className="space-y-2" role="img" aria-label={`Bar chart of simulated play counts, top ${shown.length} tracks`}>
+   420→      {shown.map((entry, index) => {
+   421→        const pct = Math.max(4, Math.round((entry.count / max) * 100));
+   422→        return (
+   423→          <div key={entry.track.id} className="flex items-center gap-2">
+   424→            <span className={`w-5 shrink-0 text-right font-mono text-[11px] ${index === 0 ? 'font-bold text-amber-300' : 'text-muted-foreground'}`}>
+   425→              {index + 1}
+   426→            </span>
+   427→            <div className="min-w-0 flex-1">
+   428→              <div className="flex items-baseline justify-between gap-2">
+   429→                <span className="truncate text-xs font-medium">{entry.track.title}</span>
+   430→                <span className="shrink-0 font-mono text-[10px] text-muted-foreground">
+   431→                  {entry.count} {entry.count === 1 ? 'play' : 'plays'}
+   432→                </span>
+   433→              </div>
+   434→              <div className="mt-0.5 h-2 overflow-hidden rounded-full bg-secondary/70">
+   435→                <motion.div
+   436→                  initial={{ width: 0 }}
+   437→                  animate={{ width: `${pct}%` }}
+   438→                  transition={{ type: 'spring', stiffness: 120, damping: 20 }}
+   439→                  className={`h-full rounded-full ${
+   440→                    index === 0
+   441→                      ? 'bg-gradient-to-r from-amber-500/80 to-amber-400/60'
+   442→                      : 'bg-gradient-to-r from-primary/80 to-primary/50'
+   443→                  }`}
+   444→                />
+   445→              </div>
+   446→            </div>
+   447→          </div>
+   448→        );
+   449→      })}
+   450→      <p className="pt-1 text-[10px] text-muted-foreground">
+   451→        Chart of the SIMULATED play counter (browser-local). The Android app records real play counts in Room.
+   452→      </p>
+   453→    </div>
+   454→  );
+   455→}
+   456→
+   457→export function PrototypeTab() {
+   458→  const catalog = useLabStore((s) => s.catalog);
+   459→  const catalogStatus = useLabStore((s) => s.catalogStatus);
+   460→  const catalogError = useLabStore((s) => s.catalogError);
+   461→  const loadCatalog = useLabStore((s) => s.loadCatalog);
+   462→  const failureInjection = useLabStore((s) => s.failureInjection);
+   463→  const setFailureInjection = useLabStore((s) => s.setFailureInjection);
+   464→
+   465→  // Demo lyrics for the Now Playing sheet (SYNTHETIC fixture, loaded for real).
+   466→  const [demoLyrics, setDemoLyrics] = useState<LrcLyrics | null>(null);
+   467→  const [lyricsOpen, setLyricsOpen] = useState(true);
+   468→  const lyricsListRef = useRef<HTMLDivElement | null>(null);
+   469→
+   470→  const currentTrackId = useLabStore((s) => s.currentTrackId);
+   471→  const isPlaying = useLabStore((s) => s.isPlaying);
+   472→  const progressMs = useLabStore((s) => s.progressMs);
+   473→  const togglePlay = useLabStore((s) => s.togglePlay);
+   474→  const seekTo = useLabStore((s) => s.seekTo);
+   475→  const next = useLabStore((s) => s.next);
+   476→  const previous = useLabStore((s) => s.previous);
+   477→  const repeatMode = useLabStore((s) => s.repeatMode);
+   478→  const cycleRepeatMode = useLabStore((s) => s.cycleRepeatMode);
+   479→
+   480→  const queue = useLabStore((s) => s.queue);
+   481→  const reorderQueue = useLabStore((s) => s.reorderQueue);
+   482→  const removeFromQueue = useLabStore((s) => s.removeFromQueue);
+   483→  const clearQueue = useLabStore((s) => s.clearQueue);
+   484→  const shuffleQueue = useLabStore((s) => s.shuffleQueue);
+   485→
+   486→  const favorites = useLabStore((s) => s.favorites);
+   487→  const playCounts = useLabStore((s) => s.playCounts);
+   488→
+   489→  const [view, setView] = useState<View>('search');
+   490→  const [query, setQuery] = useState('');
+   491→  const [detailTrack, setDetailTrack] = useState<LabTrack | null>(null);
+   492→  const [nowPlayingOpen, setNowPlayingOpen] = useState(false);
+   493→  const [qaControlsOpen, setQaControlsOpen] = useState(false);
+   494→  const [confirmClear, setConfirmClear] = useState(false);
+   495→  const [copiedInfo, setCopiedInfo] = useState<'idle' | 'copied' | 'blocked'>('idle');
+   496→
+   497→  useEffect(() => {
+   498→    if (useLabStore.getState().catalogStatus === 'idle') void loadCatalog();
+   499→  }, [loadCatalog]);
+   500→
+   501→  // Load the labeled demo .lrc once, when the Now Playing sheet is first opened.
+   502→  useEffect(() => {
+   503→    if (!nowPlayingOpen || demoLyrics !== null) return;
+   504→    void (async () => {
+   505→      try {
+   506→        const res = await fetch('/api/lab/lrc?name=demo_synced.lrc', { cache: 'force-cache' });
+   507→        if (!res.ok) return;
+   508→        const data = (await res.json()) as { content: string };
+   509→        setDemoLyrics(parseLrc(data.content));
+   510→      } catch {
+   511→        // Lyrics stay unavailable; the sheet simply hides the section.
+   512→      }
+   513→    })();
+   514→  }, [nowPlayingOpen, demoLyrics]);
+   515→
+   516→  const sensors = useSensors(
+   517→    useSensor(PointerSensor, { activationConstraint: { distance: 6 } }),
+   518→    useSensor(TouchSensor, { activationConstraint: { delay: 150, tolerance: 8 } }),
+   519→    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+   520→  );
+   521→
+   522→  const currentTrack = useMemo(
+   523→    () => catalog.find((t) => t.id === currentTrackId) ?? null,
+   524→    [catalog, currentTrackId],
+   525→  );
+   526→  const totalMs = effectiveDuration(currentTrack ?? undefined);
+   527→
+   528→  const filtered = useMemo(() => {
+   529→    const q = query.trim().toLowerCase();
+   530→    if (q.length === 0) return catalog;
+   531→    return catalog.filter(
+   532→      (t) =>
+   533→        t.title.toLowerCase().includes(q) ||
+   534→        t.artist.toLowerCase().includes(q) ||
+   535→        (t.album !== null && t.album.toLowerCase().includes(q)),
+   536→    );
+   537→  }, [catalog, query]);
+   538→
+   539→  const favoriteTracks = useMemo(() => catalog.filter((t) => favorites.includes(t.id)), [catalog, favorites]);
+   540→
+   541→  const lyricActiveIdx = useMemo(() => {
+   542→    if (demoLyrics === null || !demoLyrics.synced) return -1;
+   543→    return activeLineIndex(demoLyrics.lines, progressMs);
+   544→  }, [demoLyrics, progressMs]);
+   545→
+   546→  // Keep the active lyric line visible inside the scroll container.
+   547→  useEffect(() => {
+   548→    if (!nowPlayingOpen || lyricActiveIdx < 0 || lyricsListRef.current === null) return;
+   549→    const container = lyricsListRef.current;
+   550→    const activeEl = container.querySelector<HTMLElement>(`[data-lyric-idx="${lyricActiveIdx}"]`);
+   551→    if (activeEl !== null) {
+   552→      const top = activeEl.offsetTop - container.clientHeight / 2 + activeEl.clientHeight / 2;
+   553→      container.scrollTo({ top: Math.max(0, top), behavior: 'smooth' });
+   554→    }
+   555→  }, [lyricActiveIdx, nowPlayingOpen]);
+   556→
+   557→  const copyTrackInfo = useCallback(async (track: LabTrack) => {
+   558→    const info = `${track.title} — ${track.artist}${track.album !== null ? ` · ${track.album}` : ''} [${track.id}] (Ridho Music Web Lab)`;
+   559→    let ok = false;
+   560→    try {
+   561→      await navigator.clipboard.writeText(info);
+   562→      ok = true;
+   563→    } catch {
+   564→      // Clipboard blocked (permissions/insecure context) — surface honestly below.
+   565→    }
+   566→    setCopiedInfo(ok ? 'copied' : 'blocked');
+   567→    window.setTimeout(() => setCopiedInfo('idle'), 2500);
+   568→  }, []);
+   569→
+   570→  const topTracks = useMemo(() => {
+   571→    return Object.entries(playCounts)
+   572→      .map(([id, count]) => ({ track: catalog.find((t) => t.id === id), count }))
+   573→      .filter((entry): entry is { track: LabTrack; count: number } => entry.track !== undefined)
+   574→      .sort((a, b) => b.count - a.count);
+   575→  }, [catalog, playCounts]);
+   576→
+   577→  // WEBLAB-12 mini-player chip — "3/6" when the current track is queued, else hidden.
+   578→  const queuePos = useMemo(() => queuePositionLabel(queue, currentTrackId), [queue, currentTrackId]);
+   579→
+   580→  const onDragEnd = (event: DragEndEvent) => {
+   581→    const { active, over } = event;
+   582→    if (over === null || active.id === over.id) return;
+   583→    const fromIndex = queue.indexOf(String(active.id));
+   584→    const toIndex = queue.indexOf(String(over.id));
+   585→    if (fromIndex < 0 || toIndex < 0) return;
+   586→    reorderQueue(fromIndex, toIndex);
+   587→  };
+   588→
+   589→  const views: Array<{ id: View; label: string; icon: typeof Search; count?: number }> = [
+   590→    { id: 'search', label: 'Search', icon: Search, count: catalog.length },
+   591→    { id: 'queue', label: 'Queue', icon: ListMusic, count: queue.length },
+   592→    { id: 'top', label: 'Top Tracks', icon: Flame, count: topTracks.length },
+   593→    { id: 'favorites', label: 'Favorites', icon: Heart, count: favoriteTracks.length },
+   594→  ];
+   595→
+   596→  return (
+   597→    <div className="space-y-4">
+   598→      {/* Honesty banner */}
+   599→      <div className="flex items-start gap-2 rounded-md border border-amber-500/30 bg-amber-500/10 p-3 text-xs leading-relaxed text-amber-200">
+   600→        <Info className="mt-0.5 h-4 w-4 shrink-0" aria-hidden="true" />
+   601→        {SIMULATION_BANNER}
+   602→      </div>
+   603→
+   604→      {/* QA controls: labeled failure injection */}
+   605→      <Collapsible open={qaControlsOpen} onOpenChange={setQaControlsOpen}>
+   606→        <CollapsibleTrigger asChild>
+   607→          <Button variant="outline" size="sm" className="gap-2 text-xs">
+   608→            <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" />
+   609→            QA controls
+   610→          </Button>
+   611→        </CollapsibleTrigger>
+   612→        <CollapsibleContent>
+   613→          <Card className="mt-2">
+   614→            <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+   615→              <div>
+   616→                <p className="text-sm font-medium">Simulate catalog failure</p>
+   617→                <p className="text-xs text-muted-foreground">
+   618→                  Demonstrates the real loading → error → retry flow with a labeled, intentional failure. Turn OFF
+   619→                  again and press retry to recover.
+   620→                </p>
+   621→              </div>
+   622→              <div className="flex items-center gap-2">
+   623→                <Switch
+   624→                  checked={failureInjection}
+   625→                  onCheckedChange={(on) => {
+   626→                    setFailureInjection(on);
+   627→                    void loadCatalog();
+   628→                  }}
+   629→                  aria-label="Toggle simulated catalog failure"
+   630→                />
+   631→                <Button variant="outline" size="sm" onClick={() => void loadCatalog()} className="gap-1.5">
+   632→                  <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+   633→                  Reload catalog
+   634→                </Button>
+   635→              </div>
+   636→            </CardContent>
+   637→          </Card>
+   638→        </CollapsibleContent>
+   639→      </Collapsible>
+   640→
+   641→      {/* View switcher */}
+   642→      <div className="flex gap-1 overflow-x-auto pb-1" role="tablist" aria-label="Prototype views">
+   643→        {views.map((item) => {
+   644→          const Icon = item.icon;
+   645→          const selected = view === item.id;
+   646→          return (
+   647→            <button
+   648→              key={item.id}
+   649→              type="button"
+   650→              role="tab"
+   651→              aria-selected={selected}
+   652→              onClick={() => setView(item.id)}
+   653→              className={`flex min-h-[40px] items-center gap-2 whitespace-nowrap rounded-lg px-3 text-sm transition-colors ${
+   654→                selected ? 'bg-primary/15 font-medium text-primary' : 'text-muted-foreground hover:bg-secondary/60 hover:text-foreground'
+   655→              }`}
+   656→            >
+   657→              <Icon className="h-4 w-4" aria-hidden="true" />
+   658→              {item.label}
+   659→              {item.count !== undefined && item.count > 0 && (
+   660→                <Badge variant="outline" className="border-border px-1.5 text-[10px]">
+   661→                  {item.count}
+   662→                </Badge>
+   663→              )}
+   664→            </button>
+   665→          );
+   666→        })}
+   667→      </div>
+   668→
+   669→      {/* Catalog states */}
+   670→      {catalogStatus === 'loading' && (
+   671→        <div className="space-y-2" aria-busy="true" aria-label="Loading catalog">
+   672→          {[0, 1, 2, 3].map((i) => (
+   673→            <Skeleton key={i} className="h-16 rounded-md" />
+   674→          ))}
+   675→        </div>
+   676→      )}
+   677→
+   678→      {catalogStatus === 'error' && (
+   679→        <Card className="border-rose-500/30">
+   680→          <CardContent className="flex flex-col gap-2 p-4">
+   681→            <p className="flex items-center gap-2 text-sm font-semibold text-rose-300">
+   682→              <AlertTriangle className="h-4 w-4" aria-hidden="true" />
+   683→              Catalog failed to load
+   684→            </p>
+   685→            <p className="font-mono text-xs text-foreground/80">{catalogError}</p>
+   686→            <Button variant="outline" size="sm" className="w-fit gap-2" onClick={() => void loadCatalog()}>
+   687→              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+   688→              Retry
+   689→            </Button>
+   690→          </CardContent>
+   691→        </Card>
+   692→      )}
+   693→
+   694→      {catalogStatus === 'ready' && catalog.length === 0 && (
+   695→        <Card>
+   696→          <CardContent className="flex flex-col items-center gap-2 p-8 text-center">
+   697→            <Music className="h-8 w-8 text-muted-foreground" aria-hidden="true" />
+   698→            <p className="text-sm font-medium">Catalog is empty</p>
+   699→            <p className="max-w-md text-xs text-muted-foreground">
+   700→              The fixtures parsed to zero tracks — check the Fixtures & Parser tab for the trace.
+   701→            </p>
+   702→            <Button variant="outline" size="sm" className="gap-2" onClick={() => void loadCatalog()}>
+   703→              <RotateCcw className="h-3.5 w-3.5" aria-hidden="true" />
+   704→              Retry
+   705→            </Button>
+   706→          </CardContent>
+   707→        </Card>
+   708→      )}
+   709→
+   710→      {catalogStatus === 'ready' && catalog.length > 0 && (
+   711→        <div className="space-y-3 pb-28">
+   712→          {view === 'search' && (
+   713→            <>
+   714→              <div className="relative">
+   715→                <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" aria-hidden="true" />
+   716→                <Input
+   717→                  value={query}
+   718→                  onChange={(event) => setQuery(event.target.value)}
+   719→                  placeholder="Filter by title, artist, or album…"
+   720→                  aria-label="Filter catalog"
+   721→                  className="min-h-[44px] pl-9"
+   722→                />
+   723→              </div>
+   724→              {filtered.length === 0 ? (
+   725→                <Card>
+   726→                  <CardContent className="flex flex-col items-center gap-2 p-8 text-center">
+   727→                    <Search className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+   728→                    <p className="text-sm font-medium">No matches for “{query}”</p>
+   729→                    <p className="text-xs text-muted-foreground">Try a different filter or clear it.</p>
+   730→                  </CardContent>
+   731→                </Card>
+   732→              ) : (
+   733→                <Card>
+   734→                  <CardContent className="p-3">
+   735→                    <p className="mb-2 text-xs text-muted-foreground">
+   736→                      {filtered.length} of {catalog.length} tracks · source: sanitized fixtures via the shared parser
+   737→                    </p>
+   738→                    <ScrollArea className="rm-scroll max-h-96">
+   739→                      <ul className="space-y-1.5 pr-2">
+   740→                        {filtered.map((track, index) => (
+   741→                          <TrackRow key={track.id} track={track} index={index} onOpenDetail={setDetailTrack} />
+   742→                        ))}
+   743→                      </ul>
+   744→                    </ScrollArea>
+   745→                  </CardContent>
+   746→                </Card>
+   747→              )}
+   748→            </>
+   749→          )}
+   750→
+   751→          {view === 'queue' && (
+   752→            <Card>
+   753→              <CardContent className="p-3">
+   754→                {queue.length === 0 ? (
+   755→                  <div className="flex flex-col items-center gap-2 p-6 text-center">
+   756→                    <ListMusic className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+   757→                    <p className="text-sm font-medium">Queue is empty</p>
+   758→                    <p className="max-w-sm text-xs text-muted-foreground">
+   759→                      Add tracks from Search (＋ button) or use “Play next”. Drag the handle to reorder once queued.
+   760→                    </p>
+   761→                  </div>
+   762→                ) : (
+   763→                  <>
+   764→                    <div className="mb-2 flex flex-wrap items-center justify-between gap-2">
+   765→                      <p className="text-xs text-muted-foreground">{queue.length} in queue · drag the handle to reorder</p>
+   766→                      <div className="flex items-center gap-2">
+   767→                        {/* WEBLAB-13 — repeat mode visible in the queue toolbar (same tri-state). */}
+   768→                        <Button
+   769→                          variant="outline"
+   770→                          size="sm"
+   771→                          className={`gap-1.5 ${
+   772→                            repeatMode === 'off'
+   773→                              ? 'text-muted-foreground'
+   774→                              : 'rm-repeat-chip-on border-amber-500/40 bg-amber-500/10 text-amber-300 hover:text-amber-200'
+   775→                          }`}
+   776→                          onClick={cycleRepeatMode}
+   777→                          aria-pressed={repeatMode !== 'off'}
+   778→                          aria-label={`Cycle repeat mode — currently ${repeatModeLabel(repeatMode)} (simulated)`}
+   779→                          title={repeatModeLabel(repeatMode)}
+   780→                        >
+   781→                          {repeatMode === 'one' ? <Repeat1 className="h-3.5 w-3.5" aria-hidden="true" /> : <Repeat className="h-3.5 w-3.5" aria-hidden="true" />}
+   782→                          {repeatMode === 'one' ? 'Repeat 1' : repeatMode === 'all' ? 'Repeat all' : 'Repeat off'}
+   783→                        </Button>
+   784→                        <Button
+   785→                          variant="outline"
+   786→                          size="sm"
+   787→                          className="gap-1.5"
+   788→                          onClick={() => shuffleQueue()}
+   789→                          disabled={queue.length < 2}
+   790→                          aria-label={`Shuffle queue (simulated) — ${queue.length} tracks`}
+   791→                          title="Fisher–Yates shuffle; the playing track keeps its slot"
+   792→                        >
+   793→                          <Shuffle className="h-3.5 w-3.5" aria-hidden="true" />
+   794→                          Shuffle
+   795→                        </Button>
+   796→                        <Button
+   797→                          variant="outline"
+   798→                          size="sm"
+   799→                          className="gap-1.5 text-rose-300 hover:text-rose-200"
+   800→                          onClick={() => {
+   801→                            if (confirmClear) {
+   802→                              clearQueue();
+   803→                              setConfirmClear(false);
+   804→                            } else {
+   805→                              setConfirmClear(true);
+   806→                              window.setTimeout(() => setConfirmClear(false), 4000);
+   807→                            }
+   808→                          }}
+   809→                          aria-label={confirmClear ? 'Confirm clear queue' : 'Clear queue (press again to confirm)'}
+   810→                        >
+   811→                          <Trash2 className="h-3.5 w-3.5" aria-hidden="true" />
+   812→                          {confirmClear ? 'Press again to confirm' : 'Clear'}
+   813→                        </Button>
+   814→                      </div>
+   815→                    </div>
+   816→                    <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={onDragEnd}>
+   817→                      <SortableContext items={queue} strategy={verticalListSortingStrategy}>
+   818→                        <ScrollArea className="rm-scroll max-h-96">
+   819→                          <ul className="space-y-1.5 pr-2">
+   820→                            {queue.map((trackId, index) => (
+   821→                              <SortableQueueRow
+   822→                                key={trackId}
+   823→                                trackId={trackId}
+   824→                                position={index}
+   825→                                track={catalog.find((t) => t.id === trackId)}
+   826→                                onRemove={removeFromQueue}
+   827→                              />
+   828→                            ))}
+   829→                          </ul>
+   830→                        </ScrollArea>
+   831→                      </SortableContext>
+   832→                    </DndContext>
+   833→                  </>
+   834→                )}
+   835→              </CardContent>
+   836→            </Card>
+   837→          )}
+   838→
+   839→          {view === 'top' && (
+   840→            <>
+   841→              {topTracks.length > 0 && (
+   842→                <Card>
+   843→                  <CardHeader className="pb-2">
+   844→                    <p className="flex items-center gap-2 text-sm font-medium">
+   845→                      <BarChart3 className="h-4 w-4 text-primary" aria-hidden="true" />
+   846→                      Play-count chart
+   847→                    </p>
+   848→                  </CardHeader>
+   849→                  <CardContent>
+   850→                    <TopTracksChart entries={topTracks} />
+   851→                  </CardContent>
+   852→                </Card>
+   853→              )}
+   854→              <Card>
+   855→                <CardContent className="p-3">
+   856→                {topTracks.length === 0 ? (
+   857→                  <div className="flex flex-col items-center gap-2 p-6 text-center">
+   858→                    <Flame className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+   859→                    <p className="text-sm font-medium">No plays yet</p>
+   860→                    <p className="max-w-sm text-xs text-muted-foreground">
+   861→                      The play counter is simulated — it increments when you press play in this prototype (persisted in
+   862→                      your browser only, not in the Android app).
+   863→                    </p>
+   864→                  </div>
+   865→                ) : (
+   866→                  <ScrollArea className="rm-scroll max-h-96">
+   867→                    <ul className="space-y-1.5 pr-2">
+   868→                      {topTracks.map((entry, index) => (
+   869→                        <TrackRow
+   870→                          key={entry.track.id}
+   871→                          track={entry.track}
+   872→                          index={index}
+   873→                          onOpenDetail={setDetailTrack}
+   874→                        />
+   875→                      ))}
+   876→                    </ul>
+   877→                  </ScrollArea>
+   878→                )}
+   879→                </CardContent>
+   880→              </Card>
+   881→            </>
+   882→          )}
+   883→
+   884→          {view === 'favorites' && (
+   885→            <Card>
+   886→              <CardContent className="p-3">
+   887→                {favoriteTracks.length === 0 ? (
+   888→                  <div className="flex flex-col items-center gap-2 p-6 text-center">
+   889→                    <Heart className="h-6 w-6 text-muted-foreground" aria-hidden="true" />
+   890→                    <p className="text-sm font-medium">No favorites yet</p>
+   891→                    <p className="max-w-sm text-xs text-muted-foreground">
+   892→                      Tap the heart on any track. Favorites persist in this browser via localStorage.
+   893→                    </p>
+   894→                  </div>
+   895→                ) : (
+   896→                  <ScrollArea className="rm-scroll max-h-96">
+   897→                    <ul className="space-y-1.5 pr-2">
+   898→                      {favoriteTracks.map((track, index) => (
+   899→                        <TrackRow key={track.id} track={track} index={index} onOpenDetail={setDetailTrack} />
+   900→                      ))}
+   901→                    </ul>
+   902→                  </ScrollArea>
+   903→                )}
+   904→              </CardContent>
+   905→            </Card>
+   906→          )}
+   907→        </div>
+   908→      )}
+   909→
+   910→      {/* Mini player — WEBLAB-12: progress hairline + repeat chip + queue-position chip */}
+   911→      {currentTrack !== null && (
+   912→        <div className="rm-mini-player fixed inset-x-0 bottom-0 z-30 border-t border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/85">
+   913→          {/* progress hairline (gradient, mirrors the sheet's seek slider) */}
+   914→          <div
+   915→            className="rm-mini-progress h-[3px] w-full overflow-hidden rounded-none bg-secondary/70"
+   916→            role="progressbar"
+   917→            aria-label={`Simulated playback progress — ${formatDuration(progressMs)} of ${formatDuration(totalMs)}`}
+   918→            aria-valuemin={0}
+   919→            aria-valuemax={100}
+   920→            aria-valuenow={Math.round(progressPercent(progressMs, totalMs))}
+   921→          >
+   922→            <div
+   923→              className="h-full rounded-none bg-gradient-to-r from-teal-400 to-amber-400 transition-[width] duration-200 ease-linear"
+   924→              style={{ width: `${progressPercent(progressMs, totalMs)}%` }}
+   925→            />
+   926→          </div>
+   927→          <div className="mx-auto w-full max-w-6xl px-3 py-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] sm:px-6">
+   928→            <div className="flex items-center gap-2">
+   929→              <button
+   930→                type="button"
+   931→                onClick={() => setNowPlayingOpen(true)}
+   932→                className="flex min-w-0 flex-1 items-center gap-3 rounded-lg p-1 text-left hover:bg-secondary/50"
+   933→                aria-label="Open Now Playing"
+   934→              >
+   935→                <div className="relative">
+   936→                  <Artwork track={currentTrack} className="h-10 w-10" />
+   937→                  {isPlaying && (
+   938→                    <span className="rm-eq rm-eq-overlay absolute -right-1 -top-1 text-primary" aria-hidden="true">
+   939→                      <span /><span /><span /><span />
+   940→                    </span>
+   941→                  )}
+   942→                </div>
+   943→                <span className="min-w-0">
+   944→                  <span className="flex items-center gap-1.5">
+   945→                    <span className="block truncate text-sm font-medium">{currentTrack.title}</span>
+   946→                    {queuePos !== null && (
+   947→                      <Badge
+   948→                        variant="outline"
+   949→                        className="shrink-0 border-border px-1 font-mono text-[9px] text-muted-foreground"
+   950→                        title={`Position ${queuePos} in the simulated queue`}
+   951→                      >
+   952→                        {queuePos}
+   953→                      </Badge>
+   954→                    )}
+   955→                  </span>
+   956→                  <span className="block truncate text-xs text-muted-foreground">
+   957→                    {formatDuration(progressMs)} / {formatDuration(totalMs)} · {currentTrack.artist}
+   958→                  </span>
+   959→                </span>
+   960→                <ChevronRight className="h-4 w-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+   961→              </button>
+   962→              {/* repeat chip — visible OUTSIDE the sheet (WEBLAB-12), cycles the same tri-state */}
+   963→              <Button
+   964→                variant="ghost"
+   965→                size="icon"
+   966→                className={`h-11 w-11 shrink-0 ${
+   967→                  repeatMode === 'off' ? 'text-muted-foreground' : 'text-amber-300 hover:text-amber-200'
+   968→                }`}
+   969→                onClick={cycleRepeatMode}
+   970→                aria-pressed={repeatMode !== 'off'}
+   971→                aria-label={`Cycle repeat mode — currently ${repeatModeLabel(repeatMode)} (simulated)`}
+   972→                title={repeatModeLabel(repeatMode)}
+   973→              >
+   974→                {repeatMode === 'one' ? <Repeat1 className="h-4 w-4" aria-hidden="true" /> : <Repeat className="h-4 w-4" aria-hidden="true" />}
+   975→              </Button>
+   976→              <Button variant="ghost" size="icon" className="h-11 w-11" onClick={previous} aria-label="Previous track (simulated)">
+   977→                <SkipBack className="h-4 w-4" aria-hidden="true" />
+   978→              </Button>
+   979→              <Button size="icon" className="h-11 w-11" onClick={togglePlay} aria-label={isPlaying ? 'Pause (simulated)' : 'Play (simulated)'}>
+   980→                {isPlaying ? <Pause className="h-4 w-4" aria-hidden="true" /> : <Play className="h-4 w-4" aria-hidden="true" />}
+   981→              </Button>
+   982→              <Button variant="ghost" size="icon" className="h-11 w-11" onClick={next} aria-label="Next track (simulated)">
+   983→                <SkipForward className="h-4 w-4" aria-hidden="true" />
+   984→              </Button>
+   985→            </div>
+   986→          </div>
+   987→        </div>
+   988→      )}
+   989→
+   990→      {/* Now Playing sheet */}
+   991→      <Sheet open={nowPlayingOpen} onOpenChange={setNowPlayingOpen}>
+   992→        <SheetContent side="bottom" className="rm-theme h-[85vh] rounded-t-2xl border-border bg-card sm:max-w-6xl sm:rounded-b-none">
+   993→          <SheetHeader className="sr-only">
+   994→            <SheetTitle>Now Playing (simulated)</SheetTitle>
+   995→            <SheetDescription>Simulated playback controls for the prototype UI.</SheetDescription>
+   996→          </SheetHeader>
+   997→          {currentTrack !== null && (
+   998→            <div className="flex h-full flex-col items-center gap-4 overflow-y-auto p-4 pt-2">
+   999→              <div className="flex w-full max-w-sm flex-col items-center gap-4 text-center">
+  1000→                <Artwork track={currentTrack} className="h-44 w-44 sm:h-56 sm:w-56" />
+  1001→                <div className="min-w-0">
+  1002→                  <div className="flex min-w-0 items-center gap-2">
+  1003→                    {isPlaying && (
+  1004→                      <span className="rm-eq shrink-0 text-primary" aria-hidden="true">
+  1005→                        <span /><span /><span /><span />
+  1006→                      </span>
+  1007→                    )}
+  1008→                    <p className="truncate text-lg font-semibold">{currentTrack.title}</p>
+  1009→                  </div>
+  1010→                  <p className="truncate text-sm text-muted-foreground">
+  1011→                    {currentTrack.artist}
+  1012→                    {currentTrack.album !== null ? ` · ${currentTrack.album}` : ''}
+  1013→                  </p>
+  1014→                </div>
+  1015→                <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-[10px] text-amber-300">
+  1016→                  SIMULATED PLAYBACK — no audio in the web lab
+  1017→                </Badge>
+  1018→                <div className="w-full">
+  1019→                  <Slider
+  1020→                    value={[Math.min(progressMs, totalMs)]}
+  1021→                    max={Math.max(totalMs, 1)}
+  1022→                    step={1000}
+  1023→                    onValueChange={([value]) => seekTo(value)}
+  1024→                    aria-label="Seek position (simulated)"
+  1025→                    className="rm-slider-fill"
+  1026→                  />
+  1027→                  <div className="mt-1 flex justify-between text-xs text-muted-foreground">
+  1028→                    <span>{formatDuration(progressMs)}</span>
+  1029→                    <span>{formatDuration(totalMs)}</span>
+  1030→                  </div>
+  1031→                </div>
+  1032→                <div className="flex items-center gap-3">
+  1033→                  <FavoriteButton trackId={currentTrack.id} />
+  1034→                  <Button variant="outline" size="icon" className="h-12 w-12" onClick={previous} aria-label="Previous (simulated)">
+  1035→                    <SkipBack className="h-5 w-5" aria-hidden="true" />
+  1036→                  </Button>
+  1037→                  <Button size="icon" className="h-14 w-14" onClick={togglePlay} aria-label={isPlaying ? 'Pause (simulated)' : 'Play (simulated)'}>
+  1038→                    {isPlaying ? <Pause className="h-6 w-6" aria-hidden="true" /> : <Play className="h-6 w-6" aria-hidden="true" />}
+  1039→                  </Button>
+  1040→                  <Button variant="outline" size="icon" className="h-12 w-12" onClick={next} aria-label="Next (simulated)">
+  1041→                    <SkipForward className="h-5 w-5" aria-hidden="true" />
+  1042→                  </Button>
+  1043→                  <Button
+  1044→                    variant={repeatMode === 'off' ? 'outline' : 'default'}
+  1045→                    size="icon"
+  1046→                    className={`h-12 w-12 ${repeatMode === 'off' ? '' : 'text-primary-foreground'}`}
+  1047→                    onClick={cycleRepeatMode}
+  1048→                    aria-pressed={repeatMode !== 'off'}
+  1049→                    aria-label={`Repeat mode (simulated): ${repeatModeLabel(repeatMode)}`}
+  1050→                    title={`Repeat (simulated) — ${repeatModeLabel(repeatMode)}. Click to cycle off → all → one.`}
+  1051→                  >
+  1052→                    {repeatMode === 'one' ? (
+  1053→                      <Repeat1 className="h-5 w-5" aria-hidden="true" />
+  1054→                    ) : (
+  1055→                      <Repeat className={`h-5 w-5 ${repeatMode === 'off' ? 'text-muted-foreground' : ''}`} aria-hidden="true" />
+  1056→                    )}
+  1057→                  </Button>
+  1058→                </div>
+  1059→                <Badge
+  1060→                  variant="outline"
+  1061→                  className={
+  1062→                    repeatMode === 'off'
+  1063→                      ? 'border-border text-[10px] text-muted-foreground'
+  1064→                      : 'border-primary/40 bg-primary/10 text-[10px] text-primary'
+  1065→                  }
+  1066→                >
+  1067→                  {repeatModeLabel(repeatMode)} (simulated)
+  1068→                </Badge>
+  1069→                <div className="text-xs text-muted-foreground">
+  1070→                  <p className="font-mono">{currentTrack.id}</p>
+  1071→                  <p>plays (simulated): {playCounts[currentTrack.id] ?? 0}</p>
+  1072→                </div>
+  1073→
+  1074→                {demoLyrics !== null && demoLyrics.lines.length > 0 && (
+  1075→                  <div className="w-full max-w-sm">
+  1076→                    <div className="mb-1.5 flex items-center justify-between gap-2">
+  1077→                      <p className="text-xs font-medium text-foreground/80">Lyrics</p>
+  1078→                      <Button
+  1079→                        variant="ghost"
+  1080→                        size="sm"
+  1081→                        className="h-7 px-2 text-[11px] text-muted-foreground"
+  1082→                        onClick={() => setLyricsOpen((open) => !open)}
+  1083→                        aria-expanded={lyricsOpen}
+  1084→                        aria-label={lyricsOpen ? 'Hide demo lyrics' : 'Show demo lyrics'}
+  1085→                      >
+  1086→                        {lyricsOpen ? 'Hide' : 'Show'}
+  1087→                      </Button>
+  1088→                    </div>
+  1089→                    {lyricsOpen && (
+  1090→                      <>
+  1091→                        <div
+  1092→                          ref={lyricsListRef}
+  1093→                          className="rm-scroll max-h-44 overflow-y-auto rounded-md border border-border bg-background/40 p-2"
+  1094→                          aria-label="Synced demo lyrics"
+  1095→                        >
+  1096→                          <ol className="space-y-1">
+  1097→                            {demoLyrics.lines.map((line, index) => (
+  1098→                              <li
+  1099→                                key={`${line.timeMs}-${index}`}
+  1100→                                data-lyric-idx={index}
+  1101→                                className={`rounded px-2 py-1 text-xs transition-colors ${
+  1102→                                  demoLyrics.synced && index === lyricActiveIdx
+  1103→                                    ? 'bg-primary/15 font-medium text-primary'
+  1104→                                    : 'text-muted-foreground'
+  1105→                                }`}
+  1106→                              >
+  1107→                                {line.text}
+  1108→                              </li>
+  1109→                            ))}
+  1110→                          </ol>
+  1111→                        </div>
+  1112→                        <p className="mt-1 text-[10px] leading-snug text-muted-foreground">
+  1113→                          Demo lyrics — SYNTHETIC fixture (fixtures/lrc/demo_synced.lrc). Fixtures carry no real lyric
+  1114→                          sources; highlighting follows the simulated clock.
+  1115→                        </p>
+  1116→                      </>
+  1117→                    )}
+  1118→                  </div>
+  1119→                )}
+  1120→                <Button
+  1121→                  variant="outline"
+  1122→                  className="gap-2"
+  1123→                  onClick={() => {
+  1124→                    setNowPlayingOpen(false);
+  1125→                    setView('queue');
+  1126→                  }}
+  1127→                >
+  1128→                  <ListMusic className="h-4 w-4" aria-hidden="true" />
+  1129→                  Open queue ({queue.length})
+  1130→                </Button>
+  1131→              </div>
+  1132→            </div>
+  1133→          )}
+  1134→        </SheetContent>
+  1135→      </Sheet>
+  1136→
+  1137→      {/* Track detail dialog */}
+  1138→      <Dialog open={detailTrack !== null} onOpenChange={(open) => !open && setDetailTrack(null)}>
+  1139→        <DialogContent className="max-w-sm">
+  1140→          {detailTrack !== null && (
+  1141→            <>
+  1142→              <DialogHeader>
+  1143→                <DialogTitle className="text-left">Track details</DialogTitle>
+  1144→                <DialogDescription className="text-left">
+  1145→                  Metadata straight from the shared fixture pipeline.
+  1146→                </DialogDescription>
+  1147→              </DialogHeader>
+  1148→              <div className="flex flex-col items-center gap-3 pb-2 text-center">
+  1149→                <Artwork track={detailTrack} className="h-28 w-28" />
+  1150→                <div className="min-w-0">
+  1151→                  <p className="truncate text-base font-semibold">{detailTrack.title}</p>
+  1152→                  <p className="truncate text-sm text-muted-foreground">{detailTrack.artist}</p>
+  1153→                  {detailTrack.album !== null && <p className="truncate text-xs text-muted-foreground">{detailTrack.album}</p>}
+  1154→                </div>
+  1155→                <div className="w-full space-y-1 rounded-md border border-border bg-background/40 p-3 text-left text-xs">
+  1156→                  <p className="flex justify-between gap-3">
+  1157→                    <span className="text-muted-foreground">id</span>
+  1158→                    <span className="break-all font-mono">{detailTrack.id}</span>
+  1159→                  </p>
+  1160→                  <p className="flex justify-between">
+  1161→                    <span className="text-muted-foreground">source</span>
+  1162→                    <span className="font-mono">{detailTrack.sourceId}</span>
+  1163→                  </p>
+  1164→                  <p className="flex justify-between">
+  1165→                    <span className="text-muted-foreground">duration</span>
+  1166→                    <span>{detailTrack.durationMs > 0 ? formatDuration(detailTrack.durationMs) : '— (flat layout)'}</span>
+  1167→                  </p>
+  1168→                  <p className="flex justify-between">
+  1169→                    <span className="text-muted-foreground">plays (simulated)</span>
+  1170→                    <span>{playCounts[detailTrack.id] ?? 0}</span>
+  1171→                  </p>
+  1172→                </div>
+  1173→                <div className="flex w-full gap-2">
+  1174→                  <Button
+  1175→                    className="flex-1 gap-2"
+  1176→                    onClick={() => {
+  1177→                      useLabStore.getState().playTrack(detailTrack.id);
+  1178→                      setNowPlayingOpen(true);
+  1179→                      setDetailTrack(null);
+  1180→                    }}
+  1181→                  >
+  1182→                    <Play className="h-4 w-4" aria-hidden="true" />
+  1183→                    Play (simulated)
+  1184→                  </Button>
+  1185→                  <Button
+  1186→                    variant="outline"
+  1187→                    className="flex-1 gap-2"
+  1188→                    onClick={() => {
+  1189→                      useLabStore.getState().addToQueue(detailTrack.id);
+  1190→                      setDetailTrack(null);
+  1191→                    }}
+  1192→                  >
+  1193→                    <Plus className="h-4 w-4" aria-hidden="true" />
+  1194→                    Queue
+  1195→                  </Button>
+  1196→                </div>
+  1197→                <Button
+  1198→                  variant="ghost"
+  1199→                  size="sm"
+  1200→                  className="gap-1.5 text-xs text-muted-foreground"
+  1201→                  onClick={() => void copyTrackInfo(detailTrack)}
+  1202→                  aria-label={`Copy metadata of ${detailTrack.title} to clipboard`}
+  1203→                >
+  1204→                  {copiedInfo === 'copied' && (
+  1205→                    <>
+  1206→                      <Check aria-hidden="true" /> Copied to clipboard ✓
+  1207→                    </>
+  1208→                  )}
+  1209→                  {copiedInfo === 'blocked' && (
+  1210→                    <>
+  1211→                      <AlertTriangle className="h-3.5 w-3.5" aria-hidden="true" /> Clipboard blocked by the browser
+  1212→                    </>
+  1213→                  )}
+  1214→                  {copiedInfo === 'idle' && (
+  1215→                    <>
+  1216→                      <Copy className="h-3.5 w-3.5" aria-hidden="true" /> Copy track info
+  1217→                    </>
+  1218→                  )}
+  1219→                </Button>
+  1220→              </div>
+  1221→            </>
+  1222→          )}
+  1223→        </DialogContent>
+  1224→      </Dialog>
+  1225→    </div>
+  1226→  );
+  1227→}
+  1228→
