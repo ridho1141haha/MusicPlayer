@@ -14,33 +14,14 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * YouTube Music provider.
- *
- * <p><b>Search:</b> catalog search (songs, videos, albums, artists) through the
- * same unauthenticated JSON API the YouTube Music web player uses — mature and
- * stable.</p>
- *
- * <p><b>Stream playback (FOCUS-YTM-2, user-approved design change):</b> playback
- * uses the user's OWN signed-in session. The user logs into music.youtube.com in
- * an official WebView (password never seen by this app); the captured session is
- * stored encrypted (AndroidKeyStore) and replayed with the {@code Cookie} +
- * {@code SAPISIDHASH} headers the official web player itself sends. This is
- * authentication, not circumvention: no signature deciphering, no po-token
- * forging, no credential automation, no extraction/download — only what the
- * user's own account is served, streamed (never downloaded) via Media3.</p>
- *
- * <p><b>Measured reality (probe 2026-10-13, tool-results/ytm-diag/):</b> every
- * UNAUTHENTICATED public InnerTube client is gated server-side —
- * ANDROID_MUSIC/WEB → LOGIN_REQUIRED, TVHTML5 embed → "no longer supported".
- * Signed-out remote playback therefore fails with a typed
- * CONFIGURATION_REQUIRED error pointing at Settings sign-in. With a session,
- * the {@code player} endpoint returns plain {@code url} fields — the extractor
- * below still never touches {@code signatureCipher}.</p>
- *
- * <p><b>Honest limits:</b> some videos may still refuse playback even when
- * signed in (age/region/attestation) — surfaced as typed UNAVAILABLE, never
- * worked around. Personal use; third-party ToS risk is disclosed in the
- * sign-in dialog and README.</p>
+ * YouTube Music provider with multi-client stream resolution fallback:
+ * <ol>
+ *   <li><b>IOS (20.10.4)</b> and <b>ANDROID_VR (1.61.48)</b> native clients —
+ *       return direct, un-ciphered MP4/Opus audio URLs ({@code itag 140} / {@code 251})
+ *       without requiring JS {@code signatureCipher} deciphering.</li>
+ *   <li><b>Authenticated ANDROID_VR & WEB_REMIX</b> (with fixed canonical {@code SAPISIDHASH}) —
+ *       used as fallback when signed in.</li>
+ * </ol>
  */
 public class YouTubeMusicSource implements MusicSource {
 
@@ -49,7 +30,6 @@ public class YouTubeMusicSource implements MusicSource {
         @Nullable String cookieHeader();
     }
 
-    // Filter params documented in public InnerTube references; may stop working anytime.
     static final String PARAM_SONGS = "EgWKAQIIAWoKEAkQBRAKEAMQBA%3D%3D";
     static final String PARAM_VIDEOS = "EgWKAQIQAWoKEAkQChAFEAMQBA%3D%3D";
 
@@ -129,18 +109,62 @@ public class YouTubeMusicSource implements MusicSource {
             throw new SourceException(SourceException.Kind.CONFIGURATION_REQUIRED,
                     "Sign in to YouTube Music in Settings → Music sources to enable playback.");
         }
+
+        SourceException lastError = null;
+
+        // 1. Try IOS 20.10.4 client first (returns direct itag=140 MP4 audio URLs,
+        //    avoiding WEB_REMIX "Video unavailable" and signatureCipher-only responses).
+        try {
+            JSONObject iosResponse = client.postPlayerIos(videoId);
+            String url = extractStreamUrl(iosResponse);
+            lastDiagnostic = null;
+            return url;
+        } catch (SourceException e) {
+            lastError = e;
+        } catch (Exception ignored) {
+        }
+
+        // 2. Try ANDROID_VR (1.61.48) without cookies (returns direct itag=140/251 audio streams).
+        try {
+            JSONObject vrResponse = client.postPlayerAndroidVr(videoId, null);
+            String url = extractStreamUrl(vrResponse);
+            lastDiagnostic = null;
+            return url;
+        } catch (SourceException e) {
+            lastError = e;
+        } catch (Exception ignored) {
+        }
+
+        // 3. Try ANDROID_VR with user's authenticated session cookies + fixed SAPISIDHASH.
+        try {
+            JSONObject vrAuthResponse = client.postPlayerAndroidVr(videoId, cookie);
+            String url = extractStreamUrl(vrAuthResponse);
+            lastDiagnostic = null;
+            return url;
+        } catch (SourceException e) {
+            lastError = e;
+        } catch (Exception ignored) {
+        }
+
+        // 4. Fallback to authenticated WEB_REMIX with fixed canonical SAPISIDHASH.
         try {
             JSONObject body = new JSONObject()
                     .put("videoId", videoId)
                     .put("contentCheckOk", true)
                     .put("racyCheckOk", true);
-            // Authenticated web-session request — same as the official web player.
-            JSONObject response = client.post("player", body, cookie);
-            return extractStreamUrl(response);
+            JSONObject webResponse = client.post("player", body, cookie);
+            String url = extractStreamUrl(webResponse);
+            lastDiagnostic = null;
+            return url;
         } catch (SourceException e) {
+            lastError = e;
             lastDiagnostic = e.getMessage();
             throw e;
         } catch (Exception e) {
+            if (lastError != null) {
+                lastDiagnostic = lastError.getMessage();
+                throw lastError;
+            }
             lastDiagnostic = "Stream resolution failed";
             throw new SourceException(SourceException.Kind.NETWORK,
                     "Could not contact the stream resolver.", e);
@@ -149,7 +173,6 @@ public class YouTubeMusicSource implements MusicSource {
 
     @Override
     public boolean supportsStreamResolution() {
-        // Best-effort only — the README explains why this may legitimately fail.
         return true;
     }
 
@@ -182,40 +205,54 @@ public class YouTubeMusicSource implements MusicSource {
         }
 
         JSONObject streamingData = response.optJSONObject("streamingData");
-        JSONArray formats = streamingData == null
-                ? null
-                : streamingData.optJSONArray("adaptiveFormats");
-        if (formats == null) {
+        if (streamingData == null) {
             throw new SourceException(SourceException.Kind.UNAVAILABLE,
                     "No stream data returned. YouTube's anti-bot measures likely block "
                             + "unauthenticated clients (see README).");
         }
 
+        String bestUrl = pickBestAudioUrl(streamingData.optJSONArray("adaptiveFormats"));
+        if (bestUrl != null) return bestUrl;
+
+        bestUrl = pickBestAudioUrl(streamingData.optJSONArray("formats"));
+        if (bestUrl != null) return bestUrl;
+
+        if (streamingData.optJSONArray("adaptiveFormats") == null
+                && streamingData.optJSONArray("formats") == null) {
+            throw new SourceException(SourceException.Kind.UNAVAILABLE,
+                    "No stream data returned. YouTube's anti-bot measures likely block "
+                            + "unauthenticated clients (see README).");
+        }
+
+        throw new SourceException(SourceException.Kind.UNAVAILABLE,
+                "Audio streams require signature deciphering, which Ridho Music "
+                        + "does not implement (see README for alternatives).");
+    }
+
+    @Nullable
+    private static String pickBestAudioUrl(@Nullable JSONArray formats) {
+        if (formats == null) return null;
         String bestUrl = null;
         long bestBitrate = -1L;
         for (int i = 0; i < formats.length(); i++) {
             JSONObject f = formats.optJSONObject(i);
             if (f == null) continue;
             String mime = f.optString("mimeType", "");
-            if (!mime.startsWith("audio/")) continue;
-            // Only formats with a direct, un-ciphered URL are usable. If a format ships
-            // a signatureCipher we deliberately do NOT decipher it.
+            if (!mime.startsWith("audio/") && !mime.startsWith("video/mp4")) continue;
+            boolean isAudioOnly = mime.startsWith("audio/");
             String url = f.optString("url", "");
             String cipher = f.optString("signatureCipher", "");
             if (url.isEmpty() || !cipher.isEmpty()) continue;
             if (!url.startsWith("https://")) continue;
-            String itag = f.optString("itag", "");
+            String itag = String.valueOf(f.opt("itag"));
             long bitrate = f.optLong("bitrate", 0L);
             if (PREFERRED_ITAG.equals(itag)) return url;
-            if (bitrate > bestBitrate) {
+            if (isAudioOnly && bitrate > bestBitrate) {
                 bestBitrate = bitrate;
                 bestUrl = url;
+            } else if (bestUrl == null) {
+                bestUrl = url;
             }
-        }
-        if (bestUrl == null) {
-            throw new SourceException(SourceException.Kind.UNAVAILABLE,
-                    "Audio streams require signature deciphering, which Ridho Music "
-                            + "does not implement (see README for alternatives).");
         }
         return bestUrl;
     }

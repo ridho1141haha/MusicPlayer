@@ -6,65 +6,85 @@ import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 
 /**
- * FOCUS-YTM-2 — Builds the {@code Authorization: SAPISIDHASH} header that the
- * official YouTube Music web player sends alongside its session cookies on
- * authenticated InnerTube calls. This is the documented web-auth scheme used by
- * every signed-in browser request — the user's own login session authorizes the
- * call; nothing is bypassed, forged or extracted.
+ * Builds the {@code Authorization: SAPISIDHASH} header that the official
+ * YouTube Music web player sends alongside its session cookies on authenticated
+ * InnerTube calls.
  *
- * <p>Header form: {@code SAPISIDHASH <unixMs>_<sha1("<unixMs>_<path>_<SAPISID>")>}</p>
+ * <p>Google web-auth header specification:
+ * {@code SAPISIDHASH <unixSec>_<sha1("<unixSec> <SAPISID> <origin>")>}
+ * (plus {@code SAPISID1PHASH} and {@code SAPISID3PHASH} for 1P/3P cookies).</p>
  */
 public final class SapisidHash {
+
+    public static final String DEFAULT_ORIGIN = "https://music.youtube.com";
 
     private SapisidHash() {
     }
 
     /**
-     * Builds the Authorization header value, or null when no SAPISID cookie is
-     * available (e.g. signed out or a malformed session — callers then fall back
-     * to an unauthenticated request or a typed error).
+     * Builds the Authorization header value using the canonical origin
+     * ({@code https://music.youtube.com}), or null when no SAPISID cookie is available.
+     *
+     * @param sapisid   SAPISID or __Secure-3PAPISID cookie value
+     * @param timestamp Unix timestamp in seconds (or milliseconds, auto-normalized to seconds)
+     * @param origin    Origin URL (defaults to {@code https://music.youtube.com} if a path is passed)
      */
     @Nullable
-    public static String authorizationHeader(String sapisid, long unixMs, String requestPath) {
-        if (sapisid == null || sapisid.isEmpty() || requestPath == null || requestPath.isEmpty()) {
+    public static String authorizationHeader(String sapisid, long timestamp, String origin) {
+        if (sapisid == null || sapisid.isEmpty() || origin == null || origin.isEmpty()) {
             return null;
         }
-        String payload = unixMs + "_" + requestPath + "_" + sapisid;
+        // Normalize milliseconds to seconds if caller passed System.currentTimeMillis()
+        long unixSec = timestamp > 100_000_000_000L ? timestamp / 1000L : timestamp;
+        String effectiveOrigin = origin.startsWith("http") ? origin : DEFAULT_ORIGIN;
+
+        // Canonical Google SAPISIDHASH payload: "<unixSec> <sapisid> <origin>"
+        String payload = unixSec + " " + sapisid + " " + effectiveOrigin;
         String digest = sha1Hex(payload);
         if (digest == null) return null;
-        return "SAPISIDHASH " + unixMs + "_" + digest;
+        String token = unixSec + "_" + digest;
+        return "SAPISIDHASH " + token
+                + " SAPISID1PHASH " + token
+                + " SAPISID3PHASH " + token;
     }
 
     /**
-     * Extracts the SAPISID cookie value from a raw {@code Cookie} header string,
-     * or null when absent. Pure so the parsing rules are unit-testable.
+     * Extracts the SAPISID (or __Secure-3PAPISID / __Secure-1PAPISID fallback)
+     * cookie value from a raw {@code Cookie} header string, or null when absent.
      */
     @Nullable
     public static String extractSapisid(@Nullable String cookieHeader) {
         if (cookieHeader == null || cookieHeader.isEmpty()) return null;
-        for (String part : cookieHeader.split(";")) {
-            String kv = part.trim();
-            if (kv.startsWith("SAPISID=")) {
-                String value = kv.substring("SAPISID=".length()).trim();
-                return value.isEmpty() ? null : value;
-            }
-        }
-        return null;
+        String primary = extractCookieValue(cookieHeader, "SAPISID");
+        if (primary != null) return primary;
+        String secure3p = extractCookieValue(cookieHeader, "__Secure-3PAPISID");
+        if (secure3p != null) return secure3p;
+        return extractCookieValue(cookieHeader, "__Secure-1PAPISID");
     }
 
     /** True when the header carries the minimum cookies an authenticated session needs. */
     public static boolean looksAuthenticated(@Nullable String cookieHeader) {
         return extractSapisid(cookieHeader) != null
                 && cookieHeader != null
-                && containsCookie(cookieHeader, "__Secure-1PSID");
+                && (containsCookie(cookieHeader, "__Secure-1PSID")
+                    || containsCookie(cookieHeader, "__Secure-3PSID"));
+    }
+
+    @Nullable
+    private static String extractCookieValue(String header, String name) {
+        String prefix = name + "=";
+        for (String part : header.split(";")) {
+            String kv = part.trim();
+            if (kv.startsWith(prefix)) {
+                String value = kv.substring(prefix.length()).trim();
+                if (!value.isEmpty()) return value;
+            }
+        }
+        return null;
     }
 
     private static boolean containsCookie(String header, String name) {
-        for (String part : header.split(";")) {
-            String kv = part.trim();
-            if (kv.startsWith(name + "=") && kv.length() > name.length() + 1) return true;
-        }
-        return false;
+        return extractCookieValue(header, name) != null;
     }
 
     @Nullable

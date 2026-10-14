@@ -16,7 +16,12 @@ import androidx.media3.common.MediaItem;
 import androidx.media3.common.PlaybackException;
 import androidx.media3.common.Player;
 import androidx.media3.common.util.UnstableApi;
+import androidx.media3.datasource.DataSpec;
+import androidx.media3.datasource.DefaultDataSource;
+import androidx.media3.datasource.DefaultHttpDataSource;
+import androidx.media3.datasource.ResolvingDataSource;
 import androidx.media3.exoplayer.ExoPlayer;
+import androidx.media3.exoplayer.source.DefaultMediaSourceFactory;
 import androidx.media3.session.DefaultMediaNotificationProvider;
 import androidx.media3.session.MediaSession;
 import androidx.media3.session.MediaSessionService;
@@ -110,7 +115,32 @@ public class PlaybackService extends MediaSessionService {
         settings = App.locator().settings();
         io = Executors.newSingleThreadExecutor();
 
+        DefaultHttpDataSource.Factory httpFactory = new DefaultHttpDataSource.Factory()
+                .setUserAgent(com.ridho.music.source.yt.InnertubeClient.UA_ANDROID_VR)
+                .setAllowCrossProtocolRedirects(true)
+                .setConnectTimeoutMs(10_000)
+                .setReadTimeoutMs(15_000);
+        DefaultDataSource.Factory baseDataSourceFactory =
+                new DefaultDataSource.Factory(this, httpFactory);
+        ResolvingDataSource.Factory resolvingFactory = new ResolvingDataSource.Factory(
+                baseDataSourceFactory,
+                (DataSpec dataSpec) -> {
+                    String uriStr = dataSpec.uri.toString();
+                    if (uriStr.contains("googlevideo.com")) {
+                        String ua = uriStr.contains("c=IOS")
+                                ? com.ridho.music.source.yt.InnertubeClient.UA_IOS
+                                : com.ridho.music.source.yt.InnertubeClient.UA_ANDROID_VR;
+                        java.util.Map<String, String> headers =
+                                new java.util.HashMap<>(dataSpec.httpRequestHeaders);
+                        headers.put("User-Agent", ua);
+                        return dataSpec.withRequestHeaders(headers);
+                    }
+                    return dataSpec;
+                });
+
         player = new ExoPlayer.Builder(this)
+                .setMediaSourceFactory(new DefaultMediaSourceFactory(this)
+                        .setDataSourceFactory(resolvingFactory))
                 // Audio focus + ducking handled by Media3: pauses on transient loss,
                 // ducks during notifications, resumes afterwards.
                 .setAudioAttributes(
