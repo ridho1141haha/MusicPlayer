@@ -1,0 +1,3 @@
+## 2026-10-12 - [O(N^2) Lookup in Array Rendering]
+**Learning:** Found an O(N^2) performance bottleneck in prototype-tab.tsx where catalog.find() was used inside loops and useMemo hooks (like `favoriteTracks`, `topTracks`, and `queue.map`). Because the array gets iterated over and over during frequent renders (e.g. dragging items in the queue), this can become very slow for large catalogs.
+**Action:** Created a `catalogById` Map initialized in a `useMemo` block. This reduces the lookups from O(N) array scans to O(1) map lookups, shifting the overall time complexity of those rendering steps from O(N^2) to O(N), ensuring rendering remains snappy even with larger datasets.

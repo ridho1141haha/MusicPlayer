@@ -519,9 +519,17 @@ export function PrototypeTab() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  const catalogById = useMemo(() => {
+    const map = new Map<string, LabTrack>();
+    for (const track of catalog) {
+      map.set(track.id, track);
+    }
+    return map;
+  }, [catalog]);
+
   const currentTrack = useMemo(
-    () => catalog.find((t) => t.id === currentTrackId) ?? null,
-    [catalog, currentTrackId],
+    () => (currentTrackId !== null ? catalogById.get(currentTrackId) ?? null : null),
+    [catalogById, currentTrackId],
   );
   const totalMs = effectiveDuration(currentTrack ?? undefined);
 
@@ -536,7 +544,11 @@ export function PrototypeTab() {
     );
   }, [catalog, query]);
 
-  const favoriteTracks = useMemo(() => catalog.filter((t) => favorites.includes(t.id)), [catalog, favorites]);
+  const favoriteTracks = useMemo(() => {
+    return favorites
+      .map((id) => catalogById.get(id))
+      .filter((t): t is LabTrack => t !== undefined);
+  }, [catalogById, favorites]);
 
   const lyricActiveIdx = useMemo(() => {
     if (demoLyrics === null || !demoLyrics.synced) return -1;
@@ -569,10 +581,10 @@ export function PrototypeTab() {
 
   const topTracks = useMemo(() => {
     return Object.entries(playCounts)
-      .map(([id, count]) => ({ track: catalog.find((t) => t.id === id), count }))
+      .map(([id, count]) => ({ track: catalogById.get(id), count }))
       .filter((entry): entry is { track: LabTrack; count: number } => entry.track !== undefined)
       .sort((a, b) => b.count - a.count);
-  }, [catalog, playCounts]);
+  }, [catalogById, playCounts]);
 
   // WEBLAB-12 mini-player chip — "3/6" when the current track is queued, else hidden.
   const queuePos = useMemo(() => queuePositionLabel(queue, currentTrackId), [queue, currentTrackId]);
@@ -822,7 +834,7 @@ export function PrototypeTab() {
                                 key={trackId}
                                 trackId={trackId}
                                 position={index}
-                                track={catalog.find((t) => t.id === trackId)}
+                                track={catalogById.get(trackId)}
                                 onRemove={removeFromQueue}
                               />
                             ))}
