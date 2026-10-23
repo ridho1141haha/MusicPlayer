@@ -1,0 +1,3 @@
+## 2023-10-27 - React.memo Pitfall with Global Contexts
+**Learning:** Wrapping a component in `React.memo` is completely ineffective if the parent passes down state objects (like Sets or objects) that are recreated on every render (e.g., `expanded` or `selected` states tied to root component state). Shallow comparison fails, resulting in comparison overhead with zero render skips.
+**Action:** When optimizing recursive tree structures, prefer passing down derived primitive boolean props (like `isOpen` or `isSelected`) or extracting the local state out entirely rather than memoizing the node that receives the large data structures.
