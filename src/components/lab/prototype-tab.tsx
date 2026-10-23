@@ -536,7 +536,11 @@ export function PrototypeTab() {
     );
   }, [catalog, query]);
 
-  const favoriteTracks = useMemo(() => catalog.filter((t) => favorites.includes(t.id)), [catalog, favorites]);
+  const favoriteTracks = useMemo(() => {
+    // ⚡ Bolt Optimization: Use a Set to convert O(N*M) lookup to O(N) lookup
+    const favoritesSet = new Set(favorites);
+    return catalog.filter((t) => favoritesSet.has(t.id));
+  }, [catalog, favorites]);
 
   const lyricActiveIdx = useMemo(() => {
     if (demoLyrics === null || !demoLyrics.synced) return -1;
