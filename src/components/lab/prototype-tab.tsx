@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { memo, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   DndContext,
   KeyboardSensor,
@@ -91,7 +91,8 @@ type View = 'search' | 'queue' | 'top' | 'favorites';
 const SIMULATION_BANNER =
   'UI simulation — playback here is a timer, not audio. The Android app streams via Media3; YouTube Music playback is currently blocked (LOGIN_REQUIRED, verified 2026-10-11).';
 
-function Artwork({ track, className = '' }: { track: LabTrack; className?: string }) {
+/** ⚡ Bolt Performance Optimization: Wrapped list item components in memo() to prevent unnecessary re-renders when the parent store updates */
+const Artwork = memo(function Artwork({ track, className = '' }: { track: LabTrack; className?: string }) {
   if (track.artworkUrl !== null) {
     return (
       <img
@@ -108,9 +109,9 @@ function Artwork({ track, className = '' }: { track: LabTrack; className?: strin
       <Music className="h-1/2 w-1/2 text-muted-foreground" />
     </div>
   );
-}
+});
 
-function FavoriteButton({ trackId, className = '' }: { trackId: string; className?: string }) {
+const FavoriteButton = memo(function FavoriteButton({ trackId, className = '' }: { trackId: string; className?: string }) {
   const isFavorite = useLabStore((s) => s.favorites.includes(trackId));
   const toggleFavorite = useLabStore((s) => s.toggleFavorite);
   return (
@@ -125,9 +126,9 @@ function FavoriteButton({ trackId, className = '' }: { trackId: string; classNam
       <Heart className={`h-4 w-4 ${isFavorite ? 'fill-current' : ''}`} aria-hidden="true" />
     </Button>
   );
-}
+});
 
-function QueueMenu({ track }: { track: LabTrack }) {
+const QueueMenu = memo(function QueueMenu({ track }: { track: LabTrack }) {
   const addToQueue = useLabStore((s) => s.addToQueue);
   const playNextInQueue = useLabStore((s) => s.playNextInQueue);
   const inQueue = useLabStore((s) => s.queue.includes(track.id));
@@ -156,7 +157,7 @@ function QueueMenu({ track }: { track: LabTrack }) {
       </Button>
     </div>
   );
-}
+});
 
 function Check({ 'aria-hidden': ariaHidden }: { 'aria-hidden'?: boolean | 'true' | 'false' }) {
   return (
@@ -166,7 +167,7 @@ function Check({ 'aria-hidden': ariaHidden }: { 'aria-hidden'?: boolean | 'true'
   );
 }
 
-function TrackRow({
+const TrackRow = memo(function TrackRow({
   track,
   index,
   onOpenDetail,
@@ -227,9 +228,9 @@ function TrackRow({
       </div>
     </li>
   );
-}
+});
 
-function SortableQueueRow({
+const SortableQueueRow = memo(function SortableQueueRow({
   trackId,
   position,
   track,
@@ -405,7 +406,7 @@ function SortableQueueRow({
       </Button>
     </li>
   );
-}
+});
 
 /** Animated horizontal play-count chart — WEB-LAB-8. Bars reflect the simulated, browser-local play counter. */
 function TopTracksChart({
