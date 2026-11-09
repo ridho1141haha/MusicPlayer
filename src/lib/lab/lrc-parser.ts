@@ -86,11 +86,23 @@ export function parse(raw: string | null): LrcLyrics {
 
 /** Finds the active line index for a position, or -1 before the first line. */
 export function activeLineIndex(lines: LrcLine[], positionMs: number): number {
+  // PERFORMANCE OPTIMIZATION:
+  // Using binary search O(log n) instead of linear search O(n) since lines are sorted by timeMs.
+  // This function is called frequently (in a setInterval loop) during simulated playback.
+  let low = 0;
+  let high = lines.length - 1;
   let active = -1;
-  for (let i = 0; i < lines.length; i++) {
-    if (lines[i].timeMs <= positionMs) active = i;
-    else break;
+
+  while (low <= high) {
+    const mid = (low + high) >>> 1;
+    if (lines[mid].timeMs <= positionMs) {
+      active = mid;
+      low = mid + 1;
+    } else {
+      high = mid - 1;
+    }
   }
+
   return active;
 }
 
