@@ -519,9 +519,11 @@ export function PrototypeTab() {
     useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
   );
 
+  const catalogMap = useMemo(() => new Map(catalog.map((t) => [t.id, t])), [catalog]);
+
   const currentTrack = useMemo(
-    () => catalog.find((t) => t.id === currentTrackId) ?? null,
-    [catalog, currentTrackId],
+    () => (currentTrackId ? catalogMap.get(currentTrackId) ?? null : null),
+    [catalogMap, currentTrackId],
   );
   const totalMs = effectiveDuration(currentTrack ?? undefined);
 
@@ -536,7 +538,10 @@ export function PrototypeTab() {
     );
   }, [catalog, query]);
 
-  const favoriteTracks = useMemo(() => catalog.filter((t) => favorites.includes(t.id)), [catalog, favorites]);
+  const favoriteTracks = useMemo(() => {
+    const favoritesSet = new Set(favorites);
+    return catalog.filter((t) => favoritesSet.has(t.id));
+  }, [catalog, favorites]);
 
   const lyricActiveIdx = useMemo(() => {
     if (demoLyrics === null || !demoLyrics.synced) return -1;
@@ -569,10 +574,10 @@ export function PrototypeTab() {
 
   const topTracks = useMemo(() => {
     return Object.entries(playCounts)
-      .map(([id, count]) => ({ track: catalog.find((t) => t.id === id), count }))
+      .map(([id, count]) => ({ track: catalogMap.get(id), count }))
       .filter((entry): entry is { track: LabTrack; count: number } => entry.track !== undefined)
       .sort((a, b) => b.count - a.count);
-  }, [catalog, playCounts]);
+  }, [catalogMap, playCounts]);
 
   // WEBLAB-12 mini-player chip — "3/6" when the current track is queued, else hidden.
   const queuePos = useMemo(() => queuePositionLabel(queue, currentTrackId), [queue, currentTrackId]);
@@ -822,7 +827,7 @@ export function PrototypeTab() {
                                 key={trackId}
                                 trackId={trackId}
                                 position={index}
-                                track={catalog.find((t) => t.id === trackId)}
+                                track={catalogMap.get(trackId)}
                                 onRemove={removeFromQueue}
                               />
                             ))}
